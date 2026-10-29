@@ -199,6 +199,7 @@ export async function yetkiApi({ req, res, url, o, json, govde, denetle }) {
   const r = db.prepare('SELECT * FROM roller WHERE id = ?').get(Number(b.rolId));
   if (!r) return hata(404, 'Rol bulunamadı');
   if (r.sistem && ['kurum-yonetimi', 'mudur', 'mudur_yrd'].includes(r.kod)) return hata(400, 'Bu rol Okul kurulumu ekranından verilir');
+  if (r.kod === 'zumre') return hata(400, 'Zümre başkanlığı kişinin dosyasından, branşıyla birlikte verilir');
   const kisi = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(b.userId));
   if (!kisi) return hata(404, 'Kullanıcı bulunamadı');
   if (!b.ver) {

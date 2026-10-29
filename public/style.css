@@ -3069,3 +3069,59 @@ main .kad-ad input { flex: 1; min-width: 0; }
 main .pf-ad { display: flex; gap: 10px; margin: 0 0 12px; }
 main .pf-ad input { flex: 1; min-width: 0; }
 main .pf-ad button { margin: 0; flex: none; }
+
+/* Avatarlar her boyutta daire kalır (main .kucuk düğme kuralı onları köşeli yapmasın) */
+main .ogr-avatar, main .ogr-avatar.kucuk, main .ogr-avatar.orta, main .ogr-avatar.buyuk { border-radius: 50% !important; }
+
+/* Kişiler: personel listesi ve kişi dosyası */
+main a.kz-satir { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 12px; }
+main a.kz-satir:hover strong { color: var(--ana); }
+main a.kz-satir.pasif { opacity: .62; }
+main .kz-kontrol:empty { display: none; }
+main .kz-gorev { margin-top: 14px; }
+main .kz-secim { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 0; font-size: .9rem; cursor: pointer; }
+main .kz-secim input { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; }
+main .kz-alt { margin: 6px 0 4px 28px; padding-left: 14px; border-left: 2px solid var(--ince); }
+main .kz-alt .form-satir { margin: 0; }
+main .kz-baslik { display: flex; align-items: center; gap: 18px; margin: 4px 0 8px; }
+main .kz-ad { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+main .kz-ad h2 { margin: 0; font-size: 1.3rem; }
+main .kz-durum { padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--ana) 14%, #fff); color: var(--ana); font-size: .74rem; font-weight: 600; }
+main .kz-durum.pasif { background: var(--ic-zemin); color: var(--soluk); }
+main .kz-bolum { padding-top: 14px; border-top: 1px solid var(--ince); }
+main .kz-bilgi { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; font-size: .88rem; border-top: 1px solid var(--ince); }
+main .kz-bilgi:first-of-type { border-top: 0; }
+main .kz-bilgi span { color: var(--soluk); }
+main .kz-bilgi b { font-weight: 500; text-align: right; }
+main .kz-ders { margin: 4px 0 8px; }
+main .kz-okul { display: block; margin: 6px 0; font-size: .82rem; color: var(--soluk); font-weight: 500; }
+main .kz-bolum .form-satir { margin: 4px 0 0; }
+main .kz-bolum select { width: 100%; }
+main a.kz-satir .kad-ok { transform: rotate(-45deg); }
+main .kz-ad h2 { text-transform: none; letter-spacing: 0; color: var(--murekkep); }
+main .kad-panel form > div.kz-gorev > label.kz-secim, main .kz-secim { display: flex; align-items: center; }
+main .kz-secim span { font-size: .9rem; color: var(--murekkep); }
+main .kz-secim { min-height: 0; height: auto; margin: 0; padding: 4px 0; }
+
+/* Avatar fotoğrafı: grid içinde daralmasın, daireyi her zaman doldursun */
+main .ogr-avatar { position: relative; }
+main .ogr-avatar > .avatar-foto { position: absolute; inset: 0; width: 100%; height: 100%; }
+main .kz-unvan { margin: 0; font-size: .92rem; color: var(--soluk); }
+main .kz-gorev-satir { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+main .kz-gorev-satir + .kz-gorev-satir { border-top: 1px solid var(--ince); }
+main .kad-cip:disabled { cursor: default; }
+main .kad-cip:disabled[aria-pressed="false"] { opacity: .5; }
+main .kad-cip:disabled[aria-pressed="true"] { color: var(--ana); opacity: .8; }
+main .kz-ogr-veli { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+main .kz-veli { display: flex; flex-direction: column; gap: 2px; }
+main .kz-veli .kad-ekle { margin-top: 6px; }
+main .kad-ekle input { flex: 1 1 200px; min-width: 0; height: 36px; padding: 0 10px; border-radius: 10px; font-size: .84rem; }
+.kz-veli .kaldirilacak { text-decoration: line-through; opacity: .55; }
+main .kz-bolum .ekle-ac { flex: none; height: 36px; padding: 0 18px; margin: 0; border: 0; border-radius: 999px; background: var(--ana); color: #fff; font-size: .85rem; font-weight: 600; box-shadow: none; cursor: pointer; }
+main .kz-bolum .ekle-ac:disabled { opacity: .6; cursor: default; }
+main .kz-bolum .kad-ekle input, main .kz-bolum .kad-ekle select { height: 36px; margin: 0; padding: 0 10px; border-radius: 10px; font-size: .84rem; }
+main .kz-bolum .kad-alt-dugmeler { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+main .kz-ders > .kad-etiket:first-child { margin-top: 12px; }
+main .kz-ders select { height: 36px; margin: 4px 0 12px; padding: 0 10px; border-radius: 10px; font-size: .88rem; }
+main .kz-ders .kad-cip { margin: 0 6px 8px 0; }
+main .kz-ders > .kad-cip { margin-bottom: 4px; }

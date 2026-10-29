@@ -3,7 +3,7 @@ const GOREV_AD = { mudur: 'Müdür', mudur_yrd: 'Müdür yardımcısı' };
 const BASLIK = { kadro: 'Yönetim', ogretmen: 'Öğretmenler', rol: 'Roller' };
 const $ = id => document.getElementById(id);
 let subeler = [], kampusler = [], kullanicilar = [], roller = [], katalog = [];
-let sekme = 'kadro';
+let sekme = 'rol';
 let duzenle = false;
 let yeniAcik = false;
 const acik = new Set(); // Düzenle modunda açık tutulan kişi ve roller
@@ -39,7 +39,7 @@ function secenekler(sel, liste, deger, etiket, bos) {
 
 const kampusAd = id => kampusler.find(k => k.id === id)?.ad || '';
 const okulEtiket = s => kampusler.length > 1 ? `${s.ad} · ${kampusAd(s.kampusId)}` : s.ad;
-const atanabilir = r => !r.okulAtar && !r.kilitli;
+const atanabilir = r => !r.okulAtar && !r.kilitli && r.kod !== 'zumre'; // zümre başkanlığı kişi dosyasından, branşla verilir
 
 function kadLink(metin, tikla, sinif = '') {
   const b = el('button', metin, 'kad-link ' + sinif);
@@ -323,7 +323,7 @@ function yeniRolFormu() {
     const r = await api('/api/yonetim/rol-kaydet', { ad: ad.value, aciklama: aciklama.value, yetkiler: [...secili] });
     if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
     yeniAcik = false;
-    await sonuc(r, 'Rol oluşturuldu. Kişilere Yönetim sekmesinde verebilirsiniz.');
+    await sonuc(r, 'Rol oluşturuldu. Kişilere Kişiler sayfasındaki kişi dosyasından verebilirsiniz.');
   });
   k.append(form);
 }
@@ -345,7 +345,6 @@ function ciz() {
   const roldeyiz = sekme === 'rol';
   $('baslik').textContent = BASLIK[sekme];
   $('arac').classList.toggle('gizli', roldeyiz);
-  $('ogretmen-not').classList.toggle('gizli', sekme !== 'ogretmen');
   $('yeni').classList.toggle('gizli', !duzenle || sekme === 'ogretmen');
   $('yeni').textContent = yeniAcik ? 'Vazgeç' : roldeyiz ? '+ Yeni rol' : '+ Yeni kişi';
   $('yeni').classList.toggle('acik', yeniAcik);
@@ -435,13 +434,8 @@ $('yeni').addEventListener('click', () => {
 });
 
 $('sekmeler').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  sekme = b.dataset.sekme;
-  yeniAcik = false;
-  for (const x of $('sekmeler').children) x.setAttribute('aria-pressed', String(x === b));
-  mesaj('');
-  ciz();
+  const b = e.target.closest('button[data-git]');
+  if (b) location.href = b.dataset.git;
 });
 
 (async () => {

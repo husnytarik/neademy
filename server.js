@@ -28,6 +28,7 @@ import { ogrenciApi } from './ogrenci.js';
 import { karneApi } from './karne.js';
 import { ogrencimApi } from './ogrencim.js';
 import { profilApi } from './profil.js';
+import { kisiApi } from './kisi.js';
 import { kulupApi } from './kulup.js';
 import { gelisimApi } from './gelisim.js';
 import { yetkiApi, etkinYetkiler, yolYetkisi, ekRolAdlari } from './yetki.js';
@@ -58,7 +59,7 @@ const MAKS_DENEME = 5;
 // Yeni modül eklemek = buraya bir kayıt eklemek (kullanıcı/yetki yapısı ortaktır).
 const MODULLER = [
   { id: 'kurum', ad: 'Okul kurulumu', aciklama: 'Kurum profili, kampüsler, okullar, müdür ve müdür yardımcıları', roller: ['yonetim'], yetki: ['kurum'], yol: '/kurum' },
-  { id: 'kullanici-rol', ad: 'Kullanıcı ve rol yönetimi', aciklama: 'Hesaplar, üyelikler, roller ve yetkiler', roller: ['yonetim'], yetki: ['kullanici-rol'], yol: '/kullanicilar', kapsam: 'kurum' },
+  { id: 'kullanici-rol', ad: 'Kişiler', aciklama: 'Personel ekle, düzenle, görev ver, okuldan ayrıldı olarak işaretle; roller ve yetkiler', roller: ['yonetim'], yetki: ['kullanici-rol'], yol: '/kisiler', kapsam: 'kurum' },
   { id: 'ogrenci-yonetim', ad: 'Öğrenciler', aciklama: 'Öğrenci kaydı, kayıt bilgileri ve her öğrencinin güncel durum dosyası', roller: ['yonetim'], yetki: ['ogrenci-gor'], yol: '/ogrenciler' },
   { id: 'okul-kurulum', ad: 'Sınıf ve kadro', aciklama: 'Ders, öğretmen, öğrenci ve sınıf kayıtları ile atamalar', roller: ['yonetim'], yetki: ['kadro'], yol: '/kurulum' },
   { id: 'okul-takvimi', ad: 'Okul takvimi', aciklama: 'Ders günleri ve ders saatleri (zil saatleri)', roller: ['yonetim'], yetki: ['kadro'], yol: '/okul-takvimi' },
@@ -536,6 +537,7 @@ async function yonetimApi(req, res, url) {
   }
 
   const ortak = { req, res, url, o, json, govde, denetle };
+  if (await kisiApi(ortak)) return;
   if (await yetkiApi(ortak)) return;
   if (await kurumApi(ortak)) return;
   if (await kurulumApi(ortak)) return;
@@ -560,7 +562,9 @@ async function yonetimApi(req, res, url) {
   }
 
   if (req.method === 'GET' && yol === '/api/yonetim/kullanicilar') {
-    const kullanicilar = db.prepare(`SELECT u.id, u.tc_no, u.passport_no, u.phone, u.full_name, ${FOTO_SQL} AS foto FROM users u ORDER BY u.full_name`).all();
+    // ?tur=personel: yalnızca yönetim ya da öğretmen üyeliği olanlar (öğrenci ve veliler listeyi şişirmesin)
+    const personel = url.searchParams.get('tur') === 'personel' ? "WHERE u.id IN (SELECT user_id FROM memberships WHERE role IN ('yonetim','ogretmen'))" : '';
+    const kullanicilar = db.prepare(`SELECT u.id, u.tc_no, u.passport_no, u.phone, u.full_name, ${FOTO_SQL} AS foto FROM users u ${personel} ORDER BY u.full_name`).all();
     const uyelikler = db.prepare(`SELECT m.id, m.user_id, m.role, m.status, m.gorev, m.branch_id, b.name AS branch
                                   FROM memberships m LEFT JOIN branches b ON b.id = m.branch_id`).all();
     const atananlar = db.prepare('SELECT user_id, rol_id FROM kullanici_roller').all();
@@ -652,6 +656,8 @@ function statik(req, res, url) {
   let ad = url.pathname === '/' ? '/index.html' : url.pathname;
   if (ad === '/panel') ad = '/panel.html';
   if (ad === '/kullanicilar') ad = '/kullanicilar.html';
+  if (ad === '/kisiler') ad = '/kisiler.html';
+  if (ad === '/kisi') ad = '/kisi.html';
   if (ad === '/ders-programi') ad = '/ders-programi.html';
   if (ad === '/kurulum') ad = '/kurulum.html';
   if (ad === '/kurum') ad = '/kurum.html';

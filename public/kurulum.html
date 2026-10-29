@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>neademy - Sınıf ve kadro</title>
-  <link rel="stylesheet" href="/style.css?v=13">
+  <link rel="stylesheet" href="/style.css?v=23">
   <script src="/renk.js?v=10"></script>
 </head>
 <body>
@@ -36,21 +36,9 @@
 
     <!-- 3. Öğretmenler -->
     <section id="s-ogretmenler" class="gizli">
-      <div class="kur-ust"><h2 class="baslik2">Öğretmenler</h2><button type="button" class="ikincil kucuk duzen-dugme" data-bolum="ogretmenler">Düzenle</button></div>
+      <div class="kur-ust"><h2 class="baslik2">Öğretmenler</h2></div>
+      <p class="alt">Öğretmen eklemek, dersleri ve görevleri düzenlemek için <a href="/kisiler" class="kur-baglanti">Kişiler</a> sayfasını kullanın. Burada sınıf atamaları için özet görünür.</p>
       <div id="ogretmen-liste" class="kur-liste"></div>
-      <div class="duzen-alan">
-        <h3 class="baslik3">Öğretmen ekle</h3>
-        <form id="ogretmen-form">
-          <div class="form-satir">
-            <div><label for="o-ad">Ad soyad</label><input id="o-ad" required maxlength="80"></div>
-            <div><label for="o-kimlik">T.C. / pasaport no</label><input id="o-kimlik" required maxlength="20"></div>
-            <div><label for="o-tel">Telefon</label><input id="o-tel" type="tel" required maxlength="20" placeholder="5XX XXX XX XX"></div>
-            <div><label for="o-sube">Okul</label><select id="o-sube" required></select></div>
-          </div>
-          <fieldset class="kutu"><legend>Verebildiği dersler</legend><div id="o-dersler" class="onay-liste"></div></fieldset>
-          <button class="birincil" type="submit">Öğretmeni kaydet</button>
-        </form>
-      </div>
     </section>
 
     <!-- 4. Sınıflar -->
@@ -124,11 +112,11 @@
       </div>
       <p id="ogrenci-sayi" class="alt"></p>
 
-      <p class="alt"><a href="/ogrenci-kayit">+ Yeni öğrenci kaydı</a> · öğrenciye tıklayarak tüm dosyasını açabilirsiniz.</p>
+      <p class="alt">Burada yalnızca sınıf atamaları (Düzenle) ve liste çıktısı vardır. Öğrenci eklemek, bilgilerini düzenlemek ve okuldan ayrılanları görmek için <a href="/ogrenciler" class="kur-baglanti">Öğrenciler</a> sayfasını kullanın.</p>
     </section>
   </main>
   <script src="/avatar.js?v=10"></script>
-  <script src="/kurulum.js?v=10"></script>
+  <script src="/kurulum.js?v=12"></script>
   <script src="/tablo.js?v=10"></script>
   <script src="/bant.js?v=10"></script>
 </body>

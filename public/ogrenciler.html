@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>neademy - Öğrenciler</title>
-  <link rel="stylesheet" href="/style.css?v=13">
+  <link rel="stylesheet" href="/style.css?v=23">
   <script src="/renk.js?v=10"></script>
 </head>
 <body>
@@ -13,6 +13,11 @@
     <h1>Öğrenciler</h1>
   </header>
   <main class="kart panel genis">
+    <div class="sekmeler" id="sekmeler" role="group" aria-label="Kişi türü">
+      <button type="button" data-git="/kisiler" aria-pressed="false">Personel</button>
+      <button type="button" data-sekme="ogrenci" aria-pressed="true">Öğrenciler</button>
+      <button type="button" data-git="/kullanicilar" aria-pressed="false">Roller</button>
+    </div>
     <p id="mesaj" class="mesaj" role="status" aria-live="polite"></p>
     <section class="ders-panel">
       <div class="ekle-ust">
@@ -24,13 +29,18 @@
         <input id="ara" type="search" placeholder="Ad ya da okul numarasıyla ara" aria-label="Öğrenci ara">
         <select id="okul" aria-label="Okula göre süz"></select>
         <select id="sinif" aria-label="Sınıfa göre süz"></select>
+        <select id="durum" aria-label="Duruma göre süz">
+          <option value="aktif">Okuyanlar</option>
+          <option value="pasif">Ayrılanlar</option>
+          <option value="">Tümü</option>
+        </select>
       </div>
       <div id="liste"></div>
     </section>
   </main>
   <script src="/grafik.js?v=10"></script>
   <script src="/avatar.js?v=10"></script>
-  <script src="/ogrenciler.js?v=10"></script>
+  <script src="/ogrenciler.js?v=11"></script>
   <script src="/bant.js?v=10"></script>
 </body>
 </html>

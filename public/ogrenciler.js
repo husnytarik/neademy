@@ -31,6 +31,7 @@ function ciz() {
   const bol = ad => { const p = ad.trim().split(/\s+/); return p.length > 1 ? [p.slice(0, -1).join(' '), p.at(-1)] : [ad, '']; };
   const gorunen = veri.ogrenciler
     .filter(o => !ara || o.ad.toLocaleLowerCase('tr').includes(ara) || String(o.okulNo || '').includes(ara))
+    .filter(o => !$('durum').value || o.durum === $('durum').value)
     .filter(o => !okul || String(o.subeId) === okul)
     .filter(o => !sinif || (sinif === 'yok' ? !o.sinifId : String(o.sinifId) === sinif))
     .sort((a, b) => bol(a.ad)[1].localeCompare(bol(b.ad)[1], 'tr') || a.ad.localeCompare(b.ad, 'tr'));
@@ -47,7 +48,7 @@ function ciz() {
     const orta = el('div', undefined, 'ol-orta');
     orta.append(el('strong', o.ad), el('small', [veri.subeler.length > 1 ? o.sube : '', o.sinif || 'Sınıfsız', o.okulNo ? 'No ' + o.okulNo : ''].filter(Boolean).join(' · ')));
     const sag = el('div', undefined, 'ol-etiket');
-    if (o.durum !== 'aktif') sag.append(el('span', 'Pasif'));
+    if (o.durum !== 'aktif') sag.append(el('span', 'Ayrıldı'));
     if (o.yemek === 'almayacak') sag.append(el('span', 'Yemek yok'));
     if (o.ozelSayisi) sag.append(el('span', 'Özel durum', 'uyari'));
     a.append(avatarYap(o.ad, o.foto), orta, sag);
@@ -58,4 +59,9 @@ function ciz() {
 $('ara').addEventListener('input', ciz);
 $('okul').addEventListener('change', () => { sinifSecenekleri(); ciz(); });
 $('sinif').addEventListener('change', ciz);
+$('durum').addEventListener('change', ciz);
+$('sekmeler').addEventListener('click', e => {
+  const b = e.target.closest('button[data-git]');
+  if (b) location.href = b.dataset.git;
+});
 yukle();

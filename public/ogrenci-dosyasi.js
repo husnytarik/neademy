@@ -221,7 +221,20 @@ function tamRaporKur() {
   }).catch(() => {});
   $('d-karne').href = '/karne?id=' + id;
   $('geri').href = kayit.duzenleyebilir ? '/ogrenciler' : '/ogrencilerim';
-  if (kayit.duzenleyebilir) { const d = $('d-duzenle'); d.href = '/ogrenci-kayit?id=' + id; d.classList.remove('gizli'); }
+  if (kayit.duzenleyebilir) {
+    const d = $('d-duzenle'); d.href = '/ogrenci-kayit?id=' + id; d.classList.remove('gizli');
+    const aktif = kayit.ogrenci.durum === 'aktif', durumDugme = $('d-durum');
+    durumDugme.textContent = aktif ? 'Okuldan ayrıldı' : 'Geri al';
+    durumDugme.classList.remove('gizli');
+    durumDugme.addEventListener('click', async () => {
+      if (aktif && !confirm(`${p.ad} okuldan ayrıldı olarak işaretlensin mi? Sınıf listelerinden çıkar; not, yoklama ve ödev geçmişi korunur.`)) return;
+      const r = await fetch('/api/ogrenci/durum', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ogrenciId: id, durum: aktif ? 'pasif' : 'aktif' }) });
+      const v = await r.json();
+      if (!r.ok) { $('mesaj').textContent = v.hata || 'Hata'; $('mesaj').className = 'mesaj hata'; return; }
+      location.reload();
+    });
+  }
+  if (kayit.ogrenci.durum !== 'aktif') $('d-alt').textContent = 'Okuldan ayrıldı · ' + $('d-alt').textContent;
   $('dosya').classList.remove('gizli');
   for (const b of $('sekmeler').children) b.addEventListener('click', () => sekmeAc(b.dataset.sekme));
   $('d-yazdir').addEventListener('click', () => window.print());

@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS aile_bilgi (
 );
 `);
 
-const YAKINLIK = ['Anne', 'Baba', 'Vasi', 'Kardeş', 'Dede', 'Nine', 'Amca / Dayı', 'Teyze / Hala', 'Diğer'];
+export const YAKINLIK = ['Anne', 'Baba', 'Vasi', 'Kardeş', 'Dede', 'Nine', 'Amca / Dayı', 'Teyze / Hala', 'Diğer'];
 const KAN = ['0 Rh+', '0 Rh-', 'A Rh+', 'A Rh-', 'B Rh+', 'B Rh-', 'AB Rh+', 'AB Rh-'];
 const OZEL_TUR = { saglik: 'Sağlık', alerji: 'Alerji', 'ozel-egitim': 'Özel eğitim', aile: 'Aile durumu', diger: 'Diğer' };
 const KAYIT_TURU = { yeni: 'Yeni kayıt', yenileme: 'Kayıt yenileme', nakil: 'Nakil' };
@@ -326,6 +326,22 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
     const e = ogrenciErisimi(o, tamSayi(b.ogrenciId));
     if (!e) return hata(404, 'Öğrenci bulunamadı');
 
+    // Okuldan ayrılma / geri alma: kayıt silinmez (geçmiş korunur), öğrenci sınıf listelerinden çıkar ve oturumu kapanır
+    if (yol === '/api/ogrenci/durum') {
+      const ayril = b.durum === 'pasif';
+      if (!ayril && b.durum !== 'aktif') return hata(400, 'Durum geçersiz');
+      const simdi = db.prepare('SELECT status FROM memberships WHERE id = ?').get(e.id).status;
+      if (simdi === b.durum) return json(res, 200, { tamam: true }), true;
+      islem(() => {
+        db.prepare('UPDATE memberships SET status = ? WHERE id = ?').run(b.durum, e.id);
+        if (ayril) {
+          db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(e.id);
+          db.prepare('DELETE FROM class_students WHERE student_membership_id = ?').run(e.id);
+        }
+      });
+      denetle(o.user_id, ayril ? 'ogrenci-ayril' : 'ogrenci-geri', { ogrId: e.id, sinifId: e.sinifId || null });
+      return json(res, 200, { tamam: true }), true;
+    }
     if (yol === '/api/ogrenci/veli-ekle') {
       const mevcut = db.prepare('SELECT COUNT(*) AS n FROM guardians WHERE student_membership_id = ?').get(e.id).n;
       if (mevcut >= 6) return hata(400, 'Bir öğrenciye en çok 6 veli / yakın bağlanabilir');

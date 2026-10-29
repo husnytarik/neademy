@@ -1,9 +1,11 @@
 import { db } from './db.js';
+import './yetki.js';
 import { KULUP_DERSI } from './ders-programi.js';
 import { tarihAcik } from './tatil.js';
 
-// Zümre = bir okuldaki aynı dersin öğretmenleri. Zümre başkanı ayrı profil değildir: "Zümre başkanı" rolü olan
-// öğretmen, kendi dersinin zümresinde başkandır. Toplantıyı yalnızca başkan kurar; yazı tüm zümre öğretmenlerinindir.
+// Zümre = bir okuldaki aynı branşın öğretmenleri. Her öğretmenin tek branşı vardır (üyelikte brans_id, bir ders kaydı);
+// verdiği dersler birden çok olabilir. Zümre başkanı ayrı profil değildir: öğretmen üyeliğinde zumre_baskani işaretlidir ve
+// her okul + branş için en fazla bir kişidir. Toplantıyı yalnızca başkan kurar; yazı tüm zümre öğretmenlerinindir.
 db.exec(`
 CREATE TABLE IF NOT EXISTS zumre_toplantilari (
   id                     INTEGER PRIMARY KEY,
@@ -62,24 +64,70 @@ export function siradakiler(t, adet, simdi = new Date()) {
   return sonuc;
 }
 
-// Öğretmenin zümreleri: şubesinde girdiği (verebildiği) dersler
-function zumreler(uyelikId) {
-  return db.prepare(`SELECT DISTINCT co.id, co.name AS ad, m.branch_id AS sube FROM teacher_courses tc
-    JOIN courses co ON co.id = tc.course_id JOIN memberships m ON m.id = tc.teacher_membership_id
-    WHERE tc.teacher_membership_id = ? AND co.name <> ? ORDER BY co.name`).all(uyelikId, KULUP_DERSI);
+// ---- Branş ve zümre başkanlığı: öğretmen üyeliğinde durur ----
+// Branşı olmayan öğretmenlere, verebildiği derslerden en çok ders saati olanı (eşitse ilki) varsayılan branş yapar
+export function bransVarsayilanlari() {
+  const sec = db.prepare(`SELECT tc.course_id FROM teacher_courses tc JOIN courses co ON co.id = tc.course_id
+    WHERE tc.teacher_membership_id = ? AND co.name <> ?
+    ORDER BY (SELECT COALESCE(SUM(a.weekly_hours), 0) FROM assignments a WHERE a.teacher_membership_id = tc.teacher_membership_id AND a.course_id = tc.course_id) DESC, tc.course_id LIMIT 1`);
+  const yaz = db.prepare('UPDATE memberships SET brans_id = ? WHERE id = ?');
+  for (const m of db.prepare("SELECT id FROM memberships WHERE role = 'ogretmen' AND brans_id IS NULL").all()) {
+    const d = sec.get(m.id, KULUP_DERSI);
+    if (d) yaz.run(d.course_id, m.id);
+  }
 }
 
-const BASKAN_SQL = `EXISTS (SELECT 1 FROM kullanici_roller kr JOIN roller r ON r.id = kr.rol_id WHERE r.kod = 'zumre' AND kr.user_id = m.user_id)`;
+// "Zümre başkanı" rolü (yetkiler için), yalnızca üyeliğinde başkan işareti olanlarda bulunur
+export function zumreRolunuEsitle() {
+  const r = db.prepare("SELECT id FROM roller WHERE kod = 'zumre'").get();
+  if (!r) return;
+  db.prepare('DELETE FROM kullanici_roller WHERE rol_id = ? AND user_id NOT IN (SELECT user_id FROM memberships WHERE zumre_baskani = 1)').run(r.id);
+  db.prepare('INSERT OR IGNORE INTO kullanici_roller (user_id, rol_id) SELECT DISTINCT user_id, ? FROM memberships WHERE zumre_baskani = 1').run(r.id);
+}
+
+// Başkanlığı verir (aynı okul + branştaki eski başkandan alır) ya da alır; hata varsa metin döner
+export function zumreBaskaniAyarla(uyelikId, ver) {
+  const m = db.prepare("SELECT id, branch_id, brans_id FROM memberships WHERE id = ? AND role = 'ogretmen' AND status = 'aktif'").get(uyelikId);
+  if (!m) return 'Aktif öğretmenlik üyeliği bulunamadı';
+  if (ver) {
+    if (!m.brans_id) return 'Önce branş seçin';
+    db.prepare('UPDATE memberships SET zumre_baskani = 0 WHERE branch_id = ? AND brans_id = ? AND zumre_baskani = 1').run(m.branch_id, m.brans_id);
+  }
+  db.prepare('UPDATE memberships SET zumre_baskani = ? WHERE id = ?').run(ver ? 1 : 0, m.id);
+  zumreRolunuEsitle();
+  return null;
+}
+
+if (!db.prepare('PRAGMA table_info(memberships)').all().some(c => c.name === 'brans_id')) {
+  db.exec('BEGIN'); // yarım kalırsa sütunlar da geri alınır, taşıma bir sonraki açılışta baştan çalışır
+  db.exec('ALTER TABLE memberships ADD COLUMN brans_id INTEGER REFERENCES courses(id)');
+  db.exec('ALTER TABLE memberships ADD COLUMN zumre_baskani INTEGER NOT NULL DEFAULT 0');
+  bransVarsayilanlari();
+  // Eski kullanıcı düzeyindeki "Zümre başkanı" rolü: her okul + branşta en eski üyelik başkan kalır
+  const eskiBaskan = "SELECT kr.user_id FROM kullanici_roller kr JOIN roller r ON r.id = kr.rol_id WHERE r.kod = 'zumre'";
+  db.exec(`UPDATE memberships SET zumre_baskani = 1 WHERE role = 'ogretmen' AND brans_id IS NOT NULL AND user_id IN (${eskiBaskan})
+    AND id = (SELECT MIN(m2.id) FROM memberships m2 WHERE m2.role = 'ogretmen' AND m2.branch_id = memberships.branch_id
+              AND m2.brans_id = memberships.brans_id AND m2.user_id IN (${eskiBaskan}))`);
+  db.exec('COMMIT');
+}
+bransVarsayilanlari();
+zumreRolunuEsitle();
+
+// Öğretmenin zümresi: kendi okulundaki branşı (tek)
+function zumreler(uyelikId) {
+  return db.prepare(`SELECT co.id, co.name AS ad, m.branch_id AS sube FROM memberships m JOIN courses co ON co.id = m.brans_id
+    WHERE m.id = ? AND co.name <> ?`).all(uyelikId, KULUP_DERSI);
+}
 
 function uyeler(sube, dersId, benimId) {
-  return db.prepare(`SELECT m.id, u.full_name AS ad, u.phone AS telefon, ${BASKAN_SQL} AS baskan
+  return db.prepare(`SELECT m.id, u.full_name AS ad, u.phone AS telefon, m.zumre_baskani AS baskan
     FROM memberships m JOIN users u ON u.id = m.user_id
     WHERE m.role = 'ogretmen' AND m.status = 'aktif' AND m.branch_id = ?
-      AND m.id IN (SELECT teacher_membership_id FROM teacher_courses WHERE course_id = ?)
+      AND m.brans_id = ?
     ORDER BY baskan DESC, u.full_name`).all(sube, dersId).map(r => ({ id: r.id, ad: r.ad, telefon: r.telefon, baskan: !!r.baskan, ben: r.id === benimId }));
 }
 
-const baskanMi = (uyelikId) => !!db.prepare(`SELECT 1 FROM memberships m WHERE m.id = ? AND ${BASKAN_SQL}`).get(uyelikId);
+const baskanMi = (uyelikId) => !!db.prepare('SELECT 1 FROM memberships WHERE id = ? AND zumre_baskani = 1').get(uyelikId);
 
 // Toplantı hatırlatmaları: önümüzdeki günlerde olan zümre toplantıları (öğretmen paneli)
 export function zumreHatirlatmalari(uyelikId) {
@@ -125,7 +173,7 @@ export async function zumremApi({ req, res, url, o, json, govde, denetle }) {
     const toplantilar = db.prepare('SELECT * FROM zumre_toplantilari WHERE branch_id = ? AND course_id = ? ORDER BY baslangic, saat').all(sube, z.id)
       .map(t => ({ id: t.id, baslik: t.baslik, tekrar: t.tekrar, baslangic: t.baslangic, saat: t.saat, yer: t.yer, gundem: t.gundem, siradaki: siradakiler(t, 3) }))
       .sort((a, b) => (a.siradaki[0] || '9999').localeCompare(b.siradaki[0] || '9999'));
-    const yazilar = db.prepare(`SELECT i.id, i.metin, i.created_at AS zaman, i.membership_id AS yazanId, u.full_name AS yazan, ${BASKAN_SQL} AS baskan
+    const yazilar = db.prepare(`SELECT i.id, i.metin, i.created_at AS zaman, i.membership_id AS yazanId, u.full_name AS yazan, m.zumre_baskani AS baskan
       FROM zumre_iletileri i JOIN memberships m ON m.id = i.membership_id JOIN users u ON u.id = m.user_id
       WHERE i.branch_id = ? AND i.course_id = ? ORDER BY i.created_at DESC, i.id DESC LIMIT ?`).all(sube, z.id, ILETI_SINIRI)
       .map(r => ({ id: r.id, metin: r.metin, zaman: r.zaman, yazan: r.yazan, baskan: !!r.baskan, benim: r.yazanId === o.membership_id }));

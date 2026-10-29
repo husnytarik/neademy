@@ -134,6 +134,7 @@ function ogretmenEkle(o, anahtar, dersler, ozel) {
   const cins = ozel ? 'K' : sec(['E', 'K']);
   const k = uyeEkle(kullaniciEkle('4', '553', ozel?.ad ?? isim(cins), ozel), o.id, 'ogretmen');
   for (const d of dersler) calis('INSERT INTO teacher_courses (teacher_membership_id, course_id) VALUES (?,?)', k.mid, dersId(d));
+  calis('UPDATE memberships SET brans_id = ? WHERE id = ?', dersId(dersler[0]), k.mid);
   k.dersler = dersler; k.anahtar = anahtar; k.yuk = 0;
   o.t[anahtar] = k;
   return k;
@@ -196,7 +197,7 @@ try {
       yonetimUyeligi(k); rolVer(k, kod);
     }
     // Zümre başkanları normal öğretmendir; aynı ekranda ek olarak zümre işlerini görürler
-    for (const anahtar of ['mat1', 'tr1', 'fen1', 'sos', 'ing', 'din', 'bed', 'gor', 'muz', 'bil']) rolVer(meltem.t[anahtar], 'zumre');
+    for (const anahtar of ['mat1', 'tr1', 'fen1', 'sos', 'ing', 'din', 'bed', 'gor', 'muz', 'bil']) { calis('UPDATE memberships SET zumre_baskani = 1 WHERE id = ?', meltem.t[anahtar].mid); rolVer(meltem.t[anahtar], 'zumre'); }
 
     // Zümre toplantıları (yarından başlayan rutinler: demo panelinde hatırlatma görünür) ve zümre yazıları
     // n gün sonrası; hafta sonuna denk gelirse pazartesiye kaydırılır
