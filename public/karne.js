@@ -242,7 +242,7 @@ function ustHero(o) {
   const orta = el('div', undefined, 'kr-kimlik');
   orta.append(el('p', 'Öğrenci gelişim karnesi', 'kr-tur'), el('h2', p.ad));
   const bilgi = el('dl', undefined, 'kr-bilgi');
-  for (const [a, b] of [['Okul no', p.okulNo], ['Sınıf', p.sinif], ['Veli', p.veli], ['Sınıf öğretmeni', p.mentor], ['Dönem', d.ad + (d.acik ? ' · devam ediyor' : '')]]) {
+  for (const [a, b] of [['Okul no', p.okulNo], ['Sınıf', p.sinif], ['Veli', p.veli], [p.mentorEtiket || 'Sınıf öğretmeni', p.mentor], ['Dönem', d.ad + (d.acik ? ' · devam ediyor' : '')]]) {
     if (!b) continue;
     const s = el('div'); s.append(el('dt', a), el('dd', b)); bilgi.append(s);
   }

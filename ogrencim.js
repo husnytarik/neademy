@@ -1,4 +1,5 @@
 import { db, FOTO_SQL } from './db.js';
+import { sinifOgretmeniAdiSinif } from './kademe.js';
 
 // Veli: bağlı çocuklarının kimlik kartı, öğretmenleri ve tek bakışta durumu (öğrenci kendi kartını da görür)
 export async function ogrencimApi({ req, res, url, o, json }) {
@@ -47,7 +48,7 @@ export async function ogrencimApi({ req, res, url, o, json }) {
       const od = sayi(odev.get(bugun, id));
       return {
         id, ad: k.ad, okulNo: k.okulNo, foto: k.foto, okul: k.okul, sinif: k.sinif,
-        rehber: k.rehber ? { ad: k.rehber, telefon: k.rehberTelefon || '' } : null,
+        rehber: k.rehber ? { ad: k.rehber, telefon: k.rehberTelefon || '', etiket: sinifOgretmeniAdiSinif(k.sinifId) } : null,
         ogretmenler: k.sinifId ? ogretmenler.all(k.sinifId) : [],
         veliler: o.role === 'veli' ? yakin.all(id) : [],
         devam: { ...dv, yuzde: dv.toplam ? Math.round((dv.toplam - dv.gelmedi) / dv.toplam * 100) : 100 },

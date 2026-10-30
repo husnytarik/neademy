@@ -3,6 +3,7 @@ import { GOREVLER } from './kurum.js';
 import { YAKINLIK } from './ogrenci.js';
 import { bransVarsayilanlari, zumreRolunuEsitle, zumreBaskaniAyarla } from './zumrem.js';
 import { KULUP_DERSI } from './ders-programi.js';
+import { sinifOgretmeniAdi } from './kademe.js';
 
 // Kişiler (personel): bir kişi tek hesaptır; yönetim ve öğretmen onun üyelikleridir.
 // Ekleme, kimlik/telefon düzeltme, görev ve ayrılma işlemleri buradan yürür (yalnızca kurum yönetimi; sunucu kapısı yolu denetler).
@@ -95,7 +96,7 @@ function detay(id, aktorId) {
     atamalar: db.prepare(`SELECT a.teacher_membership_id AS uyelikId, c.name AS sinif, co.name AS ders, a.weekly_hours AS saat
       FROM assignments a JOIN classes c ON c.id = a.class_id JOIN courses co ON co.id = a.course_id
       WHERE a.teacher_membership_id IN (${kosul}) ORDER BY c.name, co.name`).all(),
-    sinifOgretmenligi: db.prepare(`SELECT id, name AS sinif FROM classes WHERE homeroom_membership_id IN (${kosul}) ORDER BY name`).all(),
+    sinifOgretmenligi: db.prepare(`SELECT id, name AS sinif, level AS kademe FROM classes WHERE homeroom_membership_id IN (${kosul}) ORDER BY name`).all().map(s => ({ ...s, etiket: sinifOgretmeniAdi(s.kademe) })),
   };
 }
 

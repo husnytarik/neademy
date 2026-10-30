@@ -75,7 +75,7 @@ const MODULLER = [
   { id: 'zumrem', ad: 'Zümrem', aciklama: 'Zümre öğretmenleri, rutin toplantılar ve zümre yazışmaları', roller: ['ogretmen'], yol: '/zumrem' },
   { id: 'etut-ogrenci', ad: 'Etütlerim', aciklama: 'Davet edildiğim etütler', roller: ['ogrenci'], yol: '/etut' },
   { id: 'etut-veli', ad: 'Etüt onayları', aciklama: 'Çocuğumun etütlerine gelecek / gelmeyecek bildir', roller: ['veli'], yol: '/etut' },
-  { id: 'ogrencilerim', ad: 'Öğrencilerim', aciklama: 'Mentor olduğum sınıfın öğrencileri ve profilleri', roller: ['ogretmen'], yol: '/ogrencilerim' },
+  { id: 'ogrencilerim', ad: 'Öğrencilerim', aciklama: 'Sınıf / mentor öğretmeni olduğum sınıfın öğrencileri ve profilleri', roller: ['ogretmen'], yol: '/ogrencilerim' },
   { id: 'derslerim', ad: 'Derslerim', aciklama: 'Günlük program; devamsızlık, konu ve ödev işlemleri', roller: ['ogretmen'], yol: '/derslerim' },
   { id: 'odev-takip', ad: 'Ödevler', aciklama: 'Verilen ödevler ve son tarihleri', roller: ['ogrenci', 'veli'], yol: '/odevler' },
   { id: 'odev-takip-ogretmen', ad: 'Ödev takibi', aciklama: 'Ödevleri kimin yaptığını gör, doğrula, öğrenci sorularını yanıtla', roller: ['ogretmen'], yol: '/odev-takip' },
@@ -180,6 +180,9 @@ function profilBilgisi(m) {
     if (!d.length) d = db.prepare(`SELECT c.name, c.renk FROM teacher_courses t JOIN courses c ON c.id = t.course_id
       WHERE t.teacher_membership_id = ? ORDER BY c.name`).all(m.id);
     if (d.length) { unvan = d[0].name + ' öğretmeni'; renk = d[0].renk || null; }
+    // Tema rengi branş dersinin rengidir (branşı yoksa en çok girdiği ders)
+    const b = db.prepare('SELECT c.renk FROM memberships m JOIN courses c ON c.id = m.brans_id WHERE m.id = ?').get(m.id);
+    if (b?.renk) renk = b.renk;
     // Zümre başkanı ayrı profil değildir; öğretmen ekranında unvana eklenir
     const uid = db.prepare('SELECT user_id FROM memberships WHERE id = ?').get(m.id)?.user_id;
     if (uid && ekRolAdlari(uid).includes('Zümre başkanı')) unvan += ' · Zümre başkanı';
@@ -565,7 +568,7 @@ async function yonetimApi(req, res, url) {
     // ?tur=personel: yalnızca yönetim ya da öğretmen üyeliği olanlar (öğrenci ve veliler listeyi şişirmesin)
     const personel = url.searchParams.get('tur') === 'personel' ? "WHERE u.id IN (SELECT user_id FROM memberships WHERE role IN ('yonetim','ogretmen'))" : '';
     const kullanicilar = db.prepare(`SELECT u.id, u.tc_no, u.passport_no, u.phone, u.full_name, ${FOTO_SQL} AS foto FROM users u ${personel} ORDER BY u.full_name`).all();
-    const uyelikler = db.prepare(`SELECT m.id, m.user_id, m.role, m.status, m.gorev, m.branch_id, b.name AS branch
+    const uyelikler = db.prepare(`SELECT m.id, m.user_id, m.role, m.status, m.gorev, m.branch_id, m.brans_id, m.zumre_baskani, b.name AS branch
                                   FROM memberships m LEFT JOIN branches b ON b.id = m.branch_id`).all();
     const atananlar = db.prepare('SELECT user_id, rol_id FROM kullanici_roller').all();
     const mudurler = db.prepare('SELECT y.user_id, y.gorev, b.name AS okul FROM okul_yoneticileri y JOIN branches b ON b.id = y.branch_id').all();
@@ -579,7 +582,7 @@ async function yonetimApi(req, res, url) {
         kimlikTuru: u.tc_no ? 'T.C.' : 'Pasaport',
         telefon: maske(u.phone, 3, 2),
         uyelikler: uyelikler.filter(m => m.user_id === u.id)
-          .map(m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.branch })),
+          .map(m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.branch, bransId: m.brans_id, baskan: !!m.zumre_baskani })),
         roller: atananlar.filter(r => r.user_id === u.id).map(r => r.rol_id),
         okulGorevleri: mudurler.filter(r => r.user_id === u.id).map(r => ({ gorev: r.gorev, okul: r.okul })),
       })),
@@ -650,7 +653,7 @@ async function yonetimApi(req, res, url) {
   json(res, 404, { hata: 'Bulunamadı' });
 }
 
-const turler = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.jpg': 'image/jpeg', '.png': 'image/png' };
+const turler = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
 function statik(req, res, url) {
   let ad = url.pathname === '/' ? '/index.html' : url.pathname;

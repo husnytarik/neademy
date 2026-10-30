@@ -67,7 +67,7 @@ function ciz() {
 
   icerik.append(ust, sayilar, el('h3', 'Kişiler', 'og-baslik'));
   const kisiler = el('div', undefined, 'og-liste');
-  if (c.rehber) kisiler.append(tel('Sınıf öğretmeni · ' + c.rehber.ad, c.rehber.telefon));
+  if (c.rehber) kisiler.append(tel((c.rehber.etiket || 'Sınıf öğretmeni') + ' · ' + c.rehber.ad, c.rehber.telefon));
   for (const v of c.veliler) kisiler.append(tel('Veli · ' + v.ad, v.telefon));
   icerik.append(kisiler, el('h3', 'Durum', 'og-baslik'), kisayol);
 

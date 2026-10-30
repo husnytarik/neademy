@@ -560,7 +560,7 @@ input, select, textarea {
 textarea { height: auto; padding: 10px 14px; min-height: 96px; }
 select {
   -webkit-appearance: none; appearance: none; padding-right: 38px;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235d6b80' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+  background: #fff url(/ikon-ok.svg) no-repeat right 14px center;
 }
 input:focus, select:focus, textarea:focus { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(11,37,69,.12); }
 input[type="checkbox"], input[type="radio"] { height: 20px; width: 20px; padding: 0; box-shadow: none; flex: none; display: inline-block; }
@@ -980,7 +980,7 @@ input.hatali { border-bottom: 2px solid var(--vurgu); }
    v4 — Yumuşak, modern üst bant (giriş + panel)
    Bant rengi --ana: öğretmende dersin rengi, diğerlerinde marka rengi.
    ===================================================================== */
-:root { --ana: #5a78a8; }
+:root { --ana: var(--bant, #2f6fde); }
 .bant { --bh: max(38vh, 250px); position: relative; height: 92px; margin: 0 0 4px; color: #fff; border-radius: 0 0 30px 30px;
   background: linear-gradient(165deg, color-mix(in srgb, var(--ana) 82%, #fff) 0%, var(--ana) 70%);
   box-shadow: 0 10px 28px -14px color-mix(in srgb, var(--ana) 70%, transparent) !important;
@@ -3125,3 +3125,137 @@ main .kz-ders > .kad-etiket:first-child { margin-top: 12px; }
 main .kz-ders select { height: 36px; margin: 4px 0 12px; padding: 0 10px; border-radius: 10px; font-size: .88rem; }
 main .kz-ders .kad-cip { margin: 0 6px 8px 0; }
 main .kz-ders > .kad-cip { margin-bottom: 4px; }
+
+/* Kişiler ve öğrenciler: başlık düğmeleri ve süzme çubuğu */
+main .ders-panel .ekle-ust .ekle-ac, main .kad-eylem .ekle-ac { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border: 1px solid color-mix(in srgb, var(--ana) 32%, #fff); background: #fff; color: var(--ana); font-size: .86rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s, border-color .15s; }
+main .ders-panel .ekle-ust .ekle-ac:hover, main .kad-eylem .ekle-ac:hover { background: color-mix(in srgb, var(--ana) 9%, #fff); border-color: var(--ana); }
+main .ders-panel .ekle-ust .ekle-ac.kad-dolu, main .kad-eylem .ekle-ac.kad-dolu { background: var(--ana); border-color: var(--ana); color: #fff; }
+main .ders-panel .ekle-ust .ekle-ac.kad-dolu:hover, main .kad-eylem .ekle-ac.kad-dolu:hover { background: color-mix(in srgb, var(--ana) 86%, #000); }
+main .ekle-ac svg { flex: none; transition: transform .18s; }
+main .ekle-ac.acik { background: var(--ic-zemin); border-color: var(--ince); color: var(--soluk); }
+main .ekle-ac.acik svg { transform: rotate(45deg); }
+main .ol-arac { align-items: center; }
+main .ol-arac input { flex: 2 1 240px; }
+main .ol-arac select { flex: 1 1 150px; }
+main .ol-arac :is(input, select) { height: 40px; border: 1px solid var(--ince); border-radius: 12px; background-color: #fff; font-size: .88rem; }
+main .ol-arac input:not([type=checkbox]):not([type=radio]) { padding-left: 38px; background: #fff url(/ikon-ara.svg) no-repeat 13px center; }
+main .ol-arac select { -webkit-appearance: none; appearance: none; padding: 0 36px 0 14px; font-weight: 500; cursor: pointer; text-overflow: ellipsis;
+  background: #fff url(/ikon-ok.svg) no-repeat right 14px center; }
+main .ol-arac :is(input, select):hover { border-color: color-mix(in srgb, var(--ana) 45%, #fff); }
+main .ol-arac :is(input, select):focus { outline: 0; border-color: var(--ana); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ana) 18%, transparent); }
+main .ol-arac select.suzulu { border-color: var(--ana); background-color: color-mix(in srgb, var(--ana) 8%, #fff); color: var(--ana); font-weight: 600; }
+main .ders-panel .ekle-ust .ekle-ac.kad-dolu.acik, main .kad-eylem .ekle-ac.kad-dolu.acik { background: var(--ic-zemin); border-color: var(--ince); color: var(--soluk); }
+
+/* Yeni ders: hangi kademelerde okutulur */
+main .kur-kademeler > label { display: block; margin-bottom: 6px; }
+main .kur-kademeler #ders-kademeler { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+main .kur-kademe { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; }
+
+/* ===== UI kiti katmanı: tek tema rengi (--ana). Öğretmende dersin rengi, diğerlerinde kit mavisi ===== */
+:root {
+  --ana-koyu: color-mix(in srgb, var(--ana) 82%, #000);
+  --ana-cok-koyu: color-mix(in srgb, var(--ana) 66%, #000);
+  --ana-acik: color-mix(in srgb, var(--ana) 10%, #fff);
+  --ana-orta: color-mix(in srgb, var(--ana) 28%, #fff);
+  --ana-halka: color-mix(in srgb, var(--ana) 24%, transparent);
+  --kit-r: 8px;
+}
+html { accent-color: var(--ana); }
+::selection { background: var(--ana-orta); }
+
+/* Dolu düğme: normal · hover · focus · active · disabled */
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac), .giris-kart .birincil, #bitir-sabit {
+  background: var(--ana); border: 1px solid var(--ana); color: #fff; border-radius: var(--kit-r);
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .08s;
+}
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):hover:not(:disabled), .giris-kart .birincil:hover:not(:disabled) { background: var(--ana-koyu); border-color: var(--ana-koyu); }
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):focus-visible, .giris-kart .birincil:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ana-halka) !important; }
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):active:not(:disabled), .giris-kart .birincil:active:not(:disabled) { background: var(--ana-cok-koyu); border-color: var(--ana-cok-koyu); transform: translateY(1px); }
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):disabled, .giris-kart .birincil:disabled { background: var(--ana-orta); border-color: var(--ana-orta); color: #fff; cursor: not-allowed; transform: none; }
+
+/* Çerçeveli düğme */
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)) { background: #fff; border: 1px solid var(--ana); color: var(--ana); border-radius: var(--kit-r); font-weight: 600; transition: background .15s, box-shadow .15s; }
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):hover:not(:disabled) { background: var(--ana-acik); }
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ana-halka) !important; }
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):active:not(:disabled) { background: var(--ana-orta); }
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):disabled { border-color: var(--ince); color: #a8a49b; background: #fff; cursor: not-allowed; }
+main .ikincil.tehlike { color: #b3261e; background: #fff; border-color: #e7b4af; }
+main .ikincil.tehlike:hover:not(:disabled) { background: #fdf1f0; }
+
+/* Alan odağı */
+main :is(input, select, textarea):focus, .giris-kart input:focus { border-color: var(--ana); box-shadow: 0 0 0 3px var(--ana-halka) !important; }
+
+/* Bölüm başlığı: solda tema renginde çubuk */
+main h2.baslik2, main .ders-panel > h2, main .kz-bolum > h2 { position: relative; padding-left: 14px; }
+main h2.baslik2::before, main .ders-panel > h2::before, main .kz-bolum > h2::before { content: ""; position: absolute; left: 0; top: 12%; bottom: 12%; width: 4px; border-radius: 2px; background: var(--ana); }
+
+/* Sekmeler: seçili sekme tema renginde */
+main .sekmeler button[aria-pressed="true"], main .sekmeler button.secili, main .sekmeler button[aria-selected="true"] { color: var(--ana); font-weight: 600; }
+main .ders-panel .sekmeler button[aria-pressed="true"] { color: var(--ana); border-bottom-color: var(--ana); }
+
+/* Etiket / filtre çipleri */
+main .kad-cip[aria-pressed="true"] { background: var(--ana); border-color: var(--ana); color: #fff; }
+main .kad-cip:hover:not(:disabled):not([aria-pressed="true"]) { border-color: var(--ana); color: var(--ana); }
+main .kad-cip:disabled[aria-pressed="true"] { color: #fff; opacity: .75; }
+
+/* Onay kutusu, seçenek, anahtar */
+main input[type=checkbox], main input[type=radio] { accent-color: var(--ana); }
+
+/* İlerleme çubuğu */
+.yatay-cubuk i { background: var(--ana); }
+progress { accent-color: var(--ana); }
+
+/* Seçili satır / kart vurgusu */
+.ders-oge[aria-pressed="true"], .etut-satir[aria-pressed="true"] { border-color: var(--ana); background: var(--ana-acik); }
+
+/* ===== Ders kartları (kit): solda çizgi/kesik çizgi yok; zaman, dersin renginde dolu etiket ===== */
+main .ders-satir, main .ders-satir:not(.etut-satir), main .ders-satir:not(.etut-satir):hover, main .ders-satir.secili:not(.etut-satir),
+main .ders-satir.etut-satir, main .ders-satir.etut-satir:hover, main .ders-satir.etut-satir.secili {
+  grid-template-columns: 74px minmax(0, 1fr) auto; gap: 14px; min-height: 66px; margin: 0 0 8px; padding: 10px 14px 10px 10px;
+  background: #fff; border: 1px solid var(--ince); border-radius: 10px; transition: border-color .15s, background .15s; }
+main .ders-satir::before { content: none; display: none; }
+main .ders-satir:hover, main .ders-satir:not(.etut-satir):hover, main .ders-satir.etut-satir:hover { border-color: var(--ders, var(--ana)); background: color-mix(in srgb, var(--ders, var(--ana)) 5%, #fff); }
+main .ders-satir.secili, main .ders-satir.secili:not(.etut-satir), main .ders-satir.etut-satir.secili { border-color: var(--ders, var(--ana)); background: color-mix(in srgb, var(--ders, var(--ana)) 9%, #fff); }
+main .ders-satir .ders-zaman { align-items: center; justify-content: center; align-self: stretch; padding: 6px 4px; border-radius: 8px; background: var(--ders, var(--ana)); color: rgba(255,255,255,.85); text-align: center; }
+main .ders-satir .ders-zaman strong { color: #fff; }
+main .ders-satir.etut-satir .ders-zaman { background: #fff; border: 1.5px solid var(--ders, var(--ana)); color: var(--ders, var(--ana)); }
+main .ders-satir.etut-satir .ders-zaman strong { color: var(--ders, var(--ana)); }
+main .ders-satir.etut-satir .ders-orta strong { color: var(--murekkep); }
+main .ders-satir.etut-satir .ders-orta span { color: var(--soluk); }
+
+/* Haftalık program ve program çizelgesi hücreleri: dolu, yumuşak etiket; kesik çizgi ve sol çizgi yok */
+main .hafta-tablo .hucre { border-radius: 8px; }
+main .hafta-tablo .hucre.etut { background: #fff; color: var(--ders, var(--ana)); border: 1.5px solid var(--ders, var(--ana)); }
+main .prg-tablo td.dolu.ders { box-shadow: none !important; padding-left: 4px; border-radius: 8px; }
+main .prg-hucre { border: 1px solid transparent; background: #f4f6fa; border-radius: 8px; }
+main .prg-hucre.dolu { border: 0; background: color-mix(in srgb, var(--ders, #475569) 14%, #fff); }
+main .prg-firca { border-left: 1px solid var(--ince); border-radius: 8px; }
+main .prg-firca::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: var(--ders, #475569); }
+main .prg-firca.secili::before { background: #fff; }
+main .hucre.etut { border-style: solid; }
+
+/* Ekle düğmeleri: kesik çizgi yerine çerçeveli düğme */
+main #ders-ekle, main .saat-ekle { border: 1px solid var(--ana); border-style: solid; border-radius: var(--kit-r); background: #fff; color: var(--ana); font-weight: 600; }
+main #ders-ekle:hover, main .saat-ekle:hover { background: var(--ana-acik); }
+main .sn-ders.yok { border: 1px solid var(--ince); background: #f4f6fa; }
+.bos-not, .kare.soon { border-style: solid; }
+main .ders-satir:not(.etut-satir) .ders-zaman, main .ders-satir:not(.etut-satir) .ders-zaman span { color: rgba(255,255,255,.85); }
+main .ders-satir:not(.etut-satir) .ders-zaman strong { color: #fff; }
+main .ders-satir.etut-satir .ders-zaman, main .ders-satir.etut-satir .ders-zaman span, main .ders-satir.etut-satir .ders-zaman strong { color: var(--ders, var(--ana)); }
+
+/* Rol yetkileri: düzensiz çip dizilimi yerine hizalı, tek tip liste (geniş ekranda iki sütun) */
+main .kad-yetki-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 28px; margin: 6px 0 4px; }
+main .kad-yetki-liste li { position: relative; padding: 9px 0 9px 28px; border-radius: 0; background: none; border-bottom: 1px solid var(--ince); font-size: .88rem; line-height: 1.35; color: var(--murekkep); }
+main .kad-yetki-liste li::before { content: ""; position: absolute; left: 2px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; background: var(--ana) url("/ikon-tik.svg") no-repeat center / 10px; }
+@media (max-width: 560px) { main .kad-yetki-liste { grid-template-columns: 1fr; } }
+
+/* Metin düğmeleri çerçevesiz kalmasın: çerçeveli düğme (bağlantı olan a.kad-link'e dokunmaz) */
+main button.kad-link { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; border: 1px solid var(--ana); border-radius: var(--kit-r); background: #fff; color: var(--ana); font-size: .84rem; text-decoration: none; transition: background .15s, box-shadow .15s; }
+main button.kad-link:hover:not(:disabled) { background: var(--ana-acik); text-decoration: none; }
+main button.kad-link:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ana-halka) !important; }
+main button.kad-link:active:not(:disabled) { background: var(--ana-orta); }
+main button.kad-link:disabled { border-color: var(--ince); color: #a8a49b; cursor: not-allowed; }
+main button.kad-link.tehlike { border-color: #e7b4af; color: #b4483a; }
+main button.kad-link.tehlike:hover:not(:disabled) { background: #fdf1f0; }
+main .kad-linkler { gap: 8px; }
+main .kad-alt-dugmeler { gap: 8px; }

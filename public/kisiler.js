@@ -43,8 +43,13 @@ function gorevler(u) {
   const liste = [];
   if (u.uyelikler.some(m => m.rol === 'yonetim' && m.gorev === 'kurum' && m.durum === 'aktif')) liste.push('Kurum yönetimi');
   for (const g of u.okulGorevleri) liste.push(GOREV_AD[g.gorev]);
-  for (const id of u.roller) { const r = roller.find(x => x.id === id); if (r) liste.push(r.ad); }
-  if (u.uyelikler.some(m => m.rol === 'ogretmen' && m.durum === 'aktif')) liste.push('Öğretmen');
+  for (const id of u.roller) { const r = roller.find(x => x.id === id); if (r && r.kod !== 'zumre') liste.push(r.ad); }
+  const ogretmenler = u.uyelikler.filter(m => m.rol === 'ogretmen' && m.durum === 'aktif');
+  if (ogretmenler.length) {
+    const branslar = [...new Set(ogretmenler.map(m => secenek.dersler.find(d => d.id === m.bransId)?.ad).filter(Boolean))];
+    liste.push(branslar.length ? branslar.join(' / ') + ' öğretmeni' : 'Öğretmen');
+    if (ogretmenler.some(m => m.baskan)) liste.push('Zümre başkanı');
+  }
   return [...new Set(liste)];
 }
 
@@ -93,8 +98,9 @@ function ciz() {
   for (const u of liste) kutu.append(satir(u));
   if (!liste.length) kutu.append(el('p', 'Bu seçimde kayıtlı kişi yok.', 'bos-not'));
   $('sayi').textContent = `${liste.length} kişi`;
-  $('yeni').textContent = yeniAcik ? 'Vazgeç' : '+ Yeni kişi';
+  $('yeni').querySelector('span').textContent = yeniAcik ? 'Vazgeç' : 'Yeni kişi';
   $('yeni').classList.toggle('acik', yeniAcik);
+  for (const id of ['f-okul', 'f-gorev', 'f-durum']) $(id).classList.toggle('suzulu', $(id).selectedIndex > 0);
   $('yeni-alan').classList.toggle('gizli', !yeniAcik);
   const o = $('f-okul');
   const kapsam = o.value ? o.options[o.selectedIndex].text : '';

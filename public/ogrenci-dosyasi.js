@@ -213,7 +213,7 @@ function tamRaporKur() {
   document.title = `neademy - ${p.ad}`;
   $('d-baslik').textContent = p.ad;
   $('d-foto').replaceChildren(avatarYap(p.ad, p.foto, 'buyuk'));
-  $('d-alt').textContent = [p.sube, p.sinif || 'Sınıfsız', p.okulNo ? 'No ' + p.okulNo : '', p.mentor ? 'Sınıf öğretmeni: ' + p.mentor : ''].filter(Boolean).join(' · ');
+  $('d-alt').textContent = [p.sube, p.sinif || 'Sınıfsız', p.okulNo ? 'No ' + p.okulNo : '', p.mentor ? (p.mentorEtiket || 'Sınıf öğretmeni') + ': ' + p.mentor : ''].filter(Boolean).join(' · ');
   $('d-rapor-tarih').textContent = tarihYaz(rapor.rapor);
   fetch('/api/ben').then(r => r.json()).then(b => {
     $('d-kurum-ad').textContent = b.kurum?.ad || '';

@@ -1,4 +1,5 @@
 import { db, FOTO_SQL, tcGecerliMi } from './db.js';
+import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { islem, kisiKaydet } from './kurulum.js';
 import { yetkiVar } from './yetki.js';
 import { teslimGecmisi } from './teslim.js';
@@ -259,7 +260,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       WHERE a.class_id = ?`).get(bugun, id, e.sinifId)) : { bekleyen: 0, geciken: 0 };
 
     return json(res, 200, {
-      ogrenci: { id, ad: u.ad, foto: u.foto, okulNo: u.okulNo, sube: u.sube, sinif: e.sinif || '', mentor: mentor?.ad || '' },
+      ogrenci: { id, ad: u.ad, foto: u.foto, okulNo: u.okulNo, sube: u.sube, sinif: e.sinif || '', mentor: mentor?.ad || '', mentorEtiket: sinifOgretmeniAdiSinif(e.sinifId) },
       ...devam, ...dosya, donemKarsilastirma: donemler, bekleyenOdev: bekleyen, rapor: bugun,
     }), true;
   }

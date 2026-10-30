@@ -451,6 +451,18 @@ if (!sutunlar('courses').some(c => c.name === 'kisa')) {
   db.exec('ALTER TABLE courses ADD COLUMN kisa TEXT');
   db.exec('ALTER TABLE courses ADD COLUMN renk TEXT');
 }
+// Her dersin rengi birbirinden farklı olsun (öğretmenin tüm arayüzü dersinin renginde görünür); boş/yinelenen renkler sırayla yeni renk alır
+{
+  const PALET = ['#2563eb', '#be185d', '#15803d', '#c2410c', '#7c3aed', '#0e7490', '#b45309', '#a21caf', '#475569', '#4d7c0f', '#0369a1', '#9333ea',
+    '#dc2626', '#0f766e', '#9a3412', '#4338ca', '#65a30d', '#db2777', '#0891b2', '#a16207', '#6d28d9', '#047857', '#be123c', '#1d4ed8', '#c026d3', '#ea580c'];
+  const kullanilan = new Set();
+  const yaz = db.prepare('UPDATE courses SET renk = ? WHERE id = ?');
+  for (const c of db.prepare('SELECT id, renk FROM courses ORDER BY id').all()) {
+    if (c.renk && !kullanilan.has(c.renk)) { kullanilan.add(c.renk); continue; }
+    const yeni = PALET.find(r => !kullanilan.has(r)) || '#' + (Math.imul(c.id, 2654435761) >>> 8 & 0xffffff).toString(16).padStart(6, '0');
+    kullanilan.add(yeni); yaz.run(yeni, c.id);
+  }
+}
 if (!sutunlar('sinavlar').some(c => c.name === 'yayin')) {
   // Sonuçlar öğretmen "yayınla" deyince öğrenci/veliye görünür
   db.exec('ALTER TABLE sinavlar ADD COLUMN yayin INTEGER NOT NULL DEFAULT 0');

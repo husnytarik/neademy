@@ -14,7 +14,7 @@ function listeCiz() {
   const k = $('liste');
   k.replaceChildren();
   const s = veri.siniflar[sinifNo];
-  if (!s) return k.appendChild(el('p', 'Mentor olduğunuz bir sınıf yok.', 'bos-not'));
+  if (!s) return k.appendChild(el('p', 'Sınıf ya da mentor öğretmeni olduğunuz bir sınıf yok.', 'bos-not'));
   const ust = el('div', undefined, 'ekle-ust');
   const karne = el('a', 'Sınıf karneleri', 'ekle-ac');
   karne.href = '/karne?sinifId=' + s.id;

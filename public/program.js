@@ -211,7 +211,7 @@ function lejantCiz() {
     for (const e of g.etutler || []) if (e.ders) dersler.set(e.ders, e);
   }
   const durum = el('p', undefined, 'hafta-not');
-  durum.append(el('span', '✓ geldi (ders işlendi)'), el('span', '✗ gelmedi'), el('span', 'İ izinli'), el('span', '⊘ ders iptal'), el('span', 'Kesik çizgi: etüt'));
+  durum.append(el('span', '✓ geldi (ders işlendi)'), el('span', '✗ gelmedi'), el('span', 'İ izinli'), el('span', '⊘ ders iptal'), el('span', 'Çerçeveli: etüt'));
   k.appendChild(durum);
   if (!dersler.size) return;
   const liste = el('div', undefined, 'lejant-dersler');

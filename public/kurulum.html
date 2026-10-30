@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>neademy - Sınıf ve kadro</title>
-  <link rel="stylesheet" href="/style.css?v=23">
+  <link rel="stylesheet" href="/style.css?v=32">
   <script src="/renk.js?v=10"></script>
 </head>
 <body>
@@ -29,6 +29,7 @@
       <div class="duzen-alan">
         <form id="ders-form" class="form-satir kur-ekle-form">
           <div><label for="ders-ad">Yeni ders</label><input id="ders-ad" required maxlength="60" placeholder="Ders adı"></div>
+          <div class="kur-kademeler"><label>Hangi kademelerde okutulur?</label><div id="ders-kademeler"></div></div>
           <div><button class="birincil" type="submit">Ders ekle</button></div>
         </form>
       </div>
@@ -51,7 +52,7 @@
           <div><label for="s-sube">Okul</label><select id="s-sube" required></select></div>
           <div><label for="s-kademe">Kademe</label><select id="s-kademe" required></select></div>
           <div><label for="s-ad">Sınıf adı</label><input id="s-ad" required maxlength="20" placeholder="5-A"></div>
-          <div><label for="s-ogretmen">Sınıf öğretmeni (isteğe bağlı)</label><select id="s-ogretmen"></select></div>
+          <div><label for="s-ogretmen" id="s-ogretmen-etiket">Sınıf öğretmeni (isteğe bağlı)</label><select id="s-ogretmen"></select></div>
           <div><button class="birincil" type="submit">Sınıf aç</button></div>
         </form>
       </div>
@@ -65,7 +66,7 @@
 
           <!-- Düzenleme -->
           <div class="duzen-alan">
-            <label for="d-sinif-ogretmen">Sınıf öğretmeni</label>
+            <label for="d-sinif-ogretmen" id="d-sinif-ogretmen-etiket">Sınıf öğretmeni</label>
             <select id="d-sinif-ogretmen"></select>
             <div class="kur-araclar">
               <a href="/ders-programi" class="kur-baglanti">Ders programını düzenle →</a>
@@ -116,7 +117,7 @@
     </section>
   </main>
   <script src="/avatar.js?v=10"></script>
-  <script src="/kurulum.js?v=12"></script>
+  <script src="/kurulum.js?v=14"></script>
   <script src="/tablo.js?v=10"></script>
   <script src="/bant.js?v=10"></script>
 </body>

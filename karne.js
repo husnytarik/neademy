@@ -1,4 +1,5 @@
 import { db, FOTO_SQL } from './db.js';
+import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { sinavHesap } from './sinav.js';
 import { ogrenciErisimi } from './ogrenci.js';
 
@@ -119,7 +120,7 @@ function ogrenciKarnesi(ogr, donem, hesap, bugun) {
     if (!dersEtiket.has(mid)) {
       const dl = ogr.sinifId ? db.prepare(`SELECT DISTINCT co.name FROM assignments a JOIN courses co ON co.id = a.course_id WHERE a.class_id = ? AND a.teacher_membership_id = ? ORDER BY co.name`)
         .all(ogr.sinifId, mid).map(r => r.name) : [];
-      if (mid === ogr.mentorId) dl.push('Sınıf öğretmeni');
+      if (mid === ogr.mentorId) dl.push(sinifOgretmeniAdiSinif(ogr.sinifId));
       dersEtiket.set(mid, dl.join(', '));
     }
     return dersEtiket.get(mid);
@@ -134,7 +135,7 @@ function ogrenciKarnesi(ogr, donem, hesap, bugun) {
 
   const notlar = dersler.map(d => d.not).filter(n => n !== null);
   return {
-    ogrenci: { id, ad: ogr.ad, okulNo: ogr.okulNo || '', foto: ogr.foto || null, sinif: ogr.sinif || '', veli: veliler.join(' · '), mentor },
+    ogrenci: { id, ad: ogr.ad, okulNo: ogr.okulNo || '', foto: ogr.foto || null, sinif: ogr.sinif || '', veli: veliler.join(' · '), mentor, mentorEtiket: sinifOgretmeniAdiSinif(ogr.sinifId) },
     genel: {
       ortalama: ortalamaAl(notlar), denemeOrtalama: ortalamaAl(denemeler.map(s => s.ortalama)),
       devamsiz: devamToplam.gelmedi, izinli: devamToplam.izinli, gec: devamToplam.gec, dersSaati: devamToplam.toplam,

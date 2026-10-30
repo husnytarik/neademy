@@ -67,6 +67,9 @@ function listeSatiri(kap, ad, alt, sag, sinif = '', onde) {
 
 const ogretmenAd = id => v.ogretmenler.find(o => o.uyelikId === id)?.ad;
 const aktifOgretmenler = subeId => v.ogretmenler.filter(o => o.durum === 'aktif' && o.subeId === subeId);
+// İlkokul ve anasınıfında sınıf öğretmeni yalnızca "Sınıf Öğretmenliği" branşından seçilir
+const sinifOgretmenAdaylari = (subeId, kademe) => aktifOgretmenler(subeId)
+  .filter(o => !v.sinifOgretmeniKademeleri.includes(kademe) || o.bransId === v.sinifOgretmenligiId);
 const okulAd = id => v.subeler.find(s => s.id === id)?.ad || '';
 const okulEtiket = s => v.kampusler.length > 1 ? `${s.ad} · ${v.kampusler.find(k => k.id === s.kampusId)?.ad || ''}` : s.ad;
 const telYaz = t => t && /^\d{10}$/.test(t) ? `0${t.slice(0, 3)} ${t.slice(3, 6)} ${t.slice(6, 8)} ${t.slice(8)}` : (t || '');
@@ -98,13 +101,26 @@ for (const b of document.querySelectorAll('.duzen-dugme')) {
 }
 
 // ---- 2. Dersler ----
+function kademeKutulari() {
+  const k = $('ders-kademeler');
+  if (k.children.length) return;
+  for (const ad of v.kademeler) {
+    const l = el('label', undefined, 'kur-kademe');
+    const c = el('input'); c.type = 'checkbox'; c.value = ad; c.checked = ad !== 'Anasınıfı';
+    l.append(c, document.createTextNode(' ' + ad));
+    k.append(l);
+  }
+}
+
 function cizDersler() {
+  kademeKutulari();
   const kutu = $('ders-liste');
   kutu.replaceChildren();
   for (const d of v.dersler) {
     const sinif = v.atamalar.filter(a => a.dersId === d.id).length;
     const ogr = v.ogretmenler.filter(o => o.dersIds.includes(d.id)).length;
     const sistem = d.ad === 'Kulüp';
+    const brans = d.id === v.sinifOgretmenligiId;
     if (duzen.dersler && dersDuzen === d.id) {
       const f = el('form', undefined, 'kur-satir kur-ders-duzen');
       const g = el('input'); g.value = d.ad; g.required = true; g.maxLength = 60; g.setAttribute('aria-label', 'Ders adı');
@@ -133,14 +149,17 @@ function cizDersler() {
       continue;
     }
     const sag = duzen.dersler && !sistem ? dugme('Düzenle', () => { dersDuzen = d.id; cizDersler(); }) : null;
-    listeSatiri(kutu, d.ad, sistem ? 'Sistem dersi' : `${sinif} sınıf · ${ogr} öğretmen`, sag);
+    const kademe = d.kademeler.length === v.kademeler.length ? 'Tüm kademeler' : d.kademeler.join(' · ');
+    listeSatiri(kutu, d.ad, sistem ? 'Sistem dersi' : brans ? `Branş · ${v.ogretmenler.filter(o => o.bransId === d.id).length} öğretmen` : `${kademe} · ${sinif} sınıf · ${ogr} öğretmen`, sag);
   }
   if (!v.dersler.length) bosNot(kutu, 'Henüz ders açılmadı.');
 }
 
 $('ders-form').addEventListener('submit', async e => {
   e.preventDefault();
-  if (await yap('/api/yonetim/ders-ekle', { ad: $('ders-ad').value }, 'Ders eklendi.')) $('ders-ad').value = '';
+  const kademeler = [...document.querySelectorAll('#ders-kademeler input:checked')].map(x => x.value);
+  if (!kademeler.length) return mesaj('En az bir kademe seçin.', 'hata');
+  if (await yap('/api/yonetim/ders-ekle', { ad: $('ders-ad').value, kademeler }, 'Ders eklendi.')) $('ders-ad').value = '';
 });
 
 // ---- 3. Öğretmenler (salt okunur özet; ekleme ve düzenleme Kişiler sayfasında) ----
@@ -161,14 +180,19 @@ function cizOgretmenler() {
 }
 
 // ---- 4. Sınıflar ----
+// İlkokulda sınıf öğretmeni, ortaokul ve lisede mentor öğretmen
+const ogretmenAdiKademe = kademe => (kademe === 'Ortaokul' || kademe === 'Lise' ? 'Mentor öğretmen' : 'Sınıf öğretmeni');
+
 function sinifOgretmenSecenekleri() {
+  $('s-ogretmen-etiket').textContent = ogretmenAdiKademe($('s-kademe').value) + ' (isteğe bağlı)';
   const subeId = Number($('s-sube').value);
-  doldur($('s-ogretmen'), aktifOgretmenler(subeId), o => o.uyelikId, o => o.ad, 'Sonra belirlenecek');
+  doldur($('s-ogretmen'), sinifOgretmenAdaylari(subeId, $('s-kademe').value), o => o.uyelikId, o => o.ad, 'Sonra belirlenecek');
 }
 
 function cizSiniflar() {
   doldur($('s-sube'), v.subeler, s => s.id, okulEtiket);
   doldur($('s-kademe'), v.kademeler, k => k, k => k);
+  $('s-kademe').onchange = sinifOgretmenSecenekleri;
   sinifOgretmenSecenekleri();
 
   const tb = $('sinif-liste');
@@ -177,7 +201,7 @@ function cizSiniflar() {
   for (const s of v.siniflar) {
     const baslik = v.subeler.length > 1 ? `${s.sube} · ${s.kademe}` : s.kademe;
     if (baslik !== grup) { grup = baslik; tb.appendChild(el('h3', baslik, 'kur-grup')); }
-    const satir = listeSatiri(tb, s.ad, `${ogretmenAd(s.sinifOgretmenUyelikId) || 'Sınıf öğretmeni yok'} · ${s.ogrenciSayisi} öğrenci`,
+    const satir = listeSatiri(tb, s.ad, `${ogretmenAd(s.sinifOgretmenUyelikId) || ogretmenAdiKademe(s.kademe) + ' yok'} · ${s.ogrenciSayisi} öğrenci`,
       el('span', '›', 'kur-ok'), 'kur-sinif' + (s.id === seciliSinifId ? ' secili' : ''));
     satir.tabIndex = 0;
     satir.setAttribute('role', 'button');
@@ -210,7 +234,7 @@ function sinifOku(sinif) {
   k.replaceChildren();
   const bilgi = el('div', undefined, 'kur-bilgi');
   const r = el('div');
-  r.append(el('span', 'Sınıf öğretmeni'), el('b', ogretmenAd(sinif.sinifOgretmenUyelikId) || 'Belirlenmedi'));
+  r.append(el('span', ogretmenAdiKademe(sinif.kademe)), el('b', ogretmenAd(sinif.sinifOgretmenUyelikId) || 'Belirlenmedi'));
   bilgi.append(r);
   k.append(bilgi, el('a', 'Ders programını gör →', 'kur-baglanti'));
   k.lastChild.href = '/ders-programi';
@@ -238,11 +262,12 @@ function cizDetay() {
 
   // Sınıf öğretmeni
   const ogr = aktifOgretmenler(sinif.subeId);
+  $('d-sinif-ogretmen-etiket').textContent = ogretmenAdiKademe(sinif.kademe);
   const so = $('d-sinif-ogretmen');
-  doldur(so, ogr, o => o.uyelikId, o => o.ad, 'Belirlenmedi');
+  doldur(so, sinifOgretmenAdaylari(sinif.subeId, sinif.kademe), o => o.uyelikId, o => o.ad, 'Belirlenmedi');
   so.value = sinif.sinifOgretmenUyelikId ? String(sinif.sinifOgretmenUyelikId) : '';
   so.onchange = () => yap('/api/yonetim/sinif-ogretmeni',
-    { sinifId: sinif.id, uyelikId: so.value === '' ? null : Number(so.value) }, 'Sınıf öğretmeni güncellendi.');
+    { sinifId: sinif.id, uyelikId: so.value === '' ? null : Number(so.value) }, ogretmenAdiKademe(sinif.kademe) + ' güncellendi.');
 
   // Sınıfın dersleri ve ders öğretmenleri
   const tb = $('d-ders-liste');
@@ -272,7 +297,7 @@ function cizDetay() {
   }
   if (!atamalar.length) bosNot(tb, 'Bu sınıfa henüz ders eklenmedi.');
 
-  const eklenmemis = v.dersler.filter(d => !atamalar.some(a => a.dersId === d.id));
+  const eklenmemis = v.dersler.filter(d => d.id !== v.sinifOgretmenligiId && d.kademeler.includes(sinif.kademe) && !atamalar.some(a => a.dersId === d.id));
   doldur($('d-ders'), eklenmemis, d => d.id, d => d.ad);
 
   // Sınıfın öğrencileri

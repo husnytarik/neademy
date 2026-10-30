@@ -1,9 +1,10 @@
 import { db } from './db.js';
 import { dersStilleri, stilEkle } from './stil.js';
 import { ogretmenMesgulNedeni } from './gorev.js';
+import { KADEMELER, dersListesi, dersKademedeMi, dersKademeleriYaz, sinifOgretmenligiId } from './kademe.js';
 import { DERS_ZAMANLARI, ACIK_GUNLER, gunAcik, ayarlar, ayarDogrula, ayarKaydet } from './okul-ayar.js';
 
-export const KADEMELER = ['Anasınıfı', 'İlkokul', 'Ortaokul', 'Lise'];
+export { KADEMELER };
 
 // Başlangıç ders listesi (yönetim sonradan ekleyebilir).
 if (db.prepare('SELECT COUNT(*) AS n FROM courses').get().n === 0) {
@@ -35,7 +36,7 @@ function ogretmenHatasi(uyelikId, sinif, dersId) {
 // Yalnızca "yonetim" rolüyle çağrılır (yetki server.js'te denetlenir).
 // İşlenen uç olursa true döner.
 // Açgözlü yerleştirme: kalan saati çok olan ders önce; bir dersi günlere yayar, öğretmen çakışmasından kaçınır.
-function otomatikYerlestir(sinifId, bastan) {
+export function otomatikYerlestir(sinifId, bastan) {
   db.exec('BEGIN');
   try {
     // Kulüp saatleri okulca belirlenir; sınıf programı sıfırlanırken korunur
@@ -104,7 +105,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
       siniflar: db.prepare(`SELECT c.id, c.branch_id AS subeId, b.name AS sube, c.level AS kademe, c.name AS ad
                             FROM classes c JOIN branches b ON b.id = c.branch_id
                             ORDER BY b.id, c.level, c.name`).all(),
-      dersler: db.prepare('SELECT id, name AS ad FROM courses ORDER BY name').all(),
+      dersler: dersListesi(),
       ogretmenler: db.prepare(`SELECT m.id AS uyelikId, u.id AS userId, u.full_name AS ad,
                                       m.branch_id AS subeId, b.name AS sube
                                FROM memberships m JOIN users u ON u.id = m.user_id
@@ -245,7 +246,10 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
     const ad = String(b.ad || '').trim();
     if (ad.length < 2 || ad.length > 60) return hata(400, 'Ders adı 2-60 karakter olmalı');
     if (db.prepare('SELECT 1 FROM courses WHERE name = ? COLLATE NOCASE').get(ad)) return hata(409, 'Bu ders zaten var');
+    const kademeler = Array.isArray(b.kademeler) && b.kademeler.length ? [...new Set(b.kademeler)] : [...KADEMELER];
+    if (!kademeler.every(k => KADEMELER.includes(k))) return hata(400, 'Geçersiz kademe');
     const id = Number(db.prepare('INSERT INTO courses (name) VALUES (?)').run(ad).lastInsertRowid);
+    dersKademeleriYaz(id, kademeler);
     denetle(o.user_id, 'ders-ekle', { dersId: id, ad });
     json(res, 201, { tamam: true, id });
     return true;
@@ -261,6 +265,8 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
     const sinif = db.prepare('SELECT * FROM classes WHERE id = ?').get(sinifId);
     if (!sinif) return hata(404, 'Sınıf bulunamadı');
     if (!db.prepare('SELECT 1 FROM courses WHERE id = ?').get(dersId)) return hata(404, 'Ders bulunamadı');
+    if (!dersKademedeMi(dersId, sinif.level)) return hata(400, `Bu ders ${sinif.level} kademesinde okutulmaz`);
+    if (dersId === sinifOgretmenligiId()) return hata(400, 'Sınıf Öğretmenliği bir ders değil, branştır');
     if (uyelikId) {
       const h = ogretmenHatasi(uyelikId, sinif, dersId);
       if (h) return hata(400, h);

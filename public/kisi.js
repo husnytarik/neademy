@@ -505,7 +505,7 @@ function dersBolumu() {
     for (const a of k.atamalar) ul.append(el('li', `${a.sinif} · ${a.ders} · haftada ${a.saat} saat`));
     b.append(ul);
   }
-  if (k.sinifOgretmenligi.length) b.append(el('p', 'Sınıf öğretmeni: ' + k.sinifOgretmenligi.map(s => s.sinif).join(', '), 'alt'));
+  if (k.sinifOgretmenligi.length) for (const etiket of [...new Set(k.sinifOgretmenligi.map(s => s.etiket))]) b.append(el('p', etiket + ': ' + k.sinifOgretmenligi.filter(s => s.etiket === etiket).map(s => s.sinif).join(', '), 'alt'));
   return b;
 }
 

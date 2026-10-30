@@ -1,5 +1,6 @@
 import { db, sonrakiOkulNo, tcGecerliMi, FOTO_SQL } from './db.js';
 import { resimTuru, hamGovde } from './foto.js';
+import { KADEMELER, dersListesi, sinifOgretmeniAdi, SINIF_OGRETMENI_KADEMELERI, sinifOgretmenligiId } from './kademe.js';
 
 const tamSayi = (v, min, max) => {
   const n = Number(v);
@@ -58,7 +59,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   if (req.method === 'GET' && yol === '/api/yonetim/kurulum') {
     const dersIdleri = db.prepare('SELECT teacher_membership_id AS u, course_id AS d FROM teacher_courses').all();
     const ogretmenler = db.prepare(`
-      SELECT m.id AS uyelikId, u.id AS userId, u.full_name AS ad, ${FOTO_SQL} AS foto, m.branch_id AS subeId, b.name AS sube, m.status AS durum
+      SELECT m.id AS uyelikId, m.brans_id AS bransId, u.id AS userId, u.full_name AS ad, ${FOTO_SQL} AS foto, m.branch_id AS subeId, b.name AS sube, m.status AS durum
       FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN branches b ON b.id = m.branch_id
       WHERE m.role = 'ogretmen' ORDER BY u.full_name`).all()
       .map(t => ({ ...t, dersIds: dersIdleri.filter(x => x.u === t.uyelikId).map(x => x.d) }));
@@ -82,15 +83,17 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
                (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif') AS ogrenciSayisi,
                (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogretmen' AND m.status = 'aktif') AS ogretmenSayisi
         FROM branches b ORDER BY b.id`).all(),
-      kademeler: ['Anasınıfı', 'İlkokul', 'Ortaokul', 'Lise'],
-      dersler: db.prepare('SELECT id, name AS ad FROM courses ORDER BY name').all(),
+      kademeler: KADEMELER,
+      dersler: dersListesi(),
+      sinifOgretmenligiId: sinifOgretmenligiId(),
+      sinifOgretmeniKademeleri: SINIF_OGRETMENI_KADEMELERI,
       ogretmenler,
       ogrenciler: ogrenciler.map(x => ({ ...x, veliler: veliler.filter(v => v.ogrenciId === x.uyelikId).map(({ ad, telefon }) => ({ ad, telefon })) })),
       siniflar: db.prepare(`
         SELECT c.id, c.branch_id AS subeId, b.name AS sube, c.level AS kademe, c.name AS ad,
                c.homeroom_membership_id AS sinifOgretmenUyelikId,
                (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS ogrenciSayisi
-        FROM classes c JOIN branches b ON b.id = c.branch_id ORDER BY b.id, c.level, c.name`).all(),
+        FROM classes c JOIN branches b ON b.id = c.branch_id ORDER BY b.id, c.level, c.name`).all().map(s => ({ ...s, sinifOgretmeniAdi: sinifOgretmeniAdi(s.kademe) })),
       atamalar: db.prepare(`
         SELECT a.id, a.class_id AS sinifId, a.course_id AS dersId, co.name AS ders,
                a.teacher_membership_id AS ogretmenUyelikId, a.weekly_hours AS haftalikSaat,
@@ -302,6 +305,9 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
     const ogr = uyelikId && db.prepare("SELECT * FROM memberships WHERE id = ? AND role = 'ogretmen' AND status = 'aktif'").get(uyelikId);
     if (!ogr) return hata(400, 'Geçerli bir öğretmen seçiniz');
     if (ogr.branch_id !== sinif.branch_id) return hata(400, 'Öğretmen bu sınıfın şubesinde görevli değil');
+    if (SINIF_OGRETMENI_KADEMELERI.includes(sinif.level) && ogr.brans_id !== sinifOgretmenligiId()) {
+      return hata(400, 'Bu kademede sınıf öğretmeni, branşı "Sınıf Öğretmenliği" olan öğretmen olabilir');
+    }
     db.prepare('UPDATE classes SET homeroom_membership_id = ? WHERE id = ?').run(uyelikId, sinifId);
   }
   denetle(o.user_id, 'sinif-ogretmeni', { sinifId, uyelikId: bos(b.uyelikId) ? null : Number(b.uyelikId) });

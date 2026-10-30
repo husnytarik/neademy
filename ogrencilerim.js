@@ -1,4 +1,5 @@
 import { db, FOTO_SQL } from './db.js';
+import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { dersStilleri, stilEkle } from './stil.js';
 
 const DEVAM = `COUNT(k.yoklama_id) AS toplam, COALESCE(SUM(k.status = 'geldi'), 0) AS geldi, COALESCE(SUM(k.status = 'gelmedi'), 0) AS gelmedi,
@@ -36,7 +37,7 @@ export function ogrenciDosyasi(id, o1) {
   const dersiOgren = mid => {
     if (!dersEtiket.has(mid)) {
       const dl = db.prepare(`SELECT DISTINCT co.name FROM assignments a JOIN courses co ON co.id = a.course_id WHERE a.class_id = ? AND a.teacher_membership_id = ? ORDER BY co.name`).all(o1.sinifId, mid).map(r => r.name);
-      if (db.prepare('SELECT 1 FROM classes WHERE id = ? AND homeroom_membership_id = ?').get(o1.sinifId, mid)) dl.push('Sınıf öğretmeni');
+      if (db.prepare('SELECT 1 FROM classes WHERE id = ? AND homeroom_membership_id = ?').get(o1.sinifId, mid)) dl.push(sinifOgretmeniAdiSinif(o1.sinifId));
       dersEtiket.set(mid, dl.join(', '));
     }
     return dersEtiket.get(mid);

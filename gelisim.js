@@ -1,4 +1,5 @@
 import { db, FOTO_SQL } from './db.js';
+import { sinifOgretmeniAdiSinif } from './kademe.js';
 
 // Gelişim raporu: yönetim başlıkları ve dönemleri (tarih aralığı) belirler; öğretmenler dönem açıkken kendi öğrencileri için
 // başlık başlık yazar; yönetim bir öğrencinin tüm öğretmen yorumlarını, veli toplantısı ve görüşme notlarını tek raporda görür.
@@ -31,7 +32,7 @@ const ogrenciKarti = (id, subeId) => db.prepare(`SELECT m.id, u.full_name AS ad,
 function dersEtiketi(ogretmenId, sinifId) {
   const dersler = db.prepare(`SELECT co.name FROM assignments a JOIN courses co ON co.id = a.course_id
     WHERE a.class_id = ? AND a.teacher_membership_id = ? ORDER BY co.name`).all(sinifId, ogretmenId).map(r => r.name);
-  if (db.prepare('SELECT 1 FROM classes WHERE id = ? AND homeroom_membership_id = ?').get(sinifId, ogretmenId)) dersler.push('Sınıf öğretmeni');
+  if (db.prepare('SELECT 1 FROM classes WHERE id = ? AND homeroom_membership_id = ?').get(sinifId, ogretmenId)) dersler.push(sinifOgretmeniAdiSinif(sinifId));
   return dersler.join(' · ');
 }
 
@@ -157,7 +158,7 @@ export async function gelisimApi({ req, res, url, o, json, govde, denetle }) {
       const dersler = new Set();
       for (const s of ogretmenSiniflari(t.id, subeId)) {
         for (const x of ogrencileri(s.id)) ogrenciler.add(x.id);
-        for (const e of dersEtiketi(t.id, s.id).split(' · ')) if (e && e !== 'Sınıf öğretmeni') dersler.add(e);
+        for (const e of dersEtiketi(t.id, s.id).split(' · ')) if (e && e !== 'Sınıf öğretmeni' && e !== 'Mentor öğretmen') dersler.add(e);
       }
       if (!ogrenciler.size) continue;
       const girilen = new Map(db.prepare(`SELECT g.student_membership_id AS s, COUNT(*) AS n FROM gelisim_girisleri g JOIN gelisim_basliklari b ON b.id = g.baslik_id

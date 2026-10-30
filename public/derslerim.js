@@ -146,7 +146,7 @@ async function haftaYukle() {
   ozet.append(el('strong', `${dersSayisi} saat ders`));
   if (etutler.length) ozet.append(` · ${etutler.length} etüt (${etutDk} dk)`);
   const aciklama = el('p', undefined, 'hafta-not');
-  aciklama.append(el('span', '✓ ders işlendi'), el('span', '⊘ ders iptal'), el('span', '! süresi geçti, tamamlanmadı'), el('span', 'Kesik çizgi: etüt'));
+  aciklama.append(el('span', '✓ ders işlendi'), el('span', '⊘ ders iptal'), el('span', '! süresi geçti, tamamlanmadı'), el('span', 'Çerçeveli: etüt'));
   $('hafta').replaceChildren(ozet, t, aciklama);
   atamaCiz();
 }

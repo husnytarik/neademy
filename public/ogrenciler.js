@@ -26,6 +26,8 @@ function sinifSecenekleri() {
 }
 
 function ciz() {
+  for (const id of ['okul', 'sinif']) $(id).classList.toggle('suzulu', $(id).selectedIndex > 0);
+  $('durum').classList.toggle('suzulu', $('durum').selectedIndex > 0);
   const ara = $('ara').value.trim().toLocaleLowerCase('tr');
   const okul = $('okul').value, sinif = $('sinif').value;
   const bol = ad => { const p = ad.trim().split(/\s+/); return p.length > 1 ? [p.slice(0, -1).join(' '), p.at(-1)] : [ad, '']; };
