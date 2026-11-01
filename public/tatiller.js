@@ -10,6 +10,7 @@
     ['08-30', 'Zafer Bayramı'], ['10-29', 'Cumhuriyet Bayramı'],
   ];
   let tatiller = [];
+  let duzenle = false;   // kapalıyken yalnızca temiz liste görünür
 
   const el = (tag, metin, sinif) => {
     const e = document.createElement(tag);
@@ -81,35 +82,43 @@
     const kart = el('div', undefined, 'not-kart');
     const ust = el('div', undefined, 'not-ust');
     ust.append(el('strong', x.ad), el('span', aralik(x), 'alt'));
-    const s = el('button', 'Sil', 'ikincil tehlike kucuk'); s.type = 'button';
-    s.addEventListener('click', async () => {
-      if (!confirm(`"${x.ad}" tatili silinsin mi?`)) return;
-      const r = await api('/api/tatil/sil', { id: x.id });
-      if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
-      mesaj('Tatil silindi.', 'tamam');
-      yukle();
-    });
-    kart.append(ust, el('p', TURLER[x.tur]), s);
+    kart.append(ust, el('p', TURLER[x.tur]));
+    if (duzenle) {
+      const s = el('button', 'Sil', 'ikincil tehlike kucuk'); s.type = 'button';
+      s.addEventListener('click', async () => {
+        if (!confirm(`"${x.ad}" tatili silinsin mi?`)) return;
+        const r = await api('/api/tatil/sil', { id: x.id });
+        if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
+        mesaj('Tatil silindi.', 'tamam');
+        yukle();
+      });
+      kart.append(s);
+    }
     return kart;
   }
 
   function ciz() {
     kok.replaceChildren();
-    const f = form();
     const ust = el('div', undefined, 'ekle-ust');
-    const d = el('button', '+ Tatil ekle', 'ekle-ac'); d.type = 'button';
-    d.addEventListener('click', () => {
-      const kapali = f.classList.toggle('gizli');
-      d.textContent = kapali ? '+ Tatil ekle' : 'Vazgeç';
-      d.classList.toggle('acik', !kapali);
-    });
+    const d = el('button', duzenle ? 'Bitti' : 'Düzenle', 'ekle-ac' + (duzenle ? ' acik' : '')); d.type = 'button';
+    d.addEventListener('click', () => { duzenle = !duzenle; ciz(); });
     ust.append(el('h3', 'Tatiller ve özel günler', 'baslik3'), d);
-    kok.append(ust, f);
-    const o = oneriler();
-    if (o) kok.append(o);
+    kok.append(ust);
+    if (duzenle) {
+      const f = form();
+      const ac = el('button', '+ Tatil ekle', 'ekle-ac'); ac.type = 'button';
+      ac.addEventListener('click', () => {
+        const kapali = f.classList.toggle('gizli');
+        ac.textContent = kapali ? '+ Tatil ekle' : 'Vazgeç';
+        ac.classList.toggle('acik', !kapali);
+      });
+      kok.append(ac, f);
+      const o = oneriler();
+      if (o) kok.append(o);
+    }
     const t = bugun();
     const yaklasan = tatiller.filter(x => x.bitis >= t), gecmis = tatiller.filter(x => x.bitis < t).reverse();
-    if (!tatiller.length) kok.append(el('p', 'Henüz tatil eklenmedi. Tatil günlerinde ders programı, yoklama ve etüt ekranları "tatil" gösterir.', 'alt'));
+    if (!tatiller.length) kok.append(el('p', 'Henüz tatil eklenmedi. Eklemek için Düzenle\'ye dokunun. Tatil günlerinde ders programı, yoklama ve etüt ekranları "tatil" gösterir.', 'alt'));
     for (const x of yaklasan) kok.append(satir(x));
     if (gecmis.length) {
       const g = el('details', undefined, 'tatil-gecmis');

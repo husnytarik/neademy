@@ -1,6 +1,6 @@
 import { db } from './db.js';
 
-const YAKINLIK = ['Anne', 'Baba', 'Kardeş', 'Dede', 'Nine', 'Amca / Dayı', 'Teyze / Hala', 'Diğer'];
+const YAKINLIK = ['Eş', 'Anne', 'Baba', 'Diğer'];
 const epostaGecerli = v => /^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/.test(v);
 
 // "0555 123 45 67", "+90 555..." -> 10 haneli numara; geçersizse null
@@ -25,7 +25,10 @@ export async function profilApi({ req, res, url, o, json, govde, denetle }) {
       u.tc_no ? { ad: 'T.C. kimlik no', deger: gizle(u.tc_no) } : { ad: 'Pasaport no', deger: u.passport_no },
       { ad: 'Giriş telefonu', deger: u.phone },
     ];
-    if (o.branch) hesap.push({ ad: 'Şube', deger: o.branch });
+    // Okulun hangi kampüste olduğu da yazılır (aynı adlı okullar karışmasın)
+    const kampus = db.prepare('SELECT k.name AS ad FROM memberships m JOIN branches b ON b.id = m.branch_id JOIN kampusler k ON k.id = b.campus_id WHERE m.id = ?').get(o.membership_id)?.ad;
+    if (kampus) hesap.push({ ad: 'Kampüs', deger: kampus });
+    if (o.branch) hesap.push({ ad: 'Okul', deger: o.branch });
 
     const okul = { baslik: '', satirlar: [] };
     if (o.role === 'ogretmen') {
@@ -80,7 +83,6 @@ export async function profilApi({ req, res, url, o, json, govde, denetle }) {
     let telefon2 = '', yakinTelefon = '';
     if (String(b.telefon2 || '').trim()) { telefon2 = tel(b.telefon2); if (!telefon2) return hata('İkinci telefon geçerli değil (10 haneli, örn. 532 123 45 67)'); }
     if (String(b.yakinTelefon || '').trim()) { yakinTelefon = tel(b.yakinTelefon); if (!yakinTelefon) return hata('Yakının telefonu geçerli değil (10 haneli, örn. 532 123 45 67)'); }
-    if (yakinYakinlik && !YAKINLIK.includes(yakinYakinlik)) return hata('Yakınlık listeden seçilmeli');
     if ((yakinAd || yakinYakinlik) && !yakinTelefon) return hata('Yakın kişi için telefon numarası gerekli');
 
     db.prepare(`INSERT INTO profil_bilgi (user_id, email, telefon2, il, ilce, adres, yakin_ad, yakin_yakinlik, yakin_telefon, guncelleme)

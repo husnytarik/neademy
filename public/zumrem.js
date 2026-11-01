@@ -5,6 +5,10 @@ let secili = null;     // courseId
 let veri = null;       // /api/zumre/detay yanıtı
 let sekme = 'toplanti';
 let duzenle;           // düzenlenen toplantı (null: yeni toplantı, undefined: form kapalı)
+let kararForm = null;  // açık karar formu: { toplantiId, tarih, baslik, karar }
+let baskanMi = false;  // herhangi bir zümrenin başkanı mı (Başkanlar sekmesi için)
+let bToplantilar = null; // /api/zumre/baskanlar/liste yanıtı
+let bKarar = null;     // karar yazılan başkanlar toplantısı id
 
 function el(tag, metin, sinif) {
   const e = document.createElement(tag);
@@ -94,6 +98,12 @@ function toplantiSatiri(t) {
   if (ilk) orta.append(el('span', kalanYazi(kalan(ilk)), 'alt'));
   if (t.siradaki.length > 1) orta.append(el('span', 'Sonraki: ' + t.siradaki.slice(1).map(uzunTarih).join(' · '), 'alt'));
   if (t.gundem) orta.append(el('p', t.gundem, 'zm-gundem'));
+  if (veri.baskan && t.bekleyen) {
+    const b = el('div', undefined, 'zm-bekleyen');
+    b.append(el('span', `${uzunTarih(t.bekleyen)} toplantısı yapıldı, kararı yazılmadı`, 'alt'),
+      dugme('Toplantıyı bitir', () => { kararForm = { toplantiId: t.id, tarih: t.bekleyen, baslik: t.baslik, karar: '' }; ciz(); }, 'birincil kucuk'));
+    orta.append(b);
+  }
   if (veri.baskan) {
     const d = el('div', undefined, 'zm-dugme');
     d.append(dugme('Düzenle', () => { duzenle = t; ciz(); }), dugme('Sil', async () => {
@@ -108,16 +118,62 @@ function toplantiSatiri(t) {
   return s;
 }
 
+function kararFormu() {
+  const f = el('form', undefined, 'zm-form');
+  const metin = el('textarea'); metin.maxLength = 2000; metin.required = true; metin.value = kararForm.karar;
+  metin.placeholder = 'Toplantıda alınan kararlar, görevler, sonraki adımlar…';
+  metin.setAttribute('aria-label', 'Alınan kararlar');
+  const d = el('div', undefined, 'zm-dugme');
+  const g = el('button', 'Kaydet', 'birincil kucuk'); g.type = 'submit';
+  d.append(g, dugme('Vazgeç', () => { kararForm = null; ciz(); }));
+  f.append(el('strong', `${kararForm.baslik} · ${uzunTarih(kararForm.tarih)}`), metin, d);
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const r = await api('/api/zumre/karar', { courseId: secili, toplantiId: kararForm.toplantiId, tarih: kararForm.tarih, karar: metin.value });
+    if (!r.ok) return mesaj(r.veri.hata || 'Kaydedilemedi', 'hata');
+    mesaj('Karar kaydedildi.', 'basari');
+    kararForm = null;
+    yukle();
+  });
+  return f;
+}
+
+function kararlariCiz(k) {
+  if (!kararForm && !veri.kararlar.length) return;
+  k.append(el('h2', 'Alınan kararlar', 'baslik3'));
+  if (kararForm) k.append(kararFormu());
+  for (const c of veri.kararlar) {
+    const s = el('div', undefined, 'zm-yazi');
+    const ust = el('div', undefined, 'zm-yazi-ust');
+    ust.append(el('strong', `${c.baslik} · ${uzunTarih(c.tarih)} ${c.saat}`), el('small', c.yazan));
+    s.append(ust, el('p', c.karar, 'zm-gundem'));
+    if (veri.baskan) {
+      const d = el('div', undefined, 'zm-dugme');
+      d.append(dugme('Düzenle', () => { kararForm = { toplantiId: c.toplantiId, tarih: c.tarih, baslik: c.baslik, karar: c.karar }; ciz(); }),
+        dugme('Sil', async () => {
+          if (!confirm('Bu toplantı kararı silinsin mi?')) return;
+          const r = await api('/api/zumre/karar-sil', { courseId: secili, id: c.id });
+          if (!r.ok) return mesaj(r.veri.hata || 'Silinemedi', 'hata');
+          yukle();
+        }, 'ikincil kucuk tehlike'));
+      s.append(d);
+    }
+    k.append(s);
+  }
+}
+
 function toplantilariCiz(k) {
   if (veri.baskan && duzenle !== undefined) k.append(el('h2', duzenle ? 'Toplantıyı düzenle' : 'Yeni toplantı', 'baslik3'), toplantiFormu());
-  else if (veri.baskan) k.append(dugme('+ Toplantı ekle', () => { duzenle = null; ciz(); }, 'birincil kucuk'));
+  else if (veri.baskan) { const sat = el('div', undefined, 'zm-ekle-satir'); sat.append(dugme('+ Toplantı ekle', () => { duzenle = null; ciz(); }, 'birincil')); k.append(sat); }
   if (!veri.toplantilar.length) {
-    return k.append(el('p', veri.baskan
+    k.append(el('p', veri.baskan
       ? 'Henüz toplantı yok. Rutin toplantıyı ekleyin; zümre öğretmenlerinin paneline hatırlatma düşer.'
       : 'Zümre başkanı toplantı eklediğinde burada görünür ve panelinize hatırlatma düşer.', 'alt'));
+    return kararlariCiz(k);
   }
   k.append(el('h2', 'Sıradaki toplantılar', 'baslik3'));
   for (const t of veri.toplantilar) k.append(toplantiSatiri(t));
+  kararlariCiz(k);
 }
 
 // ---- Yazılar: zümredeki herkes yazabilir ----
@@ -159,6 +215,56 @@ function yazilariCiz(k) {
   }
 }
 
+// ---- Başkanlar: yönetimin kurduğu zümre başkanları toplantıları ----
+function baskanlarCiz(k) {
+  if (!bToplantilar) return k.append(el('p', 'Yükleniyor…', 'alt'));
+  if (!bToplantilar.toplantilar.length) return k.append(el('p', 'Yönetim zümre başkanları toplantısı kurduğunda burada görünür; toplantıdan sonra alınan kararlar da burada yazılır.', 'alt'));
+  k.append(el('p', 'Bu toplantılar ve kararları yalnızca yönetim ile zümre başkanlarına görünür.', 'alt'));
+  for (const t of bToplantilar.toplantilar) {
+    const s = el('div', undefined, 'zm-yazi');
+    const ust = el('div', undefined, 'zm-yazi-ust');
+    ust.append(el('strong', t.baslik), el('small', `${uzunTarih(t.tarih)} ${t.saat}${t.yer ? ' · ' + t.yer : ''}`));
+    s.append(ust);
+    if (t.gundem) s.append(el('p', t.gundem, 'zm-gundem'));
+    if (bKarar === t.id) {
+      const f = el('form', undefined, 'zm-form');
+      const m = el('textarea'); m.maxLength = 2000; m.value = t.karar; m.placeholder = 'Toplantıda alınan kararlar…';
+      m.setAttribute('aria-label', 'Alınan kararlar');
+      const d = el('div', undefined, 'zm-dugme');
+      const g = el('button', 'Kaydet', 'birincil kucuk'); g.type = 'submit';
+      d.append(g, dugme('Vazgeç', () => { bKarar = null; ciz(); }));
+      f.append(m, d);
+      f.addEventListener('submit', async e => {
+        e.preventDefault();
+        const r = await api('/api/zumre/baskanlar/karar', { id: t.id, karar: m.value });
+        if (!r.ok) return mesaj(r.veri.hata || 'Kaydedilemedi', 'hata');
+        mesaj('Karar kaydedildi.', 'basari');
+        bKarar = null;
+        baskanlariYukle();
+      });
+      s.append(f);
+    } else {
+      if (t.karar) {
+        s.append(el('strong', 'Alınan kararlar'), el('p', t.karar, 'zm-gundem'));
+        s.append(el('small', `${t.kararYazan || ''} · ${zamanYaz(t.kararZamani)}`));
+      } else if (t.basladi) s.append(el('p', 'Karar henüz yazılmadı.', 'alt'));
+      if (t.basladi) {
+        const d = el('div', undefined, 'zm-dugme');
+        d.append(dugme(t.karar ? 'Kararı düzenle' : 'Toplantıyı bitir', () => { bKarar = t.id; ciz(); }, t.karar ? 'ikincil kucuk' : 'birincil kucuk'));
+        s.append(d);
+      }
+    }
+    k.append(s);
+  }
+}
+
+async function baskanlariYukle() {
+  const r = await api('/api/zumre/baskanlar/liste');
+  if (!r.ok) return mesaj(r.veri.hata || 'Toplantılar yüklenemedi', 'hata');
+  bToplantilar = r.veri;
+  ciz();
+}
+
 // ---- Öğretmenler ----
 function ogretmenleriCiz(k) {
   k.append(el('p', `${veri.zumre.ad} zümresinde ${veri.ogretmenler.length} öğretmen var.`, 'alt'));
@@ -172,10 +278,11 @@ function ogretmenleriCiz(k) {
   }
 }
 
-const CIZIMLER = { toplanti: toplantilariCiz, yazi: yazilariCiz, ogretmen: ogretmenleriCiz };
+const CIZIMLER = { toplanti: toplantilariCiz, yazi: yazilariCiz, ogretmen: ogretmenleriCiz, baskanlar: baskanlarCiz };
 
 function ciz() {
   for (const b of $('z-sekmeler').children) b.setAttribute('aria-pressed', String(b.dataset.sekme === sekme));
+  $('z-sekmeler').querySelector('[data-sekme="baskanlar"]').classList.toggle('gizli', !baskanMi);
   for (const [ad, f] of Object.entries(CIZIMLER)) {
     const k = $(ad);
     k.classList.toggle('gizli', ad !== sekme);
@@ -192,7 +299,7 @@ function zumreSecimi() {
     const b = el('button', z.ad);
     b.type = 'button';
     b.setAttribute('aria-pressed', String(z.id === secili));
-    b.addEventListener('click', () => { secili = z.id; duzenle = undefined; zumreSecimi(); yukle(); });
+    b.addEventListener('click', () => { secili = z.id; duzenle = undefined; kararForm = null; zumreSecimi(); yukle(); });
     k.append(b);
   }
 }
@@ -205,13 +312,15 @@ async function yukle() {
   ciz();
 }
 
-for (const b of $('z-sekmeler').children) b.addEventListener('click', () => { sekme = b.dataset.sekme; mesaj(''); ciz(); });
+for (const b of $('z-sekmeler').children) b.addEventListener('click', () => { sekme = b.dataset.sekme; mesaj(''); ciz(); if (sekme === 'baskanlar') baskanlariYukle(); });
 
 (async () => {
   const r = await api('/api/zumre/benim');
   if (!r.ok) return mesaj(r.veri.hata || 'Zümre bilgisi alınamadı', 'hata');
   zumreler = r.veri.zumreler;
+  baskanMi = !!r.veri.baskan;
   if (!zumreler.length) return mesaj('Bir derse atanmadığınız için zümreniz yok.');
+  if (baskanMi && new URLSearchParams(location.search).get('sekme') === 'baskanlar') { sekme = 'baskanlar'; baskanlariYukle(); }
   const istenen = Number(new URLSearchParams(location.search).get('courseId'));
   secili = (zumreler.find(z => z.id === istenen) || zumreler[0]).id;
   zumreSecimi();

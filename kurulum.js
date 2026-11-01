@@ -1,4 +1,4 @@
-import { db, sonrakiOkulNo, tcGecerliMi, FOTO_SQL } from './db.js';
+import { db, sonrakiOkulNo, tcGecerliMi, FOTO_SQL, sosyalDogrula, webDogrula, TANITIM_AZAMI } from './db.js';
 import { resimTuru, hamGovde } from './foto.js';
 import { KADEMELER, dersListesi, sinifOgretmeniAdi, SINIF_OGRETMENI_KADEMELERI, sinifOgretmenligiId } from './kademe.js';
 
@@ -167,10 +167,15 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
     if (db.prepare('SELECT 1 FROM branches WHERE name = ? COLLATE NOCASE AND id IS NOT ?').get(ad, id)) return hata(409, 'Bu adda bir okul var');
     const eposta = metin(b.eposta, 80);
     if (eposta && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return hata(400, 'E-posta adresi geçersiz');
-    const alanlar = [ad, kampusId, metin(b.tur, 30), metin(b.kurumKodu, 30), metin(b.telefon, 30), eposta, metin(b.adres, 200)];
+    const web = webDogrula(b.web);
+    if (web === null) return hata(400, 'Web sitesi adresi geçersiz');
+    const sosyal = sosyalDogrula(b.sosyal);
+    if (sosyal.hata) return hata(400, sosyal.hata);
+    const alanlar = [ad, kampusId, metin(b.tur, 30), metin(b.kurumKodu, 30), metin(b.telefon, 30), eposta, metin(b.adres, 200),
+      web, metin(b.aciklama, TANITIM_AZAMI), sosyal.json];
     let yeniId = id;
-    if (id) db.prepare('UPDATE branches SET name = ?, campus_id = ?, tur = ?, kurum_kodu = ?, telefon = ?, eposta = ?, adres = ? WHERE id = ?').run(...alanlar, id);
-    else yeniId = Number(db.prepare('INSERT INTO branches (name, campus_id, tur, kurum_kodu, telefon, eposta, adres) VALUES (?,?,?,?,?,?,?)').run(...alanlar).lastInsertRowid);
+    if (id) db.prepare('UPDATE branches SET name = ?, campus_id = ?, tur = ?, kurum_kodu = ?, telefon = ?, eposta = ?, adres = ?, web = ?, aciklama = ?, sosyal = ? WHERE id = ?').run(...alanlar, id);
+    else yeniId = Number(db.prepare('INSERT INTO branches (name, campus_id, tur, kurum_kodu, telefon, eposta, adres, web, aciklama, sosyal) VALUES (?,?,?,?,?,?,?,?,?,?)').run(...alanlar).lastInsertRowid);
     denetle(o.user_id, id ? 'okul-duzenle' : 'okul-ekle', { okulId: yeniId, ad, kampusId });
     json(res, id ? 200 : 201, { tamam: true, id: yeniId });
     return true;

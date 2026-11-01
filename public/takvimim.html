@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neademy - Takvimim</title>
+  <link rel="stylesheet" href="/style.css?v=113">
+  <script src="/renk.js?v=10"></script>
+  <script src="/tema.js?v=1"></script>
+</head>
+<body>
+  <header class="bant alt-bant">
+    <a href="/panel" class="bant-geri" aria-label="Panele dön">&larr;</a>
+    <h1>Takvimim</h1>
+  </header>
+  <main class="kart panel genis">
+    <p id="mesaj" class="mesaj" role="status" aria-live="polite"></p>
+
+    <div class="sekmeler" id="gorunum">
+      <button type="button" data-gorunum="ay" aria-pressed="true">Ay</button>
+      <button type="button" data-gorunum="hafta" aria-pressed="false">Hafta</button>
+    </div>
+
+    <div class="gun-seridi" id="gun-seridi">
+      <button type="button" id="geri" aria-label="Önceki">&larr;</button>
+      <div class="gun-baslik">
+        <strong id="baslik"></strong>
+        <button type="button" id="bugun" class="ikincil">Bugün</button>
+      </div>
+      <button type="button" id="ileri" aria-label="Sonraki">&rarr;</button>
+    </div>
+
+    <div id="ay"></div>
+    <div id="hafta" class="gizli"></div>
+    <p class="tk-lejant" id="lejant"></p>
+    <div id="secili-gun"></div>
+  </main>
+  <script src="/ders-stil.js?v=10"></script>
+  <script src="/takvimim.js?v=3"></script>
+  <script src="/bant.js?v=10"></script>
+</body>
+</html>

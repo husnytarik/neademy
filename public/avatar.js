@@ -132,6 +132,7 @@ async function fotoKirp(dosya, { tur = 'jpeg', kenar = 480, baslik = 'Fotoğraf�
       cikti.width = cikti.height = kenar;
       const g = cikti.getContext('2d');
       if (!logo) { g.fillStyle = '#fff'; g.fillRect(0, 0, kenar, kenar); }
+      if (logo) { g.beginPath(); g.arc(kenar / 2, kenar / 2, kenar / 2, 0, Math.PI * 2); g.clip(); } // logo çerçevedeki yuvarlak kadar kalır
       g.drawImage(bmp, kenar / 2 + ox * f - bmp.width * olcek * f / 2, kenar / 2 + oy * f - bmp.height * olcek * f / 2, bmp.width * olcek * f, bmp.height * olcek * f);
       const blob = await new Promise(ok => cikti.toBlob(ok, logo ? 'image/png' : 'image/jpeg', 0.85));
       const kucuk = document.createElement('canvas');

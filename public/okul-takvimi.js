@@ -2,6 +2,7 @@ const $ = id => document.getElementById(id);
 const KISA = { 1: 'Pzt', 2: 'Sal', 3: 'Çar', 4: 'Per', 5: 'Cum', 6: 'Cmt', 0: 'Paz' };
 let gunler = [];   // [{ no, ad, acik }]
 let saatler = [];  // [{ bas, bit }]
+let kayitli = null; // son kaydedilen hal; Vazgeç buna döner
 
 function el(tag, metin, sinif) {
   const e = document.createElement(tag);
@@ -17,6 +18,35 @@ function mesaj(metin, tur = '') {
 
 const dk = s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
 const saatYaz = n => String(Math.floor(n / 60) % 24).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+
+// Görüntüleme: düzenleme kapalıyken temiz liste
+function goruntuCiz() {
+  const g = $('g-gunler');
+  g.replaceChildren();
+  for (const x of kayitli.gunler) {
+    const s = el('span', KISA[x.no], 'gun-cip' + (x.acik ? ' acik' : ''));
+    s.title = x.ad + (x.acik ? '' : ' (ders yok)');
+    g.append(s);
+  }
+  const k = $('g-saatler');
+  k.replaceChildren();
+  kayitli.saatler.forEach((s, i) => {
+    const satir = el('div', undefined, 'saat-satir saat-oku');
+    satir.append(el('span', String(i + 1), 'saat-no'), el('span', s.bas), el('span', '–', 'saat-tire'), el('span', s.bit));
+    k.append(satir);
+  });
+}
+
+function duzenleAc(ac) {
+  $('goruntu').classList.toggle('gizli', ac);
+  $('duzenleme').classList.toggle('gizli', !ac);
+  $('duzenle').classList.toggle('gizli', ac);
+  if (ac) {
+    gunler = kayitli.gunler.map(x => ({ ...x }));
+    saatler = kayitli.saatler.map(x => ({ ...x }));
+    gunCiz(); saatCiz();
+  } else goruntuCiz();
+}
 
 function gunCiz() {
   const k = $('gunler');
@@ -71,16 +101,19 @@ $('kaydet').addEventListener('click', async () => {
     });
     const v = await r.json().catch(() => ({}));
     if (!r.ok) return mesaj(v.hata || 'Kaydedilemedi', 'hata');
-    gunler = v.okul.gunler; saatler = v.okul.saatler;
-    gunCiz(); saatCiz();
+    kayitli = { gunler: v.okul.gunler, saatler: v.okul.saatler };
+    duzenleAc(false);
     mesaj('Okul takvimi kaydedildi.', 'tamam');
   } finally { $('kaydet').disabled = false; }
 });
+
+$('duzenle').addEventListener('click', () => { mesaj(''); duzenleAc(true); });
+$('vazgec').addEventListener('click', () => { mesaj(''); duzenleAc(false); });
 
 (async () => {
   const r = await fetch('/api/okul/ayar');
   if (r.status === 401) { location.href = '/'; return; }
   const v = await r.json();
-  gunler = v.gunler; saatler = v.saatler;
-  gunCiz(); saatCiz();
+  kayitli = { gunler: v.gunler, saatler: v.saatler };
+  goruntuCiz();
 })();

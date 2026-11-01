@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>neademy - Okul takvimi</title>
-  <link rel="stylesheet" href="/style.css?v=32">
+  <link rel="stylesheet" href="/style.css?v=106">
   <script src="/renk.js?v=10"></script>
+  <script src="/tema.js?v=1"></script>
 </head>
 <body>
   <header class="bant alt-bant">
@@ -15,20 +16,37 @@
   <main class="kart panel genis takvim-sayfa">
     <p class="takvim-not">Ders günlerini ve zil saatlerini burada belirleyin. Ders programı, yoklama, etüt ve öğretmen/öğrenci ekranları bu ayarı kullanır.</p>
 
-    <h2 class="baslik2">Ders günleri</h2>
-    <div id="gunler" class="gun-cipler" role="group" aria-label="Ders günleri"></div>
-
-    <h2 class="baslik2">Ders saatleri</h2>
-    <div id="saatler" class="saat-liste"></div>
-    <button type="button" id="saat-ekle" class="saat-ekle">+ Ders saati ekle</button>
-
     <p id="mesaj" class="mesaj" role="status" aria-live="polite"></p>
-    <button type="button" id="kaydet" class="birincil">Kaydet</button>
+    <section class="ders-panel" id="takvim-bolum">
+      <div class="ekle-ust">
+        <h3 class="baslik3">Ders günleri ve saatleri</h3>
+        <button type="button" id="duzenle" class="ekle-ac">Düzenle</button>
+      </div>
+
+      <div id="goruntu">
+        <div id="g-gunler" class="gun-cipler" aria-label="Ders günleri"></div>
+        <div id="g-saatler" class="saat-liste"></div>
+      </div>
+
+      <div id="duzenleme" class="gizli">
+        <h2 class="baslik2">Ders günleri</h2>
+        <div id="gunler" class="gun-cipler" role="group" aria-label="Ders günleri"></div>
+
+        <h2 class="baslik2">Ders saatleri</h2>
+        <div id="saatler" class="saat-liste"></div>
+        <button type="button" id="saat-ekle" class="saat-ekle">+ Ders saati ekle</button>
+
+        <div class="takvim-dugme">
+          <button type="button" id="kaydet" class="birincil">Kaydet</button>
+          <button type="button" id="vazgec" class="ikincil">Vazgeç</button>
+        </div>
+      </div>
+    </section>
 
     <section class="ders-panel" id="tatil-bolum"></section>
   </main>
-  <script src="/okul-takvimi.js?v=10"></script>
-  <script src="/tatiller.js?v=10"></script>
+  <script src="/okul-takvimi.js?v=11"></script>
+  <script src="/tatiller.js?v=11"></script>
   <script src="/bant.js?v=10"></script>
 </body>
 </html>

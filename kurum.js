@@ -1,4 +1,4 @@
-import { db, tcGecerliMi, FOTO_SQL } from './db.js';
+import { db, tcGecerliMi, FOTO_SQL, SOSYAL_ALANLAR, TANITIM_AZAMI, sosyalDogrula, sosyalOku, webDogrula } from './db.js';
 import { resimTuru, hamGovde } from './foto.js';
 import { ekRolAdlari } from './yetki.js';
 
@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS okul_yoneticileri (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS okul_mudur_tek ON okul_yoneticileri (branch_id) WHERE gorev = 'mudur';
 INSERT OR IGNORE INTO kurum (id, ad, guncelleme) VALUES (1, 'Yeni Okul', 0);`);
+// Kurum tanıtımı: tanıtım yazısı ve sosyal medya hesapları
+for (const [k, tur] of [['aciklama', "TEXT NOT NULL DEFAULT ''"], ['sosyal', "TEXT NOT NULL DEFAULT '{}'"]]) {
+  if (!db.prepare('PRAGMA table_info(kurum)').all().some(c => c.name === k)) db.exec(`ALTER TABLE kurum ADD COLUMN ${k} ${tur}`);
+}
 if (!db.prepare('PRAGMA table_info(memberships)').all().some(c => c.name === 'gorev')) {
   db.exec("ALTER TABLE memberships ADD COLUMN gorev TEXT NOT NULL DEFAULT 'kurum'");
 }
@@ -77,25 +81,57 @@ export function yonetimUnvani(uyelikId) {
 }
 
 function kurumVerisi(o) {
-  const kurum = db.prepare('SELECT ad, kisa_ad AS kisaAd, telefon, eposta, web, adres FROM kurum WHERE id = 1').get();
+  const kurum = db.prepare('SELECT ad, kisa_ad AS kisaAd, telefon, eposta, web, adres, aciklama, sosyal FROM kurum WHERE id = 1').get();
+  kurum.sosyal = sosyalOku(kurum.sosyal);
+  const kurucular = db.prepare(`
+    SELECT u.id AS userId, u.full_name AS ad, u.phone AS telefon, ${FOTO_SQL} AS foto
+    FROM kullanici_roller k JOIN roller r ON r.id = k.rol_id AND r.kod = 'kurucu' JOIN users u ON u.id = k.user_id ORDER BY u.full_name`).all();
   const logo = db.prepare("SELECT 'v' || guncelleme AS v FROM kurum_logo WHERE id = 1").get()?.v || null;
   const yoneticiler = db.prepare(`
     SELECT y.id, y.branch_id AS okulId, y.user_id AS userId, y.gorev, u.full_name AS ad, u.phone AS telefon, ${FOTO_SQL} AS foto
     FROM okul_yoneticileri y JOIN users u ON u.id = y.user_id ORDER BY y.gorev, u.full_name`).all();
+  // Zümre = okuldaki aynı branşın öğretmenleri; başkanı üyelikte işaretlidir
+  const zumreler = db.prepare(`
+    SELECT m.branch_id AS okulId, COALESCE(c.name, 'Branşı belirtilmemiş') AS brans, COUNT(*) AS ogretmen,
+           GROUP_CONCAT(CASE WHEN m.zumre_baskani = 1 THEN u.full_name END, ', ') AS baskan
+    FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN courses c ON c.id = m.brans_id
+    WHERE m.role = 'ogretmen' AND m.status = 'aktif'
+    GROUP BY m.branch_id, m.brans_id ORDER BY m.branch_id, c.name`).all();
+  // Okul görevlileri: zümre başkanları ve ek roller (rehber, teknik ekip, güvenlik)
+  const gorevliler = [
+    ...db.prepare(`
+      SELECT m.branch_id AS okulId, 'Zümre başkanı' || COALESCE(' · ' || c.name, '') AS gorev, u.full_name AS ad, u.phone AS telefon, 1 AS sira
+      FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN courses c ON c.id = m.brans_id
+      WHERE m.role = 'ogretmen' AND m.status = 'aktif' AND m.zumre_baskani = 1 ORDER BY c.name, u.full_name`).all(),
+    ...db.prepare(`
+      SELECT m.branch_id AS okulId, r.ad AS gorev, u.full_name AS ad, u.phone AS telefon, 2 AS sira
+      FROM kullanici_roller k JOIN roller r ON r.id = k.rol_id AND r.kod IN ('rehber', 'teknik', 'guvenlik')
+      JOIN users u ON u.id = k.user_id JOIN memberships m ON m.user_id = u.id AND m.status = 'aktif' AND m.role IN ('ogretmen', 'yonetim')
+      GROUP BY m.branch_id, r.id, u.id ORDER BY r.id, u.full_name`).all(),
+  ];
   const okullar = db.prepare(`
-    SELECT b.id, b.name AS ad, b.campus_id AS kampusId, b.tur, b.kurum_kodu AS kurumKodu, b.telefon, b.eposta, b.adres,
+    SELECT b.id, b.name AS ad, b.campus_id AS kampusId, b.tur, b.kurum_kodu AS kurumKodu, b.telefon, b.eposta, b.adres, b.web, b.aciklama, b.sosyal,
            (SELECT 'v' || l.guncelleme FROM okul_logo l WHERE l.branch_id = b.id) AS logo,
            (SELECT COUNT(*) FROM classes c WHERE c.branch_id = b.id) AS sinif,
            (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif') AS ogrenci,
-           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogretmen' AND m.status = 'aktif') AS ogretmen
-    FROM branches b ORDER BY b.id`).all().map(x => ({ ...x, yoneticiler: yoneticiler.filter(y => y.okulId === x.id) }));
+           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogretmen' AND m.status = 'aktif') AS ogretmen,
+           (SELECT COUNT(*) FROM memberships m JOIN ogrenci_kayit k ON k.student_membership_id = m.id WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif' AND k.kayit_turu = 'yeni') AS yeniKayit,
+           (SELECT COUNT(*) FROM memberships m JOIN ogrenci_kayit k ON k.student_membership_id = m.id WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif' AND k.kayit_turu = 'yenileme') AS yenileme,
+           (SELECT COUNT(*) FROM memberships m JOIN ogrenci_kayit k ON k.student_membership_id = m.id WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif' AND k.kayit_turu = 'nakil') AS nakil,
+           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif' AND NOT EXISTS (SELECT 1 FROM ogrenci_kayit k WHERE k.student_membership_id = m.id)) AS kayitsiz,
+           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'veli' AND m.status = 'aktif') AS veli,
+           (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id) AS yoklamaToplam,
+           (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'gelmedi') AS gelmedi,
+           (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'gec') AS gec,
+           (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'izinli') AS izinli
+    FROM branches b ORDER BY b.id`).all().map(x => ({ ...x, sosyal: sosyalOku(x.sosyal), yoneticiler: yoneticiler.filter(y => y.okulId === x.id), zumreler: zumreler.filter(z => z.okulId === x.id), gorevliler: gorevliler.filter(g => g.okulId === x.id) }));
   const kampusler = db.prepare('SELECT id, name AS ad, adres, telefon FROM kampusler ORDER BY id').all()
     .map(k => ({ ...k, okullar: okullar.filter(x => x.kampusId === k.id) }));
   const adaylar = db.prepare(`
     SELECT u.id AS userId, u.full_name AS ad, GROUP_CONCAT(DISTINCT CASE m.role WHEN 'yonetim' THEN 'Yönetim' ELSE 'Öğretmen' END) AS rol, MIN(b.name) AS okul
     FROM users u JOIN memberships m ON m.user_id = u.id AND m.status = 'aktif' AND m.role IN ('yonetim','ogretmen')
     LEFT JOIN branches b ON b.id = m.branch_id GROUP BY u.id ORDER BY u.full_name`).all();
-  return { kurum, logo, kampusler, adaylar, turler: OKUL_TURLERI, gorevler: GOREVLER, kurumYonetimi: o.gorev === 'kurum' };
+  return { kurum, logo, kurucular, kampusler, adaylar, turler: OKUL_TURLERI, gorevler: GOREVLER, sosyalAlanlar: SOSYAL_ALANLAR.map(({ kod, ad }) => ({ kod, ad })), tanitimAzami: TANITIM_AZAMI, kurumYonetimi: o.gorev === 'kurum' };
 }
 
 export async function kurumApi({ req, res, url, o, json, govde, denetle }) {
@@ -105,7 +141,7 @@ export async function kurumApi({ req, res, url, o, json, govde, denetle }) {
 
   if (req.method === 'GET' && yol === '/api/yonetim/kurum') { json(res, 200, kurumVerisi(o)); return true; }
   if (req.method !== 'POST') return false;
-  const yollar = ['/api/yonetim/kurum-kaydet', '/api/yonetim/kurum-logo', '/api/yonetim/kurum-logo-sil', '/api/yonetim/yonetici-ekle', '/api/yonetim/yonetici-kaldir'];
+  const yollar = ['/api/yonetim/kurum-kaydet', '/api/yonetim/kurum-logo', '/api/yonetim/kurum-logo-sil', '/api/yonetim/yonetici-ekle', '/api/yonetim/yonetici-kaldir', '/api/yonetim/kurucu-ekle', '/api/yonetim/kurucu-kaldir'];
   if (!yollar.includes(yol)) return false;
   if (o.gorev !== 'kurum') return hata(403, 'Bu işlem yalnızca kurum yönetimine açıktır');
 
@@ -132,10 +168,46 @@ export async function kurumApi({ req, res, url, o, json, govde, denetle }) {
     if (ad.length < 2) return hata(400, 'Kurum adı en az 2 karakter olmalı');
     const ep = metin(b.eposta, 80);
     if (!eposta(ep)) return hata(400, 'E-posta adresi geçersiz');
-    db.prepare('UPDATE kurum SET ad = ?, kisa_ad = ?, telefon = ?, eposta = ?, web = ?, adres = ?, guncelleme = ? WHERE id = 1')
-      .run(ad, metin(b.kisaAd, 30), metin(b.telefon, 30), ep, metin(b.web, 100), metin(b.adres, 200), Date.now());
+    const web = webDogrula(b.web);
+    if (web === null) return hata(400, 'Web sitesi adresi geçersiz');
+    const sosyal = sosyalDogrula(b.sosyal);
+    if (sosyal.hata) return hata(400, sosyal.hata);
+    db.prepare('UPDATE kurum SET ad = ?, kisa_ad = ?, telefon = ?, eposta = ?, web = ?, adres = ?, aciklama = ?, sosyal = ?, guncelleme = ? WHERE id = 1')
+      .run(ad, metin(b.kisaAd, 30), metin(b.telefon, 30), ep, web, metin(b.adres, 200), metin(b.aciklama, TANITIM_AZAMI), sosyal.json, Date.now());
     denetle(o.user_id, 'kurum-kaydet', { ad });
     return ok();
+  }
+
+  // Kurucu: yalnızca kayıttır (kimseye yetki vermez, giriş açmaz). Kişi listeden seçilir ya da yeni kayıt açılır.
+  if (yol === '/api/yonetim/kurucu-ekle' || yol === '/api/yonetim/kurucu-kaldir') {
+    const rol = db.prepare("SELECT id FROM roller WHERE kod = 'kurucu'").get();
+    if (!rol) return hata(500, 'Kurucu rolü bulunamadı');
+    if (yol === '/api/yonetim/kurucu-kaldir') {
+      const id = tamSayi(b.userId, 1, 1e9);
+      if (!id || !db.prepare('SELECT 1 FROM kullanici_roller WHERE user_id = ? AND rol_id = ?').get(id, rol.id)) return hata(404, 'Kurucu kaydı bulunamadı');
+      db.prepare('DELETE FROM kullanici_roller WHERE user_id = ? AND rol_id = ?').run(id, rol.id);
+      denetle(o.user_id, 'kurucu-kaldir', { userId: id });
+      return ok();
+    }
+    let kisi = null;
+    if (!bos(b.userId)) {
+      kisi = db.prepare('SELECT id FROM users WHERE id = ?').get(tamSayi(b.userId, 1, 1e9));
+      if (!kisi) return hata(404, 'Kişi bulunamadı');
+    } else {
+      const ad = metin(b.ad, 80), kimlik = String(b.kimlik || '').trim().toUpperCase(), tel = telNormalize(b.telefon);
+      const tcMi = /^\d{11}$/.test(kimlik);
+      if (ad.length < 3) return hata(400, 'Ad soyad en az 3 karakter olmalı');
+      if (tcMi ? !tcGecerliMi(kimlik) : !/^[A-Z0-9]{5,20}$/.test(kimlik)) return hata(400, 'Kimlik / pasaport numarası geçersiz');
+      if (!/^\d{10}$/.test(tel)) return hata(400, 'Telefon 10 haneli olmalı');
+      kisi = db.prepare('SELECT id, phone FROM users WHERE tc_no = gz(?) OR passport_no = gz(?)').get(kimlik, kimlik);
+      if (kisi && kisi.phone !== tel) return hata(409, 'Bu kimlik numarası başka bir telefonla kayıtlı');
+      if (!kisi) kisi = { id: Number(db.prepare('INSERT INTO users (tc_no, passport_no, phone, full_name, created_at) VALUES (?,?,?,?,?)')
+        .run(tcMi ? kimlik : null, tcMi ? null : kimlik, tel, ad, Date.now()).lastInsertRowid) };
+    }
+    if (db.prepare('SELECT 1 FROM kullanici_roller WHERE user_id = ? AND rol_id = ?').get(kisi.id, rol.id)) return hata(409, 'Bu kişi zaten kurucu olarak kayıtlı');
+    db.prepare('INSERT INTO kullanici_roller (user_id, rol_id) VALUES (?,?)').run(kisi.id, rol.id);
+    denetle(o.user_id, 'kurucu-ekle', { userId: kisi.id });
+    return ok(201);
   }
 
   if (yol === '/api/yonetim/yonetici-ekle') {

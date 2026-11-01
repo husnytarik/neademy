@@ -229,6 +229,7 @@ function yetkiSecici(secili) {
 
 function yetkiOzeti(r) {
   const ad = new Map(katalog.flatMap(g => g.yetkiler).map(y => [y.kod, y.ad]));
+  if (!r.yetkiler.length) return el('p', 'Bu rol hiçbir yetki vermez; yalnızca kayıt içindir.', 'alt');
   const ul = el('ul', undefined, 'kad-yetki-liste');
   for (const k of r.yetkiler) ul.append(el('li', ad.get(k) || k));
   return ul;

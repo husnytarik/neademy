@@ -66,7 +66,7 @@ function katilimOzeti(katilimcilar) {
   const d = [
     { deger: say.gelecek, renk: '#2e9e5b', etiket: 'gelecek' },
     { deger: say.gelmeyecek, renk: '#d64545', etiket: 'gelmeyecek' },
-    { deger: say.bekliyor, renk: '#c9c2b2', etiket: 'bekliyor' },
+    { deger: say.bekliyor, renk: '#9aa1b1', etiket: 'bekliyor' },
   ];
   const k = el('div', undefined, 'katilim');
   k.append(yiginCubuk(d), gosterge(d));

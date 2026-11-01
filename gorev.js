@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS gorevler (
   tarih   TEXT,
   saatler TEXT NOT NULL
 )`);
+// Görev saati serbest aralıktır (teneffüs ya da ders başlamadan önce olabilir); saatler = aralığa değen ders saatleri
+for (const s of ['bas', 'bit']) {
+  if (!db.prepare('PRAGMA table_info(gorevler)').all().some(k => k.name === s)) db.exec(`ALTER TABLE gorevler ADD COLUMN ${s} TEXT`);
+}
 
 const tamSayi = (v, min, max) => {
   const n = Number(v);
@@ -33,6 +37,19 @@ const tamSayi = (v, min, max) => {
 const TARIH = /^\d{4}-\d{2}-\d{2}$/;
 const gunNo = tarih => new Date(tarih + 'T00:00:00Z').getUTCDay();
 const saatListesi = g => { try { return JSON.parse(g.saatler); } catch { return []; } };
+const SAAT = /^([01]\d|2[0-3]):[0-5]\d$/;
+const dk = s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+// Zaman aralığına değen ders saatleri (1'den başlar)
+const kesisenDersler = (bas, bit) => DERS_ZAMANLARI.map((z, i) => [i + 1, z])
+  .filter(([, z]) => dk(z[0]) < dk(bit) && dk(z[1]) > dk(bas)).map(([i]) => i);
+// Eski kayıtlarda saat aralığı yoktur: ders saatlerinden türetilir
+export function gorevAraligi(g) {
+  if (g.bas && g.bit) return [g.bas, g.bit];
+  const s = saatListesi(g);
+  if (!s.length) return null;
+  const ilk = DERS_ZAMANLARI[Math.min(...s) - 1], son = DERS_ZAMANLARI[Math.max(...s) - 1];
+  return ilk && son ? [ilk[0], son[1]] : null;
+}
 
 // Öğretmen bu gün/saatte derse konamaz mı? Neden varsa metin, yoksa null
 export function ogretmenMesgulNedeni(userId, gun, saat) {
@@ -55,6 +72,7 @@ const dersSaatleri = userId => db.prepare(`
 const gorevSatiri = g => ({
   id: g.id, userId: g.user_id, tur: g.tur, ad: g.ad, yer: g.yer, tekrar: g.tekrar,
   gun: g.day, tarih: g.tarih, saatler: saatListesi(g),
+  bas: gorevAraligi(g)?.[0] || null, bit: gorevAraligi(g)?.[1] || null,
 });
 
 export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
@@ -122,7 +140,7 @@ export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
     return true;
   }
 
-  // Nöbet / görevlendirme ekle ya da düzenle
+  // Nöbet / görevlendirme ekle ya da düzenle (haftalık görev birden fazla güne aynı anda verilebilir)
   const userId = tamSayi(b.userId, 1, 1e9);
   if (!ogretmenMi(userId)) return hata(404, 'Öğretmen bulunamadı');
   if (!['nobet', 'gorev'].includes(b.tur)) return hata(400, 'Tür seçiniz');
@@ -130,43 +148,79 @@ export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
   const yer = String(b.yer || '').trim();
   if (ad.length < 2 || ad.length > 60) return hata(400, 'Görev adı 2-60 karakter olmalı');
   if (yer.length > 60) return hata(400, 'Yer en çok 60 karakter olabilir');
-  const saatler = [...new Set((Array.isArray(b.saatler) ? b.saatler : []).map(Number))].sort((x, y) => x - y);
-  if (!saatler.length || saatler.some(s => !Number.isInteger(s) || s < 1 || s > DERS_ZAMANLARI.length)) return hata(400, 'En az bir ders saati seçiniz');
-  let gun, tarih = null;
+  const saatHatasi = (bas, bit) => {
+    if (!SAAT.test(bas) || !SAAT.test(bit)) return 'Başlangıç ve bitiş saatini giriniz';
+    if (dk(bit) <= dk(bas)) return 'Bitiş saati başlangıçtan sonra olmalı';
+    return null;
+  };
+  // Her gün kendi saat aralığına sahip olabilir: kalemler = [{ gun, bas, bit, saatler }]
+  const kalemler = [];
+  let tarih = null;
   if (b.tekrar === 'haftalik') {
-    gun = Number(b.gun);
-    if (!Number.isInteger(gun) || !gunAcik(gun)) return hata(400, 'Okul günlerinden birini seçiniz');
+    const ham = Array.isArray(b.gunler) ? b.gunler : [{ gun: b.gun }];
+    for (const x of ham) {
+      const nesne = x && typeof x === 'object';
+      const gun = Number(nesne ? x.gun : x);
+      if (!Number.isInteger(gun) || !gunAcik(gun)) return hata(400, 'Okul günlerinden seçiniz');
+      if (kalemler.some(k => k.gun === gun)) continue;
+      const bas = String((nesne && x.bas) || b.bas || ''), bit = String((nesne && x.bit) || b.bit || '');
+      const h = saatHatasi(bas, bit);
+      if (h) return hata(400, `${GUN_ADLARI[gun]}: ${h}`);
+      kalemler.push({ gun, bas, bit });
+    }
+    if (!kalemler.length) return hata(400, 'En az bir gün seçiniz');
   } else if (b.tekrar === 'tek') {
     tarih = String(b.tarih || '');
     if (!TARIH.test(tarih) || Number.isNaN(Date.parse(tarih))) return hata(400, 'Geçerli bir tarih giriniz');
-    gun = gunNo(tarih);
+    const gun = gunNo(tarih);
     if (!gunAcik(gun)) return hata(400, 'Seçilen tarih okul günü değil');
+    const bas = String(b.bas || ''), bit = String(b.bit || '');
+    const h = saatHatasi(bas, bit);
+    if (h) return hata(400, h);
+    kalemler.push({ gun, bas, bit });
   } else return hata(400, 'Tekrar türünü seçiniz');
+  for (const k of kalemler) k.saatler = kesisenDersler(k.bas, k.bit);
 
   const id = b.id ? tamSayi(b.id, 1, 1e9) : null;
-  if (b.id && (!id || !db.prepare('SELECT 1 FROM gorevler WHERE id = ?').get(id))) return hata(404, 'Görev bulunamadı');
+  const mevcut = id ? db.prepare('SELECT * FROM gorevler WHERE id = ?').get(id) : null;
+  if (b.id && !mevcut) return hata(404, 'Görev bulunamadı');
 
   // Çakışma: ders programı, müsait olmadığı saat ve aynı gün/saatteki başka görev
-  for (const s of saatler) {
-    if (db.prepare('SELECT 1 FROM ogretmen_kapali WHERE user_id = ? AND day = ? AND period = ?').get(userId, gun, s)) {
-      return hata(409, `${GUN_ADLARI[gun]} ${s}. saatte öğretmen müsait değil`);
+  const dersler = dersSaatleri(userId);
+  for (const k of kalemler) {
+    for (const s of k.saatler) {
+      if (db.prepare('SELECT 1 FROM ogretmen_kapali WHERE user_id = ? AND day = ? AND period = ?').get(userId, k.gun, s)) {
+        return hata(409, `${GUN_ADLARI[k.gun]} ${s}. saatte öğretmen müsait değil`);
+      }
+      const ders = dersler.find(d => d.day === k.gun && d.period === s);
+      if (ders) return hata(409, `${GUN_ADLARI[k.gun]} ${s}. saatte ${ders.sinif} dersi var`);
     }
-    const ders = dersSaatleri(userId).find(d => d.day === gun && d.period === s);
-    if (ders) return hata(409, `${GUN_ADLARI[gun]} ${s}. saatte ${ders.sinif} dersi var`);
+    const digerleri = db.prepare('SELECT * FROM gorevler WHERE user_id = ? AND day = ? AND id IS NOT ?').all(userId, k.gun, id)
+      .filter(x => x.tekrar === 'haftalik' || b.tekrar === 'haftalik' || x.tarih === tarih);
+    const cakisan = digerleri.find(x => {
+      const ar = gorevAraligi(x);
+      return ar && dk(ar[0]) < dk(k.bit) && dk(ar[1]) > dk(k.bas);
+    });
+    if (cakisan) return hata(409, `${GUN_ADLARI[k.gun]} günü aynı saatte başka bir görev var (${cakisan.ad})`);
   }
-  const digerleri = db.prepare('SELECT * FROM gorevler WHERE user_id = ? AND day = ? AND id IS NOT ?').all(userId, gun, id)
-    .filter(g => g.tekrar === 'haftalik' || b.tekrar === 'haftalik' || g.tarih === tarih);
-  const cakisan = digerleri.find(g => saatListesi(g).some(s => saatler.includes(s)));
-  if (cakisan) return hata(409, `Aynı saatte başka bir görev var (${cakisan.ad})`);
 
-  const alanlar = [userId, b.tur, ad, yer, b.tekrar, gun, tarih, JSON.stringify(saatler)];
-  let yeni = id;
-  if (id) {
-    db.prepare('UPDATE gorevler SET user_id=?, tur=?, ad=?, yer=?, tekrar=?, day=?, tarih=?, saatler=? WHERE id=?').run(...alanlar, id);
-  } else {
-    yeni = Number(db.prepare('INSERT INTO gorevler (user_id, tur, ad, yer, tekrar, day, tarih, saatler) VALUES (?,?,?,?,?,?,?,?)').run(...alanlar).lastInsertRowid);
-  }
-  denetle(o.user_id, id ? 'gorev-duzenle' : 'gorev-ekle', { id: yeni, userId, tur: b.tur, ad, tekrar: b.tekrar });
-  json(res, id ? 200 : 201, { tamam: true, id: yeni });
+  // Düzenlenen kayıt, seçilen günlerden kendi gününü korur; kalan günler yeni kayıt olur
+  const sirali = mevcut && kalemler.some(k => k.gun === mevcut.day) ? [kalemler.find(k => k.gun === mevcut.day), ...kalemler.filter(k => k.gun !== mevcut.day)] : kalemler;
+  const idler = [];
+  db.exec('BEGIN');
+  try {
+    sirali.forEach((k, i) => {
+      const alanlar = [userId, b.tur, ad, yer, b.tekrar, k.gun, tarih, JSON.stringify(k.saatler), k.bas, k.bit];
+      if (id && i === 0) {
+        db.prepare('UPDATE gorevler SET user_id=?, tur=?, ad=?, yer=?, tekrar=?, day=?, tarih=?, saatler=?, bas=?, bit=? WHERE id=?').run(...alanlar, id);
+        idler.push(id);
+      } else {
+        idler.push(Number(db.prepare('INSERT INTO gorevler (user_id, tur, ad, yer, tekrar, day, tarih, saatler, bas, bit) VALUES (?,?,?,?,?,?,?,?,?,?)').run(...alanlar).lastInsertRowid));
+      }
+    });
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  denetle(o.user_id, id ? 'gorev-duzenle' : 'gorev-ekle', { ids: idler, userId, tur: b.tur, ad, tekrar: b.tekrar, gunler: sirali.map(k => k.gun) });
+  json(res, id ? 200 : 201, { tamam: true, id: idler[0], sayi: idler.length });
   return true;
 }

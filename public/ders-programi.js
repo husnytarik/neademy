@@ -83,7 +83,6 @@ async function yapiYukle() {
   doldur($('gorev-suz'), ogretmenler, o => o.userId, o => o.ad, 'Tüm öğretmenler');
   if (prevG) $('gorev-suz').value = prevG;
   doldur($('g-ogretmen'), ogretmenler, o => o.userId, o => o.ad, 'Öğretmen seçin');
-  doldur($('g-gun'), acikGunler(), g => g.no, g => g.ad);
 }
 
 // ---- Ortak: salt okunur haftalık tablo ----
@@ -374,7 +373,7 @@ $('musait-vazgec').addEventListener('click', () => { duzenKapat('ogretmen'); ogr
 
 // ---- Nöbet ve görev ----
 function gorevZamani(g) {
-  const saat = saatAraligi(g.saatler);
+  const saat = g.bas && g.bit ? `${g.bas}–${g.bit}` : saatAraligi(g.saatler);
   if (g.tekrar === 'haftalik') return `Her ${GUN_UZUN[g.gun]} · ${saat}`;
   const t = new Date(g.tarih + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
   return `${t} · ${saat}`;
@@ -418,25 +417,55 @@ function gorevCiz() {
   }
 }
 
-function saatSecimi(secili) {
-  const kap = $('g-saatler');
+let gunSaat = {};                      // seçili gün (ya da 'tek') -> { bas, bit }
+let sonSaat = { bas: '', bit: '' };    // en son girilen aralık: yeni seçilen gün bununla başlar
+
+function gunSecimi() {
+  const kap = $('g-gunler');
   kap.replaceChildren();
-  yapi.okul.saatler.forEach((z, i) => {
+  for (const g of acikGunler()) {
     const b = el('button', undefined, 'prg-saat-chip');
     b.type = 'button';
-    b.dataset.saat = String(i + 1);
-    b.setAttribute('aria-pressed', String(secili.includes(i + 1)));
-    b.append(el('strong', String(i + 1)), el('small', z.bas));
-    b.addEventListener('click', () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')));
+    b.title = g.ad;
+    b.setAttribute('aria-pressed', String(g.no in gunSaat));
+    b.append(el('strong', KISA[g.no]));
+    b.addEventListener('click', () => {
+      const ac = !(g.no in gunSaat);
+      if (ac) gunSaat[g.no] = { ...sonSaat }; else delete gunSaat[g.no];
+      b.setAttribute('aria-pressed', String(ac));
+      saatSatirlari();
+    });
     kap.appendChild(b);
-  });
+  }
 }
-const secilenSaatler = () => [...$('g-saatler').querySelectorAll('[aria-pressed=true]')].map(b => Number(b.dataset.saat));
+const secilenGunler = () => acikGunler().map(g => g.no).filter(n => n in gunSaat);
+
+// Seçilen her gün için ayrı başlangıç / bitiş satırı (tek tarihli görevde tek satır)
+function saatSatirlari() {
+  const kap = $('g-saat-satirlar');
+  kap.replaceChildren();
+  const tek = $('g-tekrar').value === 'tek';
+  const liste = tek ? [['tek', 'Saat']] : secilenGunler().map(n => [n, GUN_UZUN[n]]);
+  if (!liste.length) { kap.append(el('p', 'Önce gün seçin.', 'alt')); return; }
+  for (const [anahtar, ad] of liste) {
+    if (!gunSaat[anahtar]) gunSaat[anahtar] = { ...sonSaat };
+    const v = gunSaat[anahtar];
+    const s = el('div', undefined, 'g-saat-satir');
+    const bas = el('input'); bas.type = 'time'; bas.value = v.bas; bas.required = true; bas.setAttribute('aria-label', `${ad} başlangıç`);
+    const bit = el('input'); bit.type = 'time'; bit.value = v.bit; bit.required = true; bit.setAttribute('aria-label', `${ad} bitiş`);
+    const degisti = () => { v.bas = bas.value; v.bit = bit.value; sonSaat = { bas: v.bas, bit: v.bit }; };
+    bas.addEventListener('change', degisti); bit.addEventListener('change', degisti);
+    s.append(el('span', ad, 'g-gun-ad'), bas, el('span', '–', 'saat-tire'), bit);
+    kap.append(s);
+  }
+}
 
 function tekrarGoster() {
   const tek = $('g-tekrar').value === 'tek';
   $('g-gun-kap').classList.toggle('gizli', tek);
   $('g-tarih-kap').classList.toggle('gizli', !tek);
+  if (tek && !gunSaat.tek) gunSaat.tek = { ...sonSaat };
+  saatSatirlari();
 }
 
 function gorevFormuAc(g) {
@@ -447,9 +476,11 @@ function gorevFormuAc(g) {
   $('g-ad').value = g?.ad || '';
   $('g-yer').value = g?.yer || '';
   $('g-tekrar').value = g?.tekrar || 'haftalik';
-  if (g?.tekrar === 'haftalik') $('g-gun').value = g.gun;
   $('g-tarih').value = g?.tarih || '';
-  saatSecimi(g?.saatler || []);
+  sonSaat = { bas: g?.bas || '', bit: g?.bit || '' };
+  gunSaat = {};
+  if (g) gunSaat[g.tekrar === 'haftalik' ? g.gun : 'tek'] = { ...sonSaat };
+  gunSecimi();
   tekrarGoster();
   $('gorev-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -463,10 +494,10 @@ $('gorev-form').addEventListener('submit', async e => {
   const r = await api('/api/yonetim/gorev-kaydet', {
     id: gorevDuzenlenen?.id, userId: Number($('g-ogretmen').value), tur: $('g-tur').value,
     ad: $('g-ad').value, yer: $('g-yer').value, tekrar: $('g-tekrar').value,
-    gun: Number($('g-gun').value), tarih: $('g-tarih').value, saatler: secilenSaatler(),
+    gunler: secilenGunler().map(n => ({ gun: n, ...gunSaat[n] })), tarih: $('g-tarih').value, ...(gunSaat.tek || {}),
   });
   if (!r.ok) return mesaj(r.veri.hata || 'Kaydedilemedi', 'hata');
-  mesaj('Kaydedildi.', 'tamam');
+  mesaj(r.veri.sayi > 1 ? `${r.veri.sayi} güne kaydedildi.` : 'Kaydedildi.', 'tamam');
   gorevFormuAc(null);
   gorevYukle();
 });

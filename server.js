@@ -20,6 +20,7 @@ import { tatilApi } from './tatil.js';
 import { kurumApi, kurumLogoApi, yonetimUnvani, ilkOkulKur } from './kurum.js';
 import { yoklamaApi } from './yoklama.js';
 import { dersApi } from './ders.js';
+import { takvimApi } from './takvim.js';
 import { kazanimApi } from './kazanim.js';
 import { sinavApi } from './sinav.js';
 import { mufredatApi } from './mufredat.js';
@@ -53,17 +54,49 @@ const DEMO_HESAPLAR = {
 const ROLLER = ['yonetim', 'ogretmen', 'ogrenci', 'veli'];
 const KOD_SURESI = 5 * 60 * 1000;
 const OTURUM_SURESI = 8 * 60 * 60 * 1000;
+// Mobil uygulama oturumu: cihazda güvenli depoda tutulan, iptal edilebilir jeton; kullanıldıkça uzar
+const MOBIL_OTURUM_SURESI = 60 * 24 * 60 * 60 * 1000;
+// Mobil istemcinin çalışabileceği en düşük sürüm (eski sürümleri kapatmak için artırılır)
+const MOBIL_EN_DUSUK_SURUM = '1.0.0';
+
+// Mobil uygulamanın sunucudan yönetilen ayarları: mağaza güncellemesi gerekmeden değiştirilir.
+// Dosya: <veri klasörü>/mobil-ayar.json  (her alan isteğe bağlı; dosya yoksa varsayılanlar)
+//   { "enDusukSurum": "1.0.0", "bakim": "Kısa bir bakım var…", "duyuru": { "id": "x1", "baslik": "…", "metin": "…" },
+//     "kapaliModuller": ["takvimim"] }
+let mobilAyarOnbellek = { mtime: -1, veri: {} };
+function mobilAyar() {
+  const dosya = path.join(ortam.veriKlasoru, 'mobil-ayar.json');
+  try {
+    const m = fs.statSync(dosya).mtimeMs;
+    if (m !== mobilAyarOnbellek.mtime) {
+      mobilAyarOnbellek = { mtime: m, veri: JSON.parse(fs.readFileSync(dosya, 'utf8')) };
+    }
+  } catch {
+    mobilAyarOnbellek = { mtime: -1, veri: {} };
+  }
+  const v = mobilAyarOnbellek.veri || {};
+  const metin = (x, n) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, n) : null);
+  const d = v.duyuru && typeof v.duyuru === 'object' ? v.duyuru : null;
+  return {
+    enDusukSurum: /^\d+\.\d+\.\d+$/.test(v.enDusukSurum || '') ? v.enDusukSurum : MOBIL_EN_DUSUK_SURUM,
+    bakim: metin(v.bakim, 300),
+    duyuru: d && metin(d.metin, 400) ? { id: metin(d.id, 40) || 'd', baslik: metin(d.baslik, 80), metin: metin(d.metin, 400) } : null,
+    kapaliModuller: Array.isArray(v.kapaliModuller) ? v.kapaliModuller.filter(x => typeof x === 'string').slice(0, 100) : [],
+  };
+}
 const MAKS_DENEME = 5;
 
 // Modül kayıt defteri: her modül hangi rollere görünür olduğunu burada bildirir.
 // Yeni modül eklemek = buraya bir kayıt eklemek (kullanıcı/yetki yapısı ortaktır).
 const MODULLER = [
   { id: 'kurum', ad: 'Okul kurulumu', aciklama: 'Kurum profili, kampüsler, okullar, müdür ve müdür yardımcıları', roller: ['yonetim'], yetki: ['kurum'], yol: '/kurum' },
+  { id: 'kampusler', ad: 'Kampüs ve okullar', aciklama: 'Kampüs ve okulların öğrenci, öğretmen, devamsızlık ve yönetici özeti; yazdırılabilir', roller: ['yonetim'], yetki: ['kurum'], yol: '/kampusler' },
   { id: 'kullanici-rol', ad: 'Kişiler', aciklama: 'Personel ekle, düzenle, görev ver, okuldan ayrıldı olarak işaretle; roller ve yetkiler', roller: ['yonetim'], yetki: ['kullanici-rol'], yol: '/kisiler', kapsam: 'kurum' },
   { id: 'ogrenci-yonetim', ad: 'Öğrenciler', aciklama: 'Öğrenci kaydı, kayıt bilgileri ve her öğrencinin güncel durum dosyası', roller: ['yonetim'], yetki: ['ogrenci-gor'], yol: '/ogrenciler' },
   { id: 'okul-kurulum', ad: 'Sınıf ve kadro', aciklama: 'Ders, öğretmen, öğrenci ve sınıf kayıtları ile atamalar', roller: ['yonetim'], yetki: ['kadro'], yol: '/kurulum' },
   { id: 'okul-takvimi', ad: 'Okul takvimi', aciklama: 'Ders günleri ve ders saatleri (zil saatleri)', roller: ['yonetim'], yetki: ['kadro'], yol: '/okul-takvimi' },
   { id: 'ders-programi-yonetimi', ad: 'Haftalık ders programı', aciklama: 'Sınıf programlarını hazırla, öğretmen programlarını gör', roller: ['yonetim'], yetki: ['kadro'], yol: '/ders-programi' },
+  { id: 'baskan-toplanti', ad: 'Başkanlar toplantısı', aciklama: 'Zümre başkanlarıyla toplantı kur, alınan kararları kaydet', roller: ['yonetim'], yetki: ['duyuru'], yol: '/baskan-toplantilari' },
   { id: 'duyuru', ad: 'Duyurular', aciklama: 'Okul ya da rol bazında duyuru yayınla, okunma durumunu gör', roller: ['yonetim'], yetki: ['duyuru'], yol: '/duyurular' },
   { id: 'rapor', ad: 'Raporlar', aciklama: 'Kurum ve şube bazlı özetler', roller: ['yonetim'], yetki: ['rapor'], yol: '/raporlar' },
   { id: 'kulup-yonetimi', ad: 'Öğrenci kulüpleri', aciklama: 'Kulüpleri aç, öğretmen ve kontenjan belirle, talepleri yerleştir', roller: ['yonetim'], yetki: ['kulup'], yol: '/kulupler' },
@@ -76,6 +109,7 @@ const MODULLER = [
   { id: 'etut-ogrenci', ad: 'Etütlerim', aciklama: 'Davet edildiğim etütler', roller: ['ogrenci'], yol: '/etut' },
   { id: 'etut-veli', ad: 'Etüt onayları', aciklama: 'Çocuğumun etütlerine gelecek / gelmeyecek bildir', roller: ['veli'], yol: '/etut' },
   { id: 'ogrencilerim', ad: 'Öğrencilerim', aciklama: 'Sınıf / mentor öğretmeni olduğum sınıfın öğrencileri ve profilleri', roller: ['ogretmen'], yol: '/ogrencilerim' },
+  { id: 'takvimim', ad: 'Takvimim', aciklama: 'Derslerim, nöbetlerim, görevlendirmelerim, etütler ve toplantılar tek takvimde', roller: ['ogretmen'], yol: '/takvimim' },
   { id: 'derslerim', ad: 'Derslerim', aciklama: 'Günlük program; devamsızlık, konu ve ödev işlemleri', roller: ['ogretmen'], yol: '/derslerim' },
   { id: 'odev-takip', ad: 'Ödevler', aciklama: 'Verilen ödevler ve son tarihleri', roller: ['ogrenci', 'veli'], yol: '/odevler' },
   { id: 'odev-takip-ogretmen', ad: 'Ödev takibi', aciklama: 'Ödevleri kimin yaptığını gör, doğrula, öğrenci sorularını yanıtla', roller: ['ogretmen'], yol: '/odev-takip' },
@@ -154,17 +188,28 @@ function cerezler(req) {
   return c;
 }
 
+// Oturum kimliği: web çerezi ya da mobil uygulamanın "Authorization: Bearer" jetonu
+function sidAl(req) {
+  const b = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '');
+  return b ? b[1] : cerezler(req).sid;
+}
+
 function oturum(req) {
-  const sid = cerezler(req).sid;
+  const sid = sidAl(req);
   if (!sid) return null;
   const o = db.prepare(`
-    SELECT s.id, s.expires_at, u.id AS user_id, u.full_name, m.id AS membership_id, m.role, m.gorev, b.name AS branch
+    SELECT s.id, s.expires_at, s.mobil, s.son_kullanim, u.id AS user_id, u.full_name, m.id AS membership_id, m.role, m.gorev, b.name AS branch
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     JOIN memberships m ON m.id = s.membership_id AND m.status = 'aktif'
     LEFT JOIN branches b ON b.id = m.branch_id
     WHERE s.id = ?`).get(sha(sid));
   if (!o || o.expires_at < Date.now()) return null;
+  // Mobil oturum kullanıldıkça uzar (günde en çok bir yazma)
+  if (o.mobil && Date.now() - (o.son_kullanim || 0) > 24 * 60 * 60 * 1000) {
+    o.expires_at = Date.now() + MOBIL_OTURUM_SURESI;
+    db.prepare('UPDATE sessions SET expires_at = ?, son_kullanim = ? WHERE id = ?').run(o.expires_at, Date.now(), o.id);
+  }
   return o;
 }
 
@@ -217,7 +262,7 @@ function kullaniciBul(kimlik) {
 
 // Kullanıcı + telefon + rol üçlüsünü doğrular; uygun üyelikleri döndürür.
 function yetkiliUyelikler(kullanici, telefon, rol) {
-  if (!kullanici || kullanici.phone !== telNormalize(telefon)) return [];
+  if (!kullanici || String(kullanici.phone || '').slice(-10) !== telNormalize(telefon)) return [];
   return db.prepare("SELECT id FROM memberships WHERE user_id = ? AND role = ? AND status = 'aktif'")
     .all(kullanici.id, rol);
 }
@@ -245,7 +290,7 @@ async function api(req, res, url) {
   if (url.pathname.startsWith('/api/teslim/k/') && await teslimBaglantiApi({ req, res, url, json, govde, denetle })) return;
 
   // Yönetim oturumları yalnızca rollerinin yetkisi olan uçlara girebilir
-  if (cerezler(req).sid) {
+  if (sidAl(req)) {
     const oo = oturum(req);
     if (oo && !yolYetkisi(oo, url.pathname)) return json(res, 403, { hata: 'Bu işlem için yetkiniz yok' });
   }
@@ -277,7 +322,7 @@ async function api(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/cikis') {
-    const sid = cerezler(req).sid;
+    const sid = sidAl(req);
     if (sid) db.prepare('DELETE FROM sessions WHERE id = ?').run(sha(sid));
     return json(res, 200, { tamam: true }, { 'Set-Cookie': 'sid=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0' });
   }
@@ -327,7 +372,7 @@ async function api(req, res, url) {
     if (hizAsildi(ip)) return json(res, 429, { hata: 'Çok fazla deneme. Lütfen biraz bekleyin.' });
     const b = await govde(req);
     const kullanici = kullaniciBul(b.kimlik);
-    const dogru = kullanici && kullanici.phone === telNormalize(b.telefon);
+    const dogru = kullanici && String(kullanici.phone || '').slice(-10) === telNormalize(b.telefon);
     const uyelikler = dogru ? profilListesi(kullanici.id) : [];
 
     if (url.pathname === '/api/giris/kod') {
@@ -362,11 +407,37 @@ async function api(req, res, url) {
     HATALI.delete(`${kimlikAnahtar}|${ip}`);
     denetle(kullanici.id, 'giris', { ip, yontem: ortam.kodsuzGiris ? 'kimlik+telefon' : 'sms' });
     const sid = crypto.randomBytes(32).toString('hex');
+    if (b.mobil === true) {
+      // Mobil uygulama: çerez yok; jeton yanıtta bir kez verilir, sunucuda yalnızca özeti tutulur
+      const cihaz = String(b.cihaz || '').replace(/[^\p{L}\p{N} ._()-]/gu, '').slice(0, 60) || 'Telefon';
+      db.prepare('INSERT INTO sessions (id, user_id, membership_id, expires_at, mobil, cihaz, son_kullanim) VALUES (?,?,?,?,1,?,?)')
+        .run(sha(sid), kullanici.id, uyelikler[0].id, Date.now() + MOBIL_OTURUM_SURESI, cihaz, Date.now());
+      return json(res, 200, { tamam: true, coklu: uyelikler.length > 1, token: sid });
+    }
     db.prepare('INSERT INTO sessions (id, user_id, membership_id, expires_at) VALUES (?,?,?,?)')
       .run(sha(sid), kullanici.id, uyelikler[0].id, Date.now() + OTURUM_SURESI);
     return json(res, 200, { tamam: true, coklu: uyelikler.length > 1 }, {
       'Set-Cookie': cerezSid(req, sid),
     });
+  }
+
+  // Mobil uygulama: sürüm kontrolü (oturumsuz) ve cihaz oturumları
+  if (req.method === 'GET' && url.pathname === '/api/mobil/ayar') {
+    return json(res, 200, mobilAyar());
+  }
+  if (req.method === 'GET' && url.pathname === '/api/mobil/cihazlar') {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    const liste = db.prepare('SELECT id, cihaz, son_kullanim FROM sessions WHERE user_id = ? AND mobil = 1 AND expires_at > ? ORDER BY son_kullanim DESC')
+      .all(o.user_id, Date.now()).map(r => ({ anahtar: r.id.slice(0, 12), cihaz: r.cihaz, sonKullanim: r.son_kullanim, buCihaz: r.id === o.id }));
+    return json(res, 200, { cihazlar: liste });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/mobil/cihaz-kapat') {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    const b = await govde(req);
+    const r = db.prepare("DELETE FROM sessions WHERE user_id = ? AND mobil = 1 AND substr(id, 1, 12) = ?").run(o.user_id, String(b.anahtar || ''));
+    return json(res, 200, { tamam: r.changes > 0 });
   }
 
   // Aynı hesabın birden fazla profili varsa listele ve seçtir
@@ -511,6 +582,12 @@ async function api(req, res, url) {
     const o = oturum(req);
     if (!o) return json(res, 401, { hata: 'Oturum yok' });
     if (await ogrencilerimApi({ req, res, url, o, json })) return;
+  }
+
+  if (url.pathname === '/api/takvim') {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    if (await takvimApi({ req, res, url, o, json })) return;
   }
 
   if (url.pathname.startsWith('/api/ders/')) {
@@ -664,15 +741,18 @@ function statik(req, res, url) {
   if (ad === '/ders-programi') ad = '/ders-programi.html';
   if (ad === '/kurulum') ad = '/kurulum.html';
   if (ad === '/kurum') ad = '/kurum.html';
+  if (ad === '/kampusler') ad = '/kampusler.html';
   if (ad === '/okul-takvimi') ad = '/okul-takvimi.html';
   if (ad === '/etut') ad = '/etut.html';
   if (ad === '/zumrem') ad = '/zumrem.html';
+  if (ad === '/baskan-toplantilari') ad = '/baskan-toplantilari.html';
   if (ad === '/duyurular') ad = '/duyurular.html';
   if (ad === '/kulupler') ad = '/kulupler.html';
   if (ad === '/gelisim') ad = '/gelisim.html';
   if (ad === '/yoklama') { res.writeHead(302, { Location: '/derslerim' + url.search }); res.end(); return; }
   if (ad === '/devamsizlik') ad = '/devamsizlik.html';
   if (ad === '/derslerim') ad = '/derslerim.html';
+  if (ad === '/takvimim') ad = '/takvimim.html';
   if (ad === '/program') ad = '/program.html';
   if (ad === '/odevler') ad = '/odevler.html';
   if (ad === '/odev-takip') ad = '/odev-takip.html';

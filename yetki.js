@@ -57,6 +57,7 @@ const SISTEM_ROLLERI = [
   { kod: 'rehber', ad: 'Rehber öğretmen', aciklama: 'Öğrenci dosyaları, gelişim ve sınav sonuçları', yetkiler: ['ogrenci-gor', 'gelisim', 'sinav-sonuc', 'rapor'] },
   { kod: 'zumre', ad: 'Zümre başkanı', aciklama: 'Branşının sınavlarını hazırlar, sonuçları ve programı izler', yetkiler: ['sinav-yonet', 'sinav-sonuc', 'ogrenci-gor', 'rapor'] },
   { kod: 'teknik', ad: 'Teknik ekip', aciklama: 'Optik cevap girişi ve veri düzenlemeleri', yetkiler: ['sinav-optik', 'sinav-sonuc', 'ogrenci-gor', 'ogrenci-kayit', 'kadro'] },
+  { kod: 'kurucu', ad: 'Kurucu', aciklama: 'Okulun kurucusu; yalnızca kayıt ve tanıtım içindir, hiçbir yetki vermez', yetkiler: [] },
   { kod: 'guvenlik', ad: 'Güvenlik', aciklama: 'Kapıda veli QR kodunu okutur, öğrenciyi teslim eder', yetkiler: ['teslim-kapi'] },
 ];
 
@@ -100,11 +101,12 @@ export const yetkiVar = (o, ...kodlar) => {
 // burada olmayan yollar için ilgili modül kendi denetimini yapar.
 const KURALLAR = [
   [/^\/api\/yonetim\/(kullanici|uyelik|rol)/, ['kullanici-rol']],
-  [/^\/api\/yonetim\/(kurum|kampus-|okul-kaydet|okul-sil|yonetici-)/, ['kurum']],
+  [/^\/api\/yonetim\/(kurum|kurucu-|kampus-|okul-kaydet|okul-sil|yonetici-)/, ['kurum']],
   [/^\/api\/yonetim\/(ogrenci-|veli-|kurulum$)/, ['kadro', 'ogrenci-kayit']],
   [/^\/api\/yonetim\//, ['kadro']],
   [/^\/api\/tatil\//, ['kadro']],
   [/^\/api\/duyuru\//, ['duyuru']],
+  [/^\/api\/zumre\/baskanlar\//, ['duyuru']],
   [/^\/api\/rapor\//, ['rapor']],
   [/^\/api\/teslim\/kapi\//, ['teslim-kapi']],
   [/^\/api\/kulup\//, ['kulup']],
@@ -167,7 +169,7 @@ export async function yetkiApi({ req, res, url, o, json, govde, denetle }) {
     const mevcut = b.id ? db.prepare('SELECT * FROM roller WHERE id = ?').get(Number(b.id)) : null;
     if (b.id && !mevcut) return hata(404, 'Rol bulunamadı');
     if (mevcut?.kod === 'kurum-yonetimi') return hata(403, 'Kurum yönetimi rolü değiştirilemez');
-    if (!yetkiler.length) return hata(400, 'En az bir yetki seçin');
+    if (!yetkiler.length && mevcut?.kod !== 'kurucu') return hata(400, 'En az bir yetki seçin');
     const ayni = db.prepare('SELECT id FROM roller WHERE ad = ? COLLATE NOCASE AND id != ?').get(ad, mevcut?.id ?? 0);
     if (ayni) return hata(409, 'Bu adla başka bir rol var');
     if (mevcut) {
@@ -209,7 +211,7 @@ export async function yetkiApi({ req, res, url, o, json, govde, denetle }) {
     return true;
   }
   const uyelik = db.prepare("SELECT id FROM memberships WHERE user_id = ? AND role = 'yonetim' AND status = 'aktif'").get(kisi.id);
-  if (!uyelik) {
+  if (!uyelik && r.kod !== 'kurucu') {
     const sube = db.prepare('SELECT id FROM branches WHERE id = ?').get(Number(b.subeId));
     if (!sube) return hata(400, 'Önce okul seçin');
     db.prepare("INSERT OR IGNORE INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,'yonetim','okul')").run(kisi.id, sube.id);

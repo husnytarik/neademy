@@ -41,10 +41,10 @@ async function girisSonrasi(coklu) {
 }
 
 const ROL_AD = { yonetim: 'Yönetim', ogretmen: 'Öğretmen', ogrenci: 'Öğrenci', veli: 'Veli' };
-const ROL_RENK = { yonetim: '#5a78a8', ogretmen: '#c2410c', ogrenci: '#2e8b6a', veli: '#8a5fb0' };
+const ROL_RENK = { yonetim: '#3b82f6', ogretmen: '#f97316', ogrenci: '#10b981', veli: '#ec4899' };
 const ROL_IKON = {
-  yonetim: 'M3 21V8l9-5 9 5v13M9 21v-6h6v6M3 21h18',
-  ogretmen: 'M3 5h18v11H3zM8 21h8M12 16v5',
+  yonetim: 'M3 8h18v12H3zM8 8V5h8v3M3 13h18M11 13v2h2v-2',
+  ogretmen: 'M3 4h18v12H3zM7 8h7M7 12h4M8 21l2-5M16 21l-2-5',
   ogrenci: 'M2 9l10-5 10 5-10 5zM6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5',
   veli: 'M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c.5-3.5 3-5 6-5s5.5 1.5 6 5M17 11a2.5 2.5 0 100-5M18 15c2 .4 3.2 1.8 3.5 5',
 };

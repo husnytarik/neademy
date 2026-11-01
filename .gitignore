@@ -4,3 +4,5 @@ node_modules/
 *.log
 PLAN.txt
 DEMO-HESAPLAR.txt
+akant.db
+mobil-ayar.json

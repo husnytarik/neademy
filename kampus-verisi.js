@@ -1,4 +1,4 @@
-// Çok kampüslü örnek (DEMO) veri: Meltem ve Meydan kampüsleri; her kampüste İlkokul ve Ortaokul, her düzeyden iki sınıf, sınıfta 5 öğrenci.
+// Çok kampüslü örnek (DEMO) veri: Meltem ve Meydan kampüsleri; her kampüste İlkokul ve Ortaokul, her düzeyden iki sınıf, sınıfta 15 öğrenci.
 // Okul yılı başından bugüne kadar ders programı, yoklama, işlenen konu, ödev, etüt, sınav, kulüp ve gelişim kayıtları üretilir.
 // Kullanım: npm run kampus           (veritabanı boşsa doldurur, doluysa hiçbir şey yapmaz)
 //           npm run kampus-yenile    (önce yedek alır, sonra tüm veriyi silip baştan üretir; sunucu kapalıyken çalıştırın)
@@ -142,6 +142,7 @@ function ogretmenEkle(o, anahtar, dersler, ozel) {
 
 // ---------- Kampüs, okul, yönetim, öğretmen, sınıf, öğrenci ----------
 const SINIF_HARFLERI = ['A', 'B'];
+const SINIF_MEVCUDU = 15;
 const okullar = [];
 const profil = (uid, ek) => calis(`INSERT OR REPLACE INTO profil_bilgi (user_id, email, telefon2, il, ilce, adres, yakin_ad, yakin_yakinlik, yakin_telefon, guncelleme) VALUES (?,?,?,?,?,?,?,?,?,?)`,
   uid, ek.email ?? '', ek.telefon2 ?? '', 'Antalya', ek.ilce ?? 'Muratpaşa', ek.adres ?? '', ek.yakinAd ?? '', ek.yakinYakinlik ?? '', ek.yakinTel ?? '', simdi);
@@ -149,12 +150,19 @@ const profil = (uid, ek) => calis(`INSERT OR REPLACE INTO profil_bilgi (user_id,
 db.exec('BEGIN');
 try {
   dersId(KULUP_DERSI);
-  calis("INSERT OR REPLACE INTO kurum (id, ad, kisa_ad, telefon, eposta, web, adres, guncelleme) VALUES (1,'Akant Koleji','Akant','0242 000 00 00','bilgi@akant.example','www.akant.example','Meltem Mah. Akdeniz Bul. No: 12, Antalya',?)", simdi);
+  calis("INSERT OR REPLACE INTO kurum (id, ad, kisa_ad, telefon, eposta, web, adres, aciklama, sosyal, guncelleme) VALUES (1,'Akant Koleji','Akant','0242 000 00 00','bilgi@akant.example','www.akant.example','Meltem Mah. Akdeniz Bul. No: 12, Antalya',?,?,?)",
+    'Akant Koleji, Antalya\'da ilkokul ve ortaokul düzeyinde eğitim veren iki kampüslü bir kurumdur. Her çocuğun merakını koruyan, okumayı ve üretmeyi sevdiren, küçük sınıflarda birebir ilgiyle çalışan bir okul olmayı amaçlıyoruz.',
+    JSON.stringify({ instagram: 'https://www.instagram.com/akantkoleji', facebook: 'https://www.facebook.com/akantkoleji', x: 'https://x.com/akantkoleji', youtube: 'https://www.youtube.com/@akantkoleji', linkedin: 'https://www.linkedin.com/company/akantkoleji' }), simdi);
   calis('INSERT OR REPLACE INTO kurum_logo (id, mime, veri, guncelleme) VALUES (1, ?, ?, ?)', 'image/jpeg', readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'foto', 'akant-logo.jpg')), simdi);
   for (const k of KAMPUSLER) {
     const kampusId = ins('INSERT INTO kampusler (name, adres, telefon) VALUES (?,?,?)', k.ad, k.adres, k.telefon);
     for (const s of k.okullar) {
       const id = ins('INSERT INTO branches (name, campus_id, tur, kurum_kodu, telefon, eposta, adres) VALUES (?,?,?,?,?,?,?)', s.ad, kampusId, s.tur, s.kod, s.tel, s.eposta, k.adres);
+      const slug = s.eposta.split('@')[0].replace('.', '');
+      calis('UPDATE branches SET web = ?, aciklama = ?, sosyal = ? WHERE id = ?', `${slug}.akant.example`,
+        s.tur === 'İlkokul' ? `${s.ad}, 1-4. sınıflarda okuma yazma, sayı duygusu ve merak üzerine kurulu bir eğitim sunar. Sınıf öğretmenimiz öğrencilerimizi tüm gün tanır ve her çocuğun gelişimini veliyle birlikte izler.`
+          : `${s.ad}, 5-8. sınıflarda alan öğretmenleriyle çalışır; LGS hazırlığını yıl boyunca yayılan düzenli sınavlar, etütler ve kulüp saatleriyle dengeler.`,
+        JSON.stringify({ instagram: `https://www.instagram.com/${slug}`, youtube: `https://www.youtube.com/@${slug}` }), id);
       okullar.push({ id, ad: s.ad, kampus: k.ad, kampusId, ilk: s.tur === 'İlkokul', t: {}, yon: [], siniflar: [], ogrenciler: [], mahalle: k.ad.split(' ')[0] });
     }
   }
@@ -188,6 +196,10 @@ try {
 
   // Yönetim rolleri: rehber öğretmen ve teknik ekip yeni kişilerdir; zümre başkanları ayrı profil değil, öğretmen profiline eklenen roldür
   sistemRolleriKur();
+  for (const ad of ['Nihat Akant', 'Sevgi Akant']) {
+    const k = kullaniciEkle('6', '557', ad);
+    calis('INSERT INTO kullanici_roller (user_id, rol_id) VALUES (?,?)', k.uid, db.prepare("SELECT id FROM roller WHERE kod = 'kurucu'").get().id);
+  }
   {
     const meltem = okullar.find(x => x.ad === 'Meltem Ortaokulu');
     const rolVer = (k, kod) => calis('INSERT INTO kullanici_roller (user_id, rol_id) VALUES (?,?)', k.uid, db.prepare('SELECT id FROM roller WHERE kod = ?').get(kod).id);
@@ -226,7 +238,7 @@ try {
           s.sinifOgretmeni = ogretmenEkle(o, 's' + ad, dersler);
         }
         const adlar = [];
-        for (let i = 0; i < 5; i++) adlar.push({ cins: sec(['E', 'K']) });
+        for (let i = 0; i < SINIF_MEVCUDU; i++) adlar.push({ cins: sec(['E', 'K']) });
         const demoSinif = o.ad === 'Meltem Ortaokulu' && ad === '6-A';
         for (const [i, x] of adlar.entries()) x.ad = demoSinif && i === 0 ? DEMO.ogrenci.ad : isim(x.cins);
         if (demoSinif) adlar[0].cins = 'K';

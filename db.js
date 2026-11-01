@@ -388,6 +388,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 // --- Şema geçişleri (eski veritabanlarını yeni şemaya taşır) ---
 const sutunlar = t => db.prepare(`PRAGMA table_info(${t})`).all();
+if (!sutunlar('sessions').some(c => c.name === 'mobil')) {
+  // Mobil uygulama oturumu: cihaz adı, son kullanım ve kayan süre (web oturumu 0)
+  db.exec('ALTER TABLE sessions ADD COLUMN mobil INTEGER NOT NULL DEFAULT 0');
+  db.exec("ALTER TABLE sessions ADD COLUMN cihaz TEXT NOT NULL DEFAULT ''");
+  db.exec('ALTER TABLE sessions ADD COLUMN son_kullanim INTEGER');
+}
 if (!sutunlar('kulup_calismalar').some(c => c.name === 'tamamlandi')) {
   // Kulüp dersi: tarihi ve saati sabit, önceden planlanabilir; tamamlandi NULL = henüz işlenmedi
   db.exec('ALTER TABLE kulup_calismalar ADD COLUMN tamamlandi INTEGER');
@@ -422,6 +428,48 @@ export function kampusDuzelt() {
   db.prepare("UPDATE branches SET campus_id = (SELECT MIN(id) FROM kampusler) WHERE campus_id IS NULL").run();
 }
 kampusDuzelt();
+// Sosyal medya hesapları: sabit platform listesi; kayıtta tam bağlantıya çevrilir ("@okul" ya da "okul" yazılabilir)
+export const SOSYAL_ALANLAR = [
+  { kod: 'instagram', ad: 'Instagram', temel: 'https://www.instagram.com/' },
+  { kod: 'facebook', ad: 'Facebook', temel: 'https://www.facebook.com/' },
+  { kod: 'x', ad: 'X', temel: 'https://x.com/' },
+  { kod: 'youtube', ad: 'YouTube', temel: 'https://www.youtube.com/@' },
+  { kod: 'tiktok', ad: 'TikTok', temel: 'https://www.tiktok.com/@' },
+  { kod: 'linkedin', ad: 'LinkedIn', temel: 'https://www.linkedin.com/company/' },
+];
+export const TANITIM_AZAMI = 1500;
+// Girdiyi bağlantıya çevirir; geçersizse null (yalnızca http/https kabul edilir)
+function sosyalBaglanti(ham, alan) {
+  const v = String(ham ?? '').trim().slice(0, 200);
+  if (!v) return '';
+  if (/^https?:\/\/[^\s]+\.[^\s]+$/i.test(v)) return v;
+  if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) return 'https://' + v;
+  const kullanici = v.replace(/^@/, '');
+  return /^[\w.-]{2,60}$/.test(kullanici) ? alan.temel + kullanici : null;
+}
+// Gövdeden gelen {instagram: '...'} nesnesini doğrulanmış JSON metnine çevirir; hata varsa {hata}
+export function sosyalDogrula(girdi) {
+  const kayit = {};
+  for (const a of SOSYAL_ALANLAR) {
+    const b = sosyalBaglanti(girdi?.[a.kod], a);
+    if (b === null) return { hata: `${a.ad} hesabı geçersiz` };
+    if (b) kayit[a.kod] = b;
+  }
+  return { json: JSON.stringify(kayit) };
+}
+// Web sitesi: şema yoksa https eklenir; geçersizse null
+export function webDogrula(ham) {
+  const v = String(ham ?? '').trim().slice(0, 100);
+  if (!v) return '';
+  const tam = /^https?:\/\//i.test(v) ? v : 'https://' + v;
+  return /^https?:\/\/[^\s/]+\.[^\s/]+(\/\S*)?$/i.test(tam) ? tam : null;
+}
+export const sosyalOku = metin => { try { return JSON.parse(metin || '{}') || {}; } catch { return {}; } };
+// Okulun tanıtım bilgileri: web sitesi, tanıtım yazısı, sosyal medya (JSON: {instagram, facebook, ...})
+for (const k of ['web', 'aciklama']) {
+  if (!sutunlar('branches').some(c => c.name === k)) db.exec(`ALTER TABLE branches ADD COLUMN ${k} TEXT NOT NULL DEFAULT ''`);
+}
+if (!sutunlar('branches').some(c => c.name === 'sosyal')) db.exec("ALTER TABLE branches ADD COLUMN sosyal TEXT NOT NULL DEFAULT '{}'");
 if (!sutunlar('etut_katilimcilar').some(c => c.name === 'attendance')) {
   // Etüt yoklaması: NULL = henüz alınmadı
   db.exec("ALTER TABLE etut_katilimcilar ADD COLUMN attendance TEXT CHECK (attendance IN ('geldi','gelmedi','izinli'))");
