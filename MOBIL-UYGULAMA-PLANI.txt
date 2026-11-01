@@ -147,3 +147,24 @@ Sırada:
      .p8 dosyası, Key ID ve Issuer ID'yi Codemagic > Teams > Integrations > App Store Connect'e "neademy-asc" adıyla ekle.
   4) codemagic.yaml içindeki APP_STORE_APPLE_ID'yi gerçek numarayla değiştir; kodu GitHub'a it, Codemagic'te depoyu bağla.
 - Uygulama ikonu hâlâ Flutter varsayılanı; mağaza/TestFlight öncesi gerçek ikon ve açılış görseli gerekir.
+
+12. DERLEME HATLARI VE MAĞAZASIZ GÜNCELLEME (1 Kasım 2026)
+----------------------------------------------------------
+Depo: github.com/husnytarik/neademy (HERKESE AÇIK; imza anahtarı, .p8, .jks, key.properties asla depoya girmez).
+İş akışları (.github/workflows), hepsi elle tetiklenir (Actions > Run workflow ya da: gh workflow run <dosya>):
+- mobil-android.yml: analiz+test -> imzalı APK + AAB (Artifacts).  Sırlar: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD.
+- mobil-ios.yml: analiz+test -> imza (App Store Connect API anahtarıyla otomatik) -> IPA -> TestFlight.
+  Sırlar: ASC_KEY_ID, ASC_ISSUER_ID, ASC_API_KEY_P8, IOS_CERT_PRIVATE_KEY.  Build numarası = Actions çalıştırma numarası.
+- mobil-yama.yml: Shorebird ile Dart yaması (incelemesiz). Sırlar: SHOREBIRD_TOKEN + mobil/shorebird.yaml (shorebird init).
+Yerel yedek (depo dışı): C:\Users\PC\neademy-mobil-anahtarlar\ (upload-keystore.jks, key.properties, iOS sertifika özel anahtarı).
+  BU KLASÖRÜ BAŞKA YERE DE YEDEKLE; Android imza anahtarı kaybolursa Play'de güncelleme yapılamaz.
+
+Mağazasız güncelleme katmanları (küçükten büyüğe):
+1) Sunucu: uygulama ekranlarını ve verisini sunucudan alır; sunucu düzeltmesi anında herkese ulaşır.
+2) Sunucudan yönetilen ayar: <veri klasörü>/mobil-ayar.json  (D:\neademy-veri\mobil-ayar.json), dosya değişince anında geçerli:
+   { "enDusukSurum": "1.0.0",            // altındaki sürümler "güncelle" ekranı görür
+     "bakim": "Kısa bakım var…",         // doluysa uygulama bakım mesajı gösterir
+     "duyuru": {"id":"x1","baslik":"…","metin":"…"},   // panelde kapatılabilir şerit (id değişince yeniden görünür)
+     "kapaliModuller": ["takvimim"] }    // sunucu modül kimlikleri; uygulamada gizlenir
+3) Shorebird (Dart kodu yamaları): aynı sürüm numaralı kurulu uygulamalara mağazasız yama. Hazır; hesap + token bekliyor.
+   Apple kuralı: yama uygulamanın ana amacını değiştirmemeli. Yeni eklenti/izin/ikon/sürüm değişikliği için yine mağaza gerekir.
