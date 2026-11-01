@@ -1,0 +1,56 @@
+name: Mobil anlık yama (Shorebird)
+
+# Mağaza incelemesi olmadan Dart kodu düzeltmeleri gönderir.
+# Önkoşul: mobil/shorebird.yaml var (shorebird init) ve SHOREBIRD_TOKEN sırrı tanımlı.
+# Yamalar yalnızca AYNI sürüm numarasına (pubspec version) sahip yüklü uygulamalara gider;
+# yeni sürüm gerektiren değişiklik (yeni izin, eklenti, ikon) için normal derleme + inceleme gerekir.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Hangi platform"
+        type: choice
+        options: [ios, android]
+        default: ios
+      surum:
+        description: "Yama basılacak sürüm (örn. 1.0.0+3). Boşsa en son yayın."
+        type: string
+        required: false
+
+jobs:
+  yama:
+    runs-on: ${{ inputs.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobil
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Önkoşullar
+        run: |
+          if [ -z "$SHOREBIRD_TOKEN" ]; then echo "::error::SHOREBIRD_TOKEN sırrı tanımlı değil"; exit 1; fi
+          if [ ! -f shorebird.yaml ]; then echo "::error::mobil/shorebird.yaml yok (shorebird init çalıştırılmadı)"; exit 1; fi
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.5
+          cache: true
+
+      - uses: shorebirdtech/setup-shorebird@v1
+
+      - name: Test
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Yamayı yayınla
+        run: |
+          RELEASE="${{ inputs.surum }}"
+          ARGS="--dart-define=API=https://app.neademy.com"
+          if [ -n "$RELEASE" ]; then RV="--release-version=$RELEASE"; else RV=""; fi
+          shorebird patch ${{ inputs.platform }} $RV --allow-asset-diffs -- $ARGS

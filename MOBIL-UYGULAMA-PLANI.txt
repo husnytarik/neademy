@@ -1,0 +1,149 @@
+NEADEMY MOBİL UYGULAMA PLANI
+============================
+Not tarihi: 1 Kasım 2026. İş başladı; ilerleme için en alttaki 10. bölüme bak.
+
+1. KARAR (kullanıcının isteği)
+------------------------------
+- Web sayfasını gösteren bir kabuk (PWA, Capacitor, WebView) İSTENMİYOR.
+- Uygulama geliştirme diliyle yazılmış, gerçek bir uygulama isteniyor. Sağlam olması öncelik.
+- Uygulama sunucuyla veri alışverişi yapar, gerekirse çevrimiçi doğrular; ama ekranları kendisi çizer.
+- Mevcut web ekranları (public/*.html, *.js) yalnızca tasarım ve davranış TARİFİ olarak kullanılır.
+
+2. TEKNOLOJİ ÖNERİSİ
+--------------------
+- Önerilen: Flutter (Dart). Tek kodla iPhone + Android, ekranları kendisi çizer,
+  sade/yumuşak arayüz iki platformda birebir aynı olur, tek geliştirici için bakımı kolay.
+- Alternatif: React Native (JS bilgisi işe yarar ama platform farkları/sürüm sorunları daha sık).
+- Kullanıcıya sorulan, cevabı beklenen soru: İlk hedef yalnız iPhone mu, Android de aynı anda mı?
+  (Kullanıcı iPhone Safari ile test ediyor.)
+
+3. GEREKENLER
+-------------
+- Apple Developer hesabı (yıllık ~99 USD), Google Play hesabı (tek sefer 25 USD).
+- iPhone derlemesi için Mac ya da bulutta derleme servisi (ör. Codemagic).
+- Uygulama ikonu, açılış ekranı, gizlilik politikası (çocuk verisi var: KVKK), mağaza metinleri.
+
+4. SUNUCUDA YAPILACAKLAR (server.js ve diğer modüller)
+------------------------------------------------------
+- Giriş: şu an çerez tabanlı oturum. Uygulama için jeton (token) tabanlı giriş ekle:
+  erişim jetonu kısa ömürlü + yenileme jetonu; cihaz bazlı oturum listesi ve iptal.
+  Telefon cihazında jetonlar güvenli depoda (iOS Keychain / Android Keystore) saklanır.
+- Hızlı açma: Face ID / parmak izi (yerel doğrulama, sunucu jetonunu açar).
+- Giriş kuralı: gerçek ortamda TC/pasaport + telefon (son 10 hane karşılaştırılıyor), kodsuz. Hatalı deneme
+  kilidi bellekte (HATALI haritası, 15 dk). Mobilde de aynı kurallar; kilidi cihaz+kimlik bazında düşün.
+- Bildirim: anlık bildirim (APNs/FCM). Ödev, duyuru, teslim ve veli onayı, nöbet/görev, toplantı hatırlatma.
+  Kullanıcı bazlı bildirim tercihleri.
+- API sürümlendirme (/api/v1/...) ve istemci sürümü gönderme; eski sürümleri kapatmak için
+  "zorunlu güncelleme" kontrolü.
+- Tutarlı hata biçimi, sayfalama, kısa yanıtlar. Mobil için ağır sorguları hafiflet.
+- Dosya/fotoğraf yükleme: telefondan kamera/galeri, boyut sınırı ve küçültme.
+- Rol/yetki kontrolü sunucuda kalır; uygulama yalnızca gösterir (güvenilmez istemci kuralı).
+- Kişisel veri (TC, pasaport, telefon) sunucuda şifreli (gizli.js). Telefonda önbelleğe alınırsa
+  şifreli depoda ve en az veriyle tut; çıkışta temizle.
+- Hız sınırı (rate limit) ve kötüye kullanım kontrolü.
+- Çevrimdışı davranış: önce yalnız okuma önbelleği (takvim, program, duyuru). Yazma işlemleri çevrimiçi.
+
+5. İLK DİLİM (başlangıç)
+-------------------------
+1) Giriş + rol/kurum seçimi + panel + Takvimim.
+   Bu dilim iskeleti, tasarım sistemini ve sunucu bağlantısını oturtur.
+   Takvimim API'si hazır: GET /api/takvim?ay=YYYY-MM (ders, kulüp, etüt, nöbet, görevlendirme,
+   zümre/başkan toplantısı, ödev, sınav, kulüp çalışması, gelişim raporu başlangıç/son gün,
+   veli toplantısı, veli görüşmesi, mentor öğrenci doğum günü).
+2) Öğretmen: ders, yoklama, ödev, etüt, sınav.
+3) Veli ve öğrenci ekranları, güvenlik teslim kapısı.
+4) Yönetim: gerekli olanlar. Yoğun tablo/rapor ekranları çoğunlukla web'de kalabilir.
+
+6. TASARIM İLKELERİ (kullanıcının tercihleri)
+---------------------------------------------
+- Sade, yumuşak, köşeli arayüz; kısa Türkçe metinler.
+- Ders renkleri tüm arayüzde tutarlı (stil.js: ders adından kısa ad + renk).
+- Takvim: ay ızgarasında türe göre renkli noktalar; güne dokununca sol renk çizgili satırlar;
+  renk açıklaması takvimin altında, gün ayrıntılarının üstünde.
+- Açık/koyu tema; telefon genişliğinde (390px civarı) önce düşün.
+- Erişilebilirlik: yeterli kontrast, büyük dokunma alanı, ekran okuyucu etiketleri.
+
+7. DİKKAT EDİLECEKLER
+---------------------
+- Mağaza onayı: Apple, çocuk/okul uygulamalarında gizlilik, hesap silme ve veri kullanımı
+  bildirimini ister. Uygulama içinden hesap silme/veri talebi yolu düşünülmeli.
+- Giriş yöntemi (TC + telefon, kodsuz) güvenlik açısından zayıf; mobilde cihaz bağlama,
+  SMS/e-posta doğrulaması ya da yönetim onayı gibi ek adımlar konuşulmalı.
+- Demo girişi (/api/giris/demo) mobil yayında kapalı olmalı.
+- Zaman dilimi: sunucu Europe/Istanbul; uygulama tarihleri aynı kabulle göstermeli.
+- Tatil/ders günü hesabı sunucuda (tatil.js); uygulama kendi hesaplamasın.
+- PII veya rol yetkisi uygulamada sabit kodlanmasın; sunucudan gelen modül listesi ile menü kurulsun
+  (server.js MODULLER dizisi paneli belirler).
+- Test: gerçek örnek veriyle (demo :3000), iPhone gerçek cihazda; sürüm yükseltme senaryoları.
+- Yayın düzeni: iç test (TestFlight / Google iç test) -> pilot okullar -> geniş yayın.
+
+8. ÇÖZÜLMEMİŞ KONULAR
+---------------------
+- Flutter mı React Native mi (öneri Flutter) ve ilk platform.
+- Veli/öğrenci için ayrı uygulama mı, tek uygulamada roller mi (öneri: tek uygulama, rol seçimi).
+- Güvenlik modülü (nöbet başla/bitir, "Şu an kapıda", güvenlik ana sayfası, duyuru hedefi "Güvenlik")
+  onay bekliyor; mobil güvenlik ekranları buna bağlı.
+- 139 kullanıcının telefon verisi (11 haneli) temizliği: şu an kodla çözüldü, temizlik onayı bekliyor.
+
+9. ÖDEME VE APP STORE KURALLARI (1 Kasım 2026 notu)
+---------------------------------------------------
+- Model: Netflix gibi. Ödeme okul ile yapılır (web/fatura/havale), hesapları okul açar,
+  uygulama ücretsizdir ve yalnızca giriş yapılan bir istemcidir.
+- Dayanak: Apple App Review Guidelines 3.1.3(c) "Enterprise Services" (kurumlara/gruplara satılan hizmet)
+  ve 3.1.3(f) "Free Stand-alone Apps" (ücretli web hizmetinin ücretsiz eşlik uygulaması).
+  Yayına göndermeden önce güncel metni Apple'dan DOĞRULA; kurallar değişebiliyor.
+- Uygulamada OLMAYACAKLAR: fiyat, "satın al/abone ol" düğmesi, ödeme sayfasına bağlantı ve yönlendirme,
+  uygulama içi kayıt/üyelik oluşturma.
+- Lisansı biten okul/hesap: sunucu "hesap devre dışı" yanıtı verir; uygulama sade mesaj gösterir:
+  "Hesabınız şu an etkin değil. Lütfen okul yönetiminize başvurun." (fiyat ve bağlantı yok)
+- Sunucuda gerekenler: okul/kurum lisans durumu alanı (aktif/pasif, bitiş tarihi), girişte ve API'de kontrol.
+- Apple inceleme hesabı: demo girişi yayında kapalı kalır; yalnız incelemeci için ayrı, sınırlı bir hesap
+  (kullanıcı adı/şifre notlarda). İnceleme notlarında "kurumlara satılan hizmet" olduğu açıkça yazılır.
+- Kategori: Çocuklar (Kids) kategorisine KOYMA (izleme/reklam/bağlantı kuralları çok sıkı); genel Eğitim kategorisi
+  ve uygun yaş derecelendirmesi.
+- Hesap silme (5.1.1(v)): uygulamadan hesap silme talebi; okul yönetimi onaylayan akış olabilir.
+- KVKK: gizlilik politikası, çocuk verisi beyanı, veri toplama (App Privacy) formu hazır olmalı.
+- Türkiye'de dış ödeme bağlantısı serbestliği YOK (ABD kararı/AB DMA bizi kapsamaz); buna güvenme.
+
+10. İLERLEME KAYDI (1 Kasım 2026)
+--------------------------------
+Kararlar:
+- Teknoloji Flutter (Dart). Proje: D:\ProjeAkant\mobil (paket neademy, com.neademy; android/ios/web). Kod iki platformda ortak.
+- Giriş jetonu tasarımı: erişim+yenileme yerine CİHAZ OTURUMU. Jeton 64 hane rastgele, sunucuda sha256 olarak tutulur,
+  60 gün kayan süre (günde en çok bir kez uzar), cihaz başına iptal edilebilir. İstemci "Authorization: Bearer <jeton>" gönderir.
+- iOS derlemesi Windows'ta yapılamaz; bulutta (Codemagic / GitHub Actions macOS) derlenir. TestFlight ve iPhone'a kurulum
+  için Apple Developer hesabı (~99 USD/yıl) gerekir. O zamana dek Android ve web önizlemesiyle ilerlenir.
+
+Sunucu (yapıldı, demo :3000 ve gerçek :3001'de doğrulandı):
+- sessions tablosuna mobil, cihaz, son_kullanim sütunları (db.js göçü).
+- Bearer jeton kabulü (sidAl), mobil oturumda kayan süre.
+- POST /api/giris/dogrula {mobil:true, cihaz} -> {tamam, coklu, token}.
+- GET /api/mobil/ayar -> {enDusukSurum} (zorunlu güncelleme kapısı); GET /api/mobil/cihazlar; POST /api/mobil/cihaz-kapat.
+
+Uygulama (yapıldı):
+- Tema (açık/koyu), API istemcisi, güvenli depoda jeton, sürüm kapısı, tr_TR yerelleştirme (flutter_localizations şart).
+- Giriş (TC/pasaport + telefon), profil seçimi, panel (sunucudaki modül listesinden; hazır olmayanlar "Yakında"),
+  Takvimim (Ay/Hafta, noktalar, renk açıklaması, gün satırları, aylık önbellek, aşağı çekip yenile).
+- Testler (test/) geçiyor, flutter analyze temiz. Web önizlemesi headless Chrome + CDP ile görüntülenerek doğrulandı.
+
+Sırada:
+- Android derlemesi için yerel kurulum (JDK, Android SDK lisansları); Face ID/parmak izi (local_auth); anlık bildirim (FCM/APNs).
+- Öğretmen ekranları (ders, yoklama, ödev, etüt, sınav); veli/öğrenci; güvenlik teslim kapısı.
+- Sunucu: lisans durumu alanı ve girişte kontrol, cihaz oturumları ekranı, hesap silme talebi, App Review hesabı,
+  cihaz bazlı hız sınırı, fotoğraf yükleme.
+- Onay bekleyenler: güvenlik modülü maddeleri, "Herkes" duyurusuna güvenlik dahil mi, telefon verisi temizliği (tel_duzelt.mjs çalıştırılmadı).
+
+11. ANDROİD VE iOS DERLEME (1 Kasım 2026)
+-----------------------------------------
+- Android: SDK lisansları kabul edildi, JDK Android Studio'dan. Derleme:
+  cd mobil && flutter build apk --debug --dart-define=API=https://app.neademy.com
+  Çıktı: mobil/build/app/outputs/flutter-apk/app-debug.apk (telefona elle kurulabilir).
+- Biyometrik açılış yapıldı (local_auth): panel menüsünden aç/kapa, arka planda 2 dakikadan uzun kalınca yeniden kilitlenir,
+  çıkışta temizlenir. Android: FlutterFragmentActivity + USE_BIOMETRIC; iOS: NSFaceIDUsageDescription.
+- iOS (Mac yok): Codemagic. Depo kökündeki codemagic.yaml hazır. Yapılacaklar (Apple hesabı sahibi):
+  1) developer.apple.com > Identifiers: com.neademy.neademy kimliğini oluştur.
+  2) appstoreconnect.apple.com > Uygulamalar > yeni uygulama (bundle com.neademy.neademy); Apple ID numarasını al.
+  3) App Store Connect > Kullanıcılar ve Erişim > Entegrasyonlar > anahtar oluştur (Admin/App Manager);
+     .p8 dosyası, Key ID ve Issuer ID'yi Codemagic > Teams > Integrations > App Store Connect'e "neademy-asc" adıyla ekle.
+  4) codemagic.yaml içindeki APP_STORE_APPLE_ID'yi gerçek numarayla değiştir; kodu GitHub'a it, Codemagic'te depoyu bağla.
+- Uygulama ikonu hâlâ Flutter varsayılanı; mağaza/TestFlight öncesi gerçek ikon ve açılış görseli gerekir.

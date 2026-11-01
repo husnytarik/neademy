@@ -1,0 +1,79 @@
+name: Mobil iOS derle ve TestFlight'a gönder
+
+# Elle tetiklenir (Actions > Mobil iOS derle > Run workflow). macOS dakikası pahalıdır; otomatik tetikleyici yok.
+# Akış: imza (App Store Connect API anahtarıyla otomatik) -> IPA -> TestFlight.
+# Gerekli sırlar: ASC_KEY_ID, ASC_ISSUER_ID, ASC_API_KEY_P8, IOS_CERT_PRIVATE_KEY
+on:
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: "Derleme bitince TestFlight'a gönder"
+        type: boolean
+        default: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobil
+    env:
+      BUNDLE_ID: com.neademy.neademy
+      APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_API_KEY_P8 }}
+      CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERT_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sırlar tanımlı mı
+        run: |
+          for v in APP_STORE_CONNECT_KEY_IDENTIFIER APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_PRIVATE_KEY CERTIFICATE_PRIVATE_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::$v için sır tanımlı değil (ASC_KEY_ID, ASC_ISSUER_ID, ASC_API_KEY_P8, IOS_CERT_PRIVATE_KEY)"; exit 1; fi
+          done
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.5
+          cache: true
+
+      - name: Paketler, analiz, testler
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Codemagic CLI araçları (imza için)
+        run: |
+          python3 -m venv "$HOME/cm-venv"
+          "$HOME/cm-venv/bin/pip" install --quiet codemagic-cli-tools
+          echo "$HOME/cm-venv/bin" >> "$GITHUB_PATH"
+
+      - name: İmza dosyalarını al (sertifika ve profil yoksa oluşturur)
+        run: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: IPA derle
+        run: |
+          flutter build ipa --release \
+            --build-number=${{ github.run_number }} \
+            --dart-define=API=https://app.neademy.com \
+            --export-options-plist="$HOME/export_options.plist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neademy-ios-ipa
+          path: mobil/build/ios/ipa/*.ipa
+          retention-days: 30
+
+      - name: TestFlight'a yükle
+        if: ${{ inputs.testflight }}
+        run: |
+          app-store-connect publish --path build/ios/ipa/*.ipa
