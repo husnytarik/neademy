@@ -24,6 +24,7 @@ import 'ogrencilerim.dart';
 import 'ogrencim.dart';
 import 'kurulum.dart';
 import 'ders_programi_yonetim.dart';
+import 'kulup_yonetim.dart';
 import 'okul_takvimi.dart';
 import 'program.dart';
 import 'rapor.dart';
@@ -70,6 +71,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'ogrenci-yonetim': (api) => OgrencilerEkrani(api: api),
   'okul-kurulum': (api) => KurulumEkrani(api: api),
   'okul-takvimi': (api) => OkulTakvimiEkrani(api: api),
+  'kulup-yonetimi': (api) => KulupYonetimEkrani(api: api),
   'rapor': (api) => RaporEkrani(api: api),
   'ders-programi-yonetimi': (api) => DersProgramiYonetimEkrani(api: api),
   'not-girisi': (api) => SinavEkrani(api: api, yonetim: false),
