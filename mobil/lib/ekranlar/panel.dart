@@ -4,6 +4,7 @@ import '../bilesenler/ikon.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
+import 'baskan_toplanti.dart';
 import 'derslerim.dart';
 import 'devamsizlik.dart';
 import 'duyurular.dart';
@@ -55,6 +56,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'kulup-ogrenci': (api) => KulupOgrenciEkrani(api: api),
   'zumrem': (api) => ZumremEkrani(api: api),
   'duyuru': (api) => DuyuruYonetimEkrani(api: api),
+  'baskan-toplanti': (api) => BaskanToplantiEkrani(api: api),
   'not-girisi': (api) => SinavEkrani(api: api, yonetim: false),
   'sinav-yonetim': (api) => SinavEkrani(api: api, yonetim: true),
   'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),
