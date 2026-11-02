@@ -10,10 +10,12 @@ import 'etut.dart';
 import 'notlarim.dart';
 import 'odev_takip.dart';
 import 'odevler.dart';
+import 'ogrencilerim.dart';
 import 'ogrencim.dart';
 import 'program.dart';
 import 'takvimim.dart';
 import 'teslim.dart';
+import 'veli_mesaj.dart';
 
 class Modul {
   Modul({required this.id, required this.ad, required this.aciklama});
@@ -40,6 +42,8 @@ final _hazirEkranlar = <String, ({IconData ikon, Widget Function(Api api) ekran}
   'ogrencim': (ikon: Icons.person_outline, ekran: (api) => OgrencimEkrani(api: api)),
   'odev-takip-ogretmen': (ikon: Icons.fact_check_outlined, ekran: (api) => OdevTakipOgretmenEkrani(api: api)),
   'derslerim': (ikon: Icons.menu_book_outlined, ekran: (api) => DerslerimEkrani(api: api)),
+  'ogrencilerim': (ikon: Icons.groups_outlined, ekran: (api) => OgrencilerimEkrani(api: api)),
+  'veli-bilgilendirme': (ikon: Icons.mark_email_unread_outlined, ekran: (api) => VeliBilgilendirmeEkrani(api: api)),
   'etut': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogretmen')),
   'etut-ogrenci': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogrenci')),
   'etut-veli': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'veli')),

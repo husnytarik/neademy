@@ -7,6 +7,8 @@ import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
 import 'package:neademy/ekranlar/derslerim.dart';
 import 'package:neademy/ekranlar/odev_takip.dart';
+import 'package:neademy/ekranlar/ogrencilerim.dart';
+import 'package:neademy/ekranlar/veli_mesaj.dart';
 
 Api _api(Map<String, Object> yanitlar) => Api(
       istemci: MockClient((istek) async {
@@ -91,5 +93,65 @@ void main() {
     expect(find.text('Sayfa 40'), findsOneWidget);
     expect(find.text('Sayfa 50'), findsNothing);
     expect(find.text('4 bekliyor'), findsOneWidget);
+  });
+
+  testWidgets('öğrencilerim sınıfı ve öğrencileri listeler, profil açılır', (t) async {
+    final api = _api({
+      '/api/ogrencilerim': {
+        'siniflar': [
+          {'id': 3, 'ad': '6-A', 'kademe': 'ortaokul', 'ogrenciler': [
+            {'id': 1, 'ad': 'Ali Deneme', 'okulNo': '12', 'toplam': 10, 'geldi': 8, 'gelmedi': 1, 'gec': 1, 'izinli': 0},
+          ]},
+        ],
+      },
+      '/api/ogrencilerim/profil': {
+        'ogrenci': {'id': 1, 'ad': 'Ali Deneme', 'okulNo': '12', 'sinif': '6-A'},
+        'veliler': [{'ad': 'Veli Deneme', 'telefon': '0500 000 00 00'}],
+        'devam': {'toplam': 10, 'geldi': 8, 'gelmedi': 1, 'gec': 1, 'izinli': 0},
+        'dersler': [{'ders': 'Matematik', 'toplam': 5, 'geldi': 4, 'gelmedi': 1, 'gec': 0, 'izinli': 0}],
+        'son': [{'tarih': '2026-10-30', 'dersSaati': 2, 'ders': 'Matematik', 'durum': 'gelmedi'}],
+      },
+      '/api/ogrencilerim/dosya': {
+        'bilgi': {'email': '', 'yakinAd': 'Yakın Deneme', 'yakinYakinlik': 'Hala', 'yakinTelefon': '0500 111 11 11'},
+        'donemler': [
+          {'id': 1, 'ad': '1. Dönem', 'girisler': [{'baslik': 'Sosyal', 'ogretmen': 'Hoca', 'ders': 'Matematik', 'metin': 'Gayretli.'}], 'gorusmeler': []},
+        ],
+        'odevler': [{'id': 1, 'baslik': 'Sayfa 40', 'son': '2026-11-05', 'ders': 'Matematik', 'durum': 'verildi'}],
+        'kulup': {'ad': 'Satranç', 'geldi': 3, 'toplam': 4},
+        'etutler': [],
+      },
+    });
+    await _ciz(t, OgrencilerimEkrani(api: api));
+    expect(find.text('Ali Deneme'), findsOneWidget);
+    expect(find.text('%90'), findsOneWidget);
+    await t.tap(find.text('Ali Deneme'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('Veli · Veli Deneme'), findsOneWidget);
+    expect(find.text('Gelişim · 1. Dönem'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Satranç'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Satranç'), findsOneWidget);
+  });
+
+  testWidgets('veli bilgilendirme gönderilen mesajları gösterir', (t) async {
+    final api = _api({
+      '/api/duyuru/liste': {
+        'duyurular': [],
+        'mesajlar': [
+          {'id': 1, 'baslik': 'Gezi', 'metin': 'Cuma gezi var.', 'tarih': '2026-11-01', 'hedef': '6-A velileri', 'okunan': 3},
+        ],
+      },
+      '/api/duyuru/secenek': {
+        'siniflar': [{'id': 3, 'ad': '6-A'}],
+        'ogrenciler': [{'id': 1, 'ad': 'Ali Deneme', 'sinifId': 3}],
+      },
+    });
+    await _ciz(t, VeliBilgilendirmeEkrani(api: api));
+    expect(find.text('Gezi'), findsOneWidget);
+    expect(find.text('3 okudu'), findsOneWidget);
+    await t.tap(find.text('Yeni mesaj'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('Gönder'), findsOneWidget);
   });
 }
