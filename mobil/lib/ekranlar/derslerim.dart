@@ -92,7 +92,9 @@ class _DerslerimEkraniState extends State<DerslerimEkrani> {
   Future<void> _dersAc(Map<String, dynamic> d, String tarih, {bool programdan = true}) async {
     if (d['kulupId'] != null) {
       final bitti = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => KulupOturumEkrani(api: widget.api, kulupId: d.n('kulupId'), tarih: tarih)),
+        MaterialPageRoute(
+          builder: (_) => KulupOturumEkrani(api: widget.api, kulupId: d.n('kulupId'), tarih: tarih),
+        ),
       );
       if (bitti == true && mounted) _yukle();
       return;
@@ -324,7 +326,7 @@ class _DersSatiri extends StatelessWidget {
     final baslik = etut
         ? '${d.s('ders').isEmpty ? 'Genel' : d.s('ders')}${d.s('konu').isEmpty ? '' : ' · ${d.s('konu')}'}'
         : (kulup ? 'Kulüp · ${d.s('sinif')}' : d.s('sinif'));
-    final alt = etut ? '${d.n('kisi')} öğrenci${d.s('yer').isEmpty ? '' : ' · ${d.s('yer')}'}' : (kulup ? 'Kulüp' : d.s('ders'));
+    final alt = etut ? '${d.n('kisi')} öğrenci${d.s('yer').isEmpty ? '' : ' · ${d.s('yer')}'}' : '';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -340,17 +342,27 @@ class _DersSatiri extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(width: 5, color: renk),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
-                  child: SizedBox(
-                    width: 58,
+                  padding: const EdgeInsets.fromLTRB(10, 10, 4, 10),
+                  child: Container(
+                    width: 66,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: BoxDecoration(
+                      color: etut ? null : renk,
+                      border: etut ? Border.all(color: renk) : null,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(etut ? 'Etüt' : bas, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                        Text(etut ? bas : '${d.n('dersSaati')}. ders', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+                        Text(
+                          etut ? 'Etüt' : bas,
+                          style: serif.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: etut ? renk : Colors.white),
+                        ),
+                        Text(
+                          etut ? bas : '${d.n('dersSaati')}. ders',
+                          style: TextStyle(color: etut ? renk : Colors.white.withValues(alpha: .85), fontSize: 12),
+                        ),
                       ],
                     ),
                   ),

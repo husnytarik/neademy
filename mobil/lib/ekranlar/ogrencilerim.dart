@@ -21,13 +21,19 @@ class OgrencilerimEkrani extends StatelessWidget {
       if (siniflar.isEmpty) return const [BosNot('Sorumlu olduğunuz sınıf yok.')];
       return [
         for (final s in siniflar) ...[
-          Row(children: [
-            Expanded(child: Baslik('${s.s('ad')} · ${s.l('ogrenciler').length} öğrenci')),
-            TextButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SinifKarneEkrani(api: api, sinifId: s.n('id')))),
-              child: const Text('Sınıf karneleri'),
-            ),
-          ]),
+          Row(
+            children: [
+              Expanded(child: Baslik('${s.s('ad')} · ${s.l('ogrenciler').length} öğrenci')),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SinifKarneEkrani(api: api, sinifId: s.n('id')),
+                  ),
+                ),
+                child: const Text('Sınıf karneleri'),
+              ),
+            ],
+          ),
           if (s.l('ogrenciler').isEmpty) const BosNot('Bu sınıfta öğrenci yok.'),
           for (final o in s.l('ogrenciler')) _OgrenciSatiri(api: api, o: o),
         ],
@@ -45,7 +51,8 @@ class _OgrenciSatiri extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final toplam = o.n('toplam');
-    final yuzde = toplam == 0 ? null : ((o.n('geldi') + o.n('gec')) * 100 / toplam).round();
+    final yuzde = toplam == 0 ? 100 : ((toplam - o.n('gelmedi')) * 100 / toplam).round();
+    final dusuk = o.n('gelmedi') >= 5;
     return KartKutu(
       alt: 8,
       onTap: () => Navigator.of(context).push(
@@ -55,22 +62,27 @@ class _OgrenciSatiri extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Bas(o.s('ad')),
+          KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: api),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(o.s('ad'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15.5)),
-                Text(
-                  [if (o.s('okulNo').isNotEmpty) 'No ${o.s('okulNo')}', if (o.n('gelmedi') > 0) '${o.n('gelmedi')} gelmedi'].join(' · '),
-                  style: TextStyle(color: context.soluk, fontSize: 13.5),
-                ),
+                Text(o.s('okulNo').isEmpty ? '' : 'No ${o.s('okulNo')}', style: TextStyle(color: context.soluk, fontSize: 13.5)),
               ],
             ),
           ),
-          if (yuzde != null) Cip('%$yuzde', renk: yuzde >= 90 ? Colors.green.shade700 : (yuzde >= 75 ? Colors.orange.shade800 : Colors.red.shade700)),
-          Icon(Icons.chevron_right, color: context.soluk),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '%$yuzde',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: dusuk ? const Color(0xFFD64545) : const Color(0xFF2E9E5B)),
+              ),
+              Text('${o.n('gelmedi')} gelmedi', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+            ],
+          ),
         ],
       ),
     );
