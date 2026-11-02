@@ -141,12 +141,7 @@ class _SinavEkraniState extends State<SinavEkrani> {
     cizim: (context, veri) {
       final liste = (veri as Map<String, dynamic>).l('sinavlar');
       return [
-        if (widget.yonetim)
-          FilledButton(
-            onPressed: _yeni,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            child: const Text('+ Yeni sınav'),
-          ),
+        if (widget.yonetim) EkleDugmesi('+ Yeni sınav', onPressed: _yeni),
         if (liste.isEmpty)
           BosNot(widget.yonetim ? 'Henüz sınav oluşturulmadı.' : 'Dersinize ait etkin sınav yok. Yönetim sınavı etkinleştirdiğinde burada görünür.'),
         const SizedBox(height: 4),
@@ -1253,12 +1248,7 @@ class _CevapSekmesiState extends State<_CevapSekmesi> {
     if (ham == null || !mounted) {
       return;
     }
-    final kayitlar = optikCoz(
-      ham.metin,
-      csv: ham.csv,
-      noUzunluk: ham.noUzunluk,
-      soruSayilari: [for (final d in _dersler) d.n('soruSayisi')],
-    );
+    final kayitlar = optikCoz(ham.metin, csv: ham.csv, noUzunluk: ham.noUzunluk, soruSayilari: [for (final d in _dersler) d.n('soruSayisi')]);
     final harita = {for (final o in _ogrenciler) noSade(o.s('okulNo')): o};
     var uygulanan = 0;
     final sorunlar = <String>[];
@@ -1415,7 +1405,10 @@ class _OptikDialogState extends State<_OptikDialog> {
           ),
           const SizedBox(height: 10),
           SegmentedButton<bool>(
-            segments: const [ButtonSegment(value: true, label: Text('CSV')), ButtonSegment(value: false, label: Text('Sabit genişlik'))],
+            segments: const [
+              ButtonSegment(value: true, label: Text('CSV')),
+              ButtonSegment(value: false, label: Text('Sabit genişlik')),
+            ],
             selected: {_csv},
             onSelectionChanged: (v) => setState(() => _csv = v.first),
           ),

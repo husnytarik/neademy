@@ -48,7 +48,8 @@ class _KulupYonetimEkraniState extends State<KulupYonetimEkrani> {
   List<Widget> _kulupler(BuildContext context, Map<String, dynamic> v) {
     final liste = v.l('kulupler');
     return [
-      FilledButton(
+      EkleDugmesi(
+        '+ Kulüp ekle',
         onPressed: () async {
           final ok = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
@@ -57,8 +58,6 @@ class _KulupYonetimEkraniState extends State<KulupYonetimEkrani> {
           );
           if (ok == true) _yenile();
         },
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        child: const Text('+ Kulüp ekle'),
       ),
       const SizedBox(height: 10),
       if (liste.isEmpty) const BosNot('Henüz kulüp yok.'),

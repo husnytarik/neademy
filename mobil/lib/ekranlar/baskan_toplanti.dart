@@ -148,11 +148,7 @@ class _BaskanToplantiEkraniState extends State<BaskanToplantiEkrani> {
           if (t['basladi'] == true) t,
       ];
       return [
-        FilledButton(
-          onPressed: () => _form(veri),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: const Text('+ Toplantı ekle'),
-        ),
+        EkleDugmesi('+ Toplantı ekle', onPressed: () => _form(veri)),
         if (liste.isEmpty) const BosNot('Henüz toplantı yok. Toplantıyı ekleyin; o okulun zümre başkanlarının paneline hatırlatma düşer.'),
         if (gelecek.isNotEmpty) ...[const Baslik('Yaklaşan toplantılar'), for (final t in gelecek) _kart(context, veri, t)],
         if (gecmis.isNotEmpty) ...[const Baslik('Yapılan toplantılar'), for (final t in gecmis) _kart(context, veri, t)],

@@ -331,3 +331,26 @@ class KisiAvatari extends StatelessWidget {
     ),
   );
 }
+
+/// Web'deki gibi sağ üstte duran küçük "+ Ekle" düğmesi.
+class EkleDugmesi extends StatelessWidget {
+  const EkleDugmesi(this.metin, {super.key, required this.onPressed});
+
+  final String metin;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerRight,
+    child: FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      child: Text(metin),
+    ),
+  );
+}

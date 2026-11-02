@@ -49,11 +49,7 @@ class _DuyuruYonetimEkraniState extends State<DuyuruYonetimEkrani> {
     cizim: (context, veri) {
       final liste = (veri as Map<String, dynamic>).l('duyurular');
       return [
-        FilledButton(
-          onPressed: _yaz,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: const Text('+ Duyuru yaz'),
-        ),
+        EkleDugmesi('+ Duyuru yaz', onPressed: _yaz),
         const Baslik('Yayınlanan duyurular'),
         if (liste.isEmpty) const BosNot('Henüz duyuru yayınlanmadı.'),
         for (final x in liste)

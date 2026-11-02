@@ -156,7 +156,7 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
       satirlar.add(
         _BekleyenSatiri(
           ikon: 'ders',
-          renk: const Color(0xFFD64545),
+          renk: const Color(0xFFEF4444),
           baslik: 'Tamamlanmamış ders',
           alt: 'Dersi bitirmeyi unuttuklarınız',
           sayi: '${geciken.n('sayi')}',
@@ -189,7 +189,7 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
         satirlar.add(
           _BekleyenSatiri(
             ikon: 'kazanim',
-            renk: const Color(0xFFD9A21B),
+            renk: const Color(0xFFF59E0B),
             baslik: 'Atlanmış kazanım',
             alt: 'Sonraki üniteye geçildi, işlenmedi',
             sayi: '${kartlar.fold<int>(0, (t, e) => t + e.$2.length)}',
@@ -208,7 +208,7 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
         satirlar.add(
           _BekleyenSatiri(
             ikon: 'gelisim-ogretmen',
-            renk: const Color(0xFF5B79A8),
+            renk: const Color(0xFF22C55E),
             baslik: 'Gelişim gözlemi yazılmamış',
             alt: [if (acik > 0) '$acik bu dönem', if (gecmis > 0) '$gecmis geçmiş dönem'].join(' · '),
             sayi: '${acik + gecmis}',
@@ -225,7 +225,7 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
           0,
           _BekleyenSatiri(
             ikon: 'zumrem',
-            renk: const Color(0xFF5B79A8),
+            renk: const Color(0xFFD946EF),
             baslik: t.s('baslik'),
             alt: [t['baskanlar'] == true ? t.s('zumre') : '${t.s('zumre')} zümresi', t.s('saat'), t.s('yer')].where((e) => e.isNotEmpty).join(' · '),
             sayi: kalan == 0 ? 'Bugün' : (kalan == 1 ? 'Yarın' : '$kalan gün sonra'),
@@ -281,7 +281,11 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
     }
     final dersler = liste.l('gunluk');
     if (dersler.isEmpty) {
-      return Text('Bugün dersiniz yok.', textAlign: TextAlign.center, style: TextStyle(color: context.soluk));
+      return Text(
+        'Bugün dersiniz yok.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.soluk),
+      );
     }
     final simdi = '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}';
     final i = dersler.indexWhere((d) => d.s('aralik').split('–').last.compareTo(simdi) >= 0);
@@ -308,11 +312,24 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
                 children: [
                   Text(
                     bitti ? 'Bugünkü son dersiniz' : 'Sıradaki dersim',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: (context.koyu ? Color.alphaBlend(Colors.white.withValues(alpha: .55), renk) : Color.alphaBlend(Colors.black.withValues(alpha: .3), renk))),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: (context.koyu
+                          ? Color.alphaBlend(Colors.white.withValues(alpha: .55), renk)
+                          : Color.alphaBlend(Colors.black.withValues(alpha: .3), renk)),
+                    ),
                   ),
                   Text(
                     'bugün ${dersler.length} ders',
-                    style: TextStyle(fontSize: 12.5, color: (context.koyu ? Color.alphaBlend(Colors.white.withValues(alpha: .55), renk) : Color.alphaBlend(Colors.black.withValues(alpha: .3), renk)).withValues(alpha: .75)),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color:
+                          (context.koyu
+                                  ? Color.alphaBlend(Colors.white.withValues(alpha: .55), renk)
+                                  : Color.alphaBlend(Colors.black.withValues(alpha: .3), renk))
+                              .withValues(alpha: .75),
+                    ),
                   ),
                 ],
               ),
@@ -432,9 +449,9 @@ class _BekleyenSatiri extends StatelessWidget {
         Container(
           width: 38,
           height: 38,
-          decoration: BoxDecoration(color: renk.withValues(alpha: .14), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(11)),
           alignment: Alignment.center,
-          child: CizgiIkon(ikon, boyut: 21, renk: renk),
+          child: CizgiIkon(ikon, boyut: 21, renk: Colors.white),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -448,12 +465,14 @@ class _BekleyenSatiri extends StatelessWidget {
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-          decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(6)),
           child: Text(
             sayi,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13.5),
           ),
         ),
+        const SizedBox(width: 6),
+        Icon(Icons.chevron_right, size: 20, color: context.soluk),
       ],
     );
     if (detay.isEmpty) return Padding(padding: const EdgeInsets.symmetric(vertical: 11), child: ust);

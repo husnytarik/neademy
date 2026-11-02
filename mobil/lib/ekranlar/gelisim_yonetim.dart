@@ -63,10 +63,9 @@ class _GelisimYonetimEkraniState extends State<GelisimYonetimEkrani> {
     return [
       Text('Öğretmenler yalnızca dönem açıkken giriş yapar.', style: TextStyle(color: context.soluk, fontSize: 13)),
       const SizedBox(height: 8),
-      FilledButton(
+      EkleDugmesi(
+        '+ Yeni dönem',
         onPressed: () => _ac(_DonemFormu(api: widget.api, bugun: v.s('bugun'))),
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
-        child: const Text('+ Yeni dönem'),
       ),
       const SizedBox(height: 10),
       if (liste.isEmpty) const BosNot('Henüz dönem yok. “Yeni dönem” ile ilkini açın.'),
@@ -114,11 +113,7 @@ class _GelisimYonetimEkraniState extends State<GelisimYonetimEkrani> {
         style: TextStyle(color: context.soluk, fontSize: 13),
       ),
       const SizedBox(height: 8),
-      FilledButton(
-        onPressed: () => _ac(_BaslikFormu(api: widget.api)),
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
-        child: const Text('+ Yeni başlık'),
-      ),
+      EkleDugmesi('+ Yeni başlık', onPressed: () => _ac(_BaslikFormu(api: widget.api))),
       const SizedBox(height: 10),
       if (liste.isEmpty) const BosNot('Henüz başlık yok. Örn. Akademik süreç, Dikkat ve ders içi davranış…'),
       for (final (i, b) in liste.indexed)

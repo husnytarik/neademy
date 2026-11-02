@@ -189,12 +189,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
     final toplantilar = v.l('toplantilar');
     final kararlar = v.l('kararlar');
     return [
-      if (baskan)
-        FilledButton(
-          onPressed: () => _toplantiFormu(null),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: const Text('+ Toplantı ekle'),
-        ),
+      if (baskan) EkleDugmesi('+ Toplantı ekle', onPressed: () => _toplantiFormu(null)),
       if (toplantilar.isEmpty)
         BosNot(
           baskan
