@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
+import 'package:neademy/cekirdek/foto.dart';
 import 'package:neademy/ekranlar/ogrenciler.dart';
 
 Api _api(Map<String, Object> yanitlar, {List<String>? kayit}) => Api(
@@ -20,6 +21,7 @@ const _secenek = {
   'ozelTur': {'saglik': 'Sağlık'},
   'kayitTuru': {'yeni': 'Yeni kayıt'},
 };
+const _png1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 final _subeler = [
   {'id': 1, 'ad': 'Deneme Okulu'},
 ];
@@ -172,6 +174,29 @@ void main() {
     await t.tap(find.text('Değişiklikleri kaydet'));
     await t.pumpAndSettle();
     expect(kayit, containsAll(['POST /api/ogrenci/kaydet', 'POST /api/ogrenci/veli-guncelle', 'POST /api/ogrenci/ozel-durum-kaydet']));
+  });
+
+  testWidgets('kayıt formu: seçilen fotoğraf kayıttan sonra yüklenir', (t) async {
+    genis(t);
+    final kayit = <String>[];
+    galeridenFotoSec = () async => base64Decode(_png1x1);
+    final veri = {
+      ..._kayit,
+      'ogrenci': {...(_kayit['ogrenci'] as Map<String, Object>), 'userId': 77},
+    };
+    await t.pumpWidget(
+      MaterialApp(
+        home: OgrenciFormu(api: _api({'/api/ogrenci/kayit': veri}, kayit: kayit), id: 9),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('Fotoğraf ekle'));
+    await t.pumpAndSettle();
+    expect(find.text('Fotoğrafı değiştir'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Değişiklikleri kaydet'), 400, scrollable: find.byType(Scrollable).first);
+    await t.tap(find.text('Değişiklikleri kaydet'));
+    await t.pumpAndSettle();
+    expect(kayit.indexOf('POST /api/foto'), greaterThan(kayit.indexOf('POST /api/ogrenci/kaydet')));
   });
 
   testWidgets('yeni öğrenci: kimlik yoksa uyarır', (t) async {

@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
+import '../cekirdek/foto.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
 import 'karne.dart';
@@ -278,7 +281,11 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
       final duzenleyebilir = kayit['duzenleyebilir'] == true;
       final aktif = kayit.m('ogrenci').s('durum') == 'aktif';
       return [
-        Sekmeler(secenekler: const [('genel', 'Genel'), ('sinav', 'Sınavlar'), ('teslim', 'Teslim'), ('kayit', 'Kayıt')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
+        Sekmeler(
+          secenekler: const [('genel', 'Genel'), ('sinav', 'Sınavlar'), ('teslim', 'Teslim'), ('kayit', 'Kayıt')],
+          secili: _sekme,
+          degisti: (d) => setState(() => _sekme = d),
+        ),
         const SizedBox(height: 8),
         if (!aktif)
           Padding(
@@ -292,7 +299,11 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
             children: [
               OutlinedButton(onPressed: _duzenle, child: const Text('Düzenle')),
               OutlinedButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => KarneEkrani(api: widget.api, ogrenciId: widget.id))),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => KarneEkrani(api: widget.api, ogrenciId: widget.id),
+                  ),
+                ),
                 child: const Text('Dönem karnesi'),
               ),
               OutlinedButton(onPressed: () => _durum(kayit), child: Text(aktif ? 'Okuldan ayrıldı' : 'Geri al')),
@@ -576,6 +587,9 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
   final _ozeller = <_OzelSatir>[];
   int _sube = 0;
   int? _sinif;
+  int _userId = 0;
+  String _mevcutFoto = '';
+  Uint8List? _foto;
   String _cinsiyetD = '', _kan = '', _kayitTuru = 'yeni', _yemekD = '', _yakinlik = '';
 
   bool get _duzenleme => widget.id != null;
@@ -608,6 +622,8 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       final d = await widget.api.get('/api/ogrenci/kayit${_duzenleme ? '?id=${widget.id}' : ''}') as Map<String, dynamic>;
       final o = d.m('ogrenci'), y = d.m('kayit'), i = d.m('iletisim');
       final subeler = d.l('subeler');
+      _userId = o.n('userId');
+      _mevcutFoto = o.s('foto');
       _sube = _duzenleme ? o.n('subeId') : (subeler.isEmpty ? 0 : subeler.first.n('id'));
       _sinif = _duzenleme && o['sinifId'] != null ? o.n('sinifId') : null;
       _k('ad', o.s('ad'));
@@ -701,7 +717,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
           for (final o in _ozeller.where((o) => o.baslik.text.trim().isNotEmpty)) {'tur': o.tur, 'baslik': o.baslik.text, 'aciklama': o.aciklama.text},
         ];
       }
-      await api.post('/api/ogrenci/kaydet', govde);
+      final kayitSonuc = await api.post('/api/ogrenci/kaydet', govde) as Map<String, dynamic>?;
       if (_duzenleme) {
         for (final v in _veliler.where((v) => !v.bos)) {
           if (v.kayitli) {
@@ -718,6 +734,19 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
             'baslik': o.baslik.text,
             'aciklama': o.aciklama.text,
           });
+        }
+      }
+      final foto = _foto;
+      final userId = (kayitSonuc?['userId'] as num?)?.toInt() ?? _userId;
+      if (foto != null && userId > 0) {
+        try {
+          await api.postBayt('/api/foto?id=$userId', foto);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Öğrenci kaydedildi ancak fotoğraf yüklenemedi. Düzenleme ekranından yeniden deneyebilirsiniz.')));
+          }
         }
       }
       if (mounted) Navigator.pop(context, true);
@@ -753,6 +782,47 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       }
     }
     setState(() => _ozeller.remove(o));
+  }
+
+  Future<void> _fotoSec() async {
+    try {
+      final bayt = await galeridenFotoSec();
+      if (bayt != null && mounted) setState(() => _foto = bayt);
+    } catch (e) {
+      if (mounted) hataGoster(context, e);
+    }
+  }
+
+  Widget _fotoBolumu() {
+    final ad = _t('ad');
+    final fotoVar = _foto != null || _mevcutFoto.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: context.icZemin,
+            foregroundImage: _foto != null
+                ? MemoryImage(_foto!)
+                : (_mevcutFoto.isEmpty ? null : NetworkImage('${Api.taban}$_mevcutFoto', headers: widget.api.kimlik) as ImageProvider),
+            child: Text(ad.isEmpty ? '?' : ad.characters.first.toUpperCase(), style: serif.copyWith(fontSize: 24)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton(onPressed: _fotoSec, child: Text(fotoVar ? 'Fotoğrafı değiştir' : 'Fotoğraf ekle')),
+                Text('Vesikalık ya da yüzün net göründüğü bir fotoğraf.', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _alan(String etiket, String ad, {TextInputType? tip, int? uzunluk, String? ipucu}) => Padding(
@@ -820,6 +890,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           const Baslik('Öğrenci', ust: 4),
+          _fotoBolumu(),
           _alan('Ad soyad *', 'ad', uzunluk: 80),
           if (!_duzenleme) _alan('T.C. / pasaport no *', 'kimlik', uzunluk: 20) else _alan(d.m('ogrenci').s('kimlikTuru'), 'kimlikGoster'),
           _alan('Öğrenci / yakın telefonu *', 'telefon', tip: TextInputType.phone, uzunluk: 20, ipucu: '5XX XXX XX XX'),
