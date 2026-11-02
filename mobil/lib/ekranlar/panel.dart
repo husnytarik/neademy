@@ -19,6 +19,7 @@ import 'panel_ozet.dart';
 import 'ogrencilerim.dart';
 import 'ogrencim.dart';
 import 'program.dart';
+import 'sinav.dart';
 import 'takvimim.dart';
 import 'teslim.dart';
 import 'veli_mesaj.dart';
@@ -54,6 +55,8 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'kulup-ogrenci': (api) => KulupOgrenciEkrani(api: api),
   'zumrem': (api) => ZumremEkrani(api: api),
   'duyuru': (api) => DuyuruYonetimEkrani(api: api),
+  'not-girisi': (api) => SinavEkrani(api: api, yonetim: false),
+  'sinav-yonetim': (api) => SinavEkrani(api: api, yonetim: true),
   'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),
   'etut-ogrenci': (api) => EtutEkrani(api: api, rol: 'ogrenci'),
   'etut-veli': (api) => EtutEkrani(api: api, rol: 'veli'),
