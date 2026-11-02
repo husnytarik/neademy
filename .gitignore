@@ -6,3 +6,8 @@ PLAN.txt
 DEMO-HESAPLAR.txt
 akant.db
 mobil-ayar.json
+*.p8
+*.p12
+*.pem
+*.jks
+*.mobileprovision

@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
+import 'devamsizlik.dart';
+import 'duyurular.dart';
+import 'notlarim.dart';
+import 'odevler.dart';
+import 'ogrencim.dart';
+import 'program.dart';
 import 'takvimim.dart';
 
 class Modul {
@@ -20,6 +26,14 @@ class Modul {
 /// burada olmayanlar "Yakında" görünür, rol/yetki süzmesi sunucuda yapılır.
 final _hazirEkranlar = <String, ({IconData ikon, Widget Function(Api api) ekran})>{
   'takvimim': (ikon: Icons.calendar_month_outlined, ekran: (api) => TakvimimEkrani(api: api)),
+  'devamsizlik-veli': (ikon: Icons.fact_check_outlined, ekran: (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlık')),
+  'devamsizlik-ogrenci': (ikon: Icons.fact_check_outlined, ekran: (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlığım')),
+  'duyurular': (ikon: Icons.campaign_outlined, ekran: (api) => DuyurularEkrani(api: api)),
+  'duyurular-ogretmen': (ikon: Icons.campaign_outlined, ekran: (api) => DuyurularEkrani(api: api)),
+  'odev-takip': (ikon: Icons.assignment_outlined, ekran: (api) => OdevlerEkrani(api: api)),
+  'ders-programi': (ikon: Icons.schedule_outlined, ekran: (api) => ProgramEkrani(api: api)),
+  'notlarim': (ikon: Icons.bar_chart_outlined, ekran: (api) => NotlarimEkrani(api: api)),
+  'ogrencim': (ikon: Icons.person_outline, ekran: (api) => OgrencimEkrani(api: api)),
 };
 
 class PanelEkrani extends StatefulWidget {
