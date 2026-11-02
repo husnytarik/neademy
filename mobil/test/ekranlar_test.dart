@@ -165,7 +165,10 @@ void main() {
       },
     });
     await _ciz(t, ProgramEkrani(api: api));
+    expect(find.text('Günlük'), findsOneWidget);
     expect(find.text('Matematik'), findsWidgets);
+    await t.tap(find.text('Haftalık'));
+    await t.pumpAndSettle();
     expect(find.text('Etüt'), findsOneWidget);
   });
 
