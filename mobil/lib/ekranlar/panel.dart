@@ -10,6 +10,7 @@ import 'duyurular.dart';
 import 'etut.dart';
 import 'gelisim_ogretmen.dart';
 import 'kulup.dart';
+import 'zumrem.dart';
 import 'notlarim.dart';
 import 'odev_takip.dart';
 import 'odevler.dart';
@@ -50,6 +51,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'gelisim-ogretmen': (api) => GelisimOgretmenEkrani(api: api),
   'kulup-ogretmen': (api) => KulupOgretmenEkrani(api: api),
   'kulup-ogrenci': (api) => KulupOgrenciEkrani(api: api),
+  'zumrem': (api) => ZumremEkrani(api: api),
   'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),
   'etut-ogrenci': (api) => EtutEkrani(api: api, rol: 'ogrenci'),
   'etut-veli': (api) => EtutEkrani(api: api, rol: 'veli'),
