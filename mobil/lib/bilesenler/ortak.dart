@@ -334,9 +334,10 @@ class KisiAvatari extends StatelessWidget {
 
 /// Web'deki gibi sağ üstte duran küçük "+ Ekle" düğmesi.
 class EkleDugmesi extends StatelessWidget {
-  const EkleDugmesi(this.metin, {super.key, required this.onPressed});
+  const EkleDugmesi(this.metin, {super.key, required this.onPressed, this.tam = false});
 
   final String metin;
+  final bool tam;
   final VoidCallback? onPressed;
 
   @override
@@ -345,7 +346,7 @@ class EkleDugmesi extends StatelessWidget {
     child: FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 40),
+        minimumSize: Size(tam ? double.infinity : 0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

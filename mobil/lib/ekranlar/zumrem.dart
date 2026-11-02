@@ -164,7 +164,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
         Text('${(v['zumre'] as Map)['ad']} zümresi', style: serif.copyWith(fontSize: 21, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
         Sekmeler(
-          secenekler: [('toplanti', 'Toplantı'), ('yazi', 'Yazılar'), ('ogretmen', 'Öğretmenler'), if (widget.baskanMi) ('baskanlar', 'Başkanlar')],
+          secenekler: [('toplanti', 'Toplantılar'), ('yazi', 'Yazılar'), ('ogretmen', 'Öğretmenler'), if (widget.baskanMi) ('baskanlar', 'Başkanlar')],
           secili: _sekme,
           degisti: (s) {
             setState(() => _sekme = s);
@@ -189,7 +189,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
     final toplantilar = v.l('toplantilar');
     final kararlar = v.l('kararlar');
     return [
-      if (baskan) EkleDugmesi('+ Toplantı ekle', onPressed: () => _toplantiFormu(null)),
+      if (baskan) EkleDugmesi('+ Toplantı ekle', tam: true, onPressed: () => _toplantiFormu(null)),
       if (toplantilar.isEmpty)
         BosNot(
           baskan

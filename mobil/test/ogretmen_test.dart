@@ -239,7 +239,8 @@ void main() {
     await _ciz(t, OdevTakipOgretmenEkrani(api: api));
     expect(find.text('Sayfa 40'), findsOneWidget);
     expect(find.text('Sayfa 50'), findsNothing);
-    expect(find.text('4 bekliyor'), findsOneWidget);
+    expect(find.text('3 onay bekliyor'), findsOneWidget);
+    expect(find.text('1 soru'), findsOneWidget);
   });
 
   testWidgets('öğrencilerim sınıfı ve öğrencileri listeler, profil açılır', (t) async {
