@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Color;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api.dart';
 import 'biyometri.dart';
+import 'takvim_model.dart' show rengiCoz;
 
 enum Durum {
   /// Açılışta jeton/sürüm kontrolü sürüyor.
@@ -62,12 +64,8 @@ class Duyuru {
 class Profil {
   Profil({required this.id, required this.rol, required this.sube, required this.unvan});
 
-  factory Profil.json(Map<String, dynamic> j) => Profil(
-        id: j['id'] as int,
-        rol: j['rol'] as String? ?? '',
-        sube: j['sube'] as String? ?? '',
-        unvan: j['unvan'] as String? ?? '',
-      );
+  factory Profil.json(Map<String, dynamic> j) =>
+      Profil(id: j['id'] as int, rol: j['rol'] as String? ?? '', sube: j['sube'] as String? ?? '', unvan: j['unvan'] as String? ?? '');
 
   final int id;
   final String rol;
@@ -77,16 +75,18 @@ class Profil {
 
 /// Oturum kayıtlı kişi: ad, rol, kurum ve yetkiler (/api/ben).
 class Ben {
-  Ben({required this.ad, required this.rol, required this.sube, required this.unvan, required this.coklu, required this.kurum});
+  Ben({required this.ad, required this.rol, required this.sube, required this.unvan, required this.coklu, required this.kurum, this.renk, this.foto});
 
   factory Ben.json(Map<String, dynamic> j) => Ben(
-        ad: j['ad'] as String? ?? '',
-        rol: j['rol'] as String? ?? '',
-        sube: j['sube'] as String? ?? '',
-        unvan: j['unvan'] as String? ?? '',
-        coklu: j['coklu'] == true,
-        kurum: (j['kurum'] is Map ? (j['kurum']['ad'] as String? ?? '') : ''),
-      );
+    ad: j['ad'] as String? ?? '',
+    rol: j['rol'] as String? ?? '',
+    sube: j['sube'] as String? ?? '',
+    unvan: j['unvan'] as String? ?? '',
+    coklu: j['coklu'] == true,
+    renk: rengiCoz(j['renk'] as String?),
+    foto: j['foto'] as String?,
+    kurum: (j['kurum'] is Map ? (j['kurum']['ad'] as String? ?? '') : ''),
+  );
 
   final String ad;
   final String rol;
@@ -94,14 +94,18 @@ class Ben {
   final String unvan;
   final bool coklu;
   final String kurum;
+
+  /// Üst bant rengi (öğretmende dersin rengi).
+  final Color? renk;
+  final String? foto;
 }
 
 /// Uygulamanın oturum durumu: jeton güvenli depoda (iOS Keychain / Android Keystore) tutulur.
 class Oturum extends ChangeNotifier {
   Oturum({Api? api, FlutterSecureStorage? depo, Biyometri? biyometri})
-      : api = api ?? Api(),
-        _depo = depo ?? const FlutterSecureStorage(),
-        biyometri = biyometri ?? Biyometri() {
+    : api = api ?? Api(),
+      _depo = depo ?? const FlutterSecureStorage(),
+      biyometri = biyometri ?? Biyometri() {
     this.api.oturumDustu = _oturumDustu;
   }
 
@@ -178,12 +182,7 @@ class Oturum extends ChangeNotifier {
 
   /// Kimlik + telefon ile giriş. Birden çok profil varsa [Durum.profilSecimi]'ne geçer.
   Future<void> girisYap(String kimlik, String telefon) async {
-    final yanit = await api.post('/api/giris/dogrula', {
-      'kimlik': kimlik.trim(),
-      'telefon': telefon.trim(),
-      'mobil': true,
-      'cihaz': _cihazAdi(),
-    });
+    final yanit = await api.post('/api/giris/dogrula', {'kimlik': kimlik.trim(), 'telefon': telefon.trim(), 'mobil': true, 'cihaz': _cihazAdi()});
     final jeton = (yanit as Map)['token'] as String;
     api.jeton = jeton;
     await _depo.write(key: _jetonAnahtari, value: jeton);
@@ -269,8 +268,8 @@ class Oturum extends ChangeNotifier {
   }
 
   String _cihazAdi() => switch (defaultTargetPlatform) {
-        TargetPlatform.iOS => 'iPhone',
-        TargetPlatform.android => 'Android telefon',
-        _ => 'Bilgisayar',
-      };
+    TargetPlatform.iOS => 'iPhone',
+    TargetPlatform.android => 'Android telefon',
+    _ => 'Bilgisayar',
+  };
 }

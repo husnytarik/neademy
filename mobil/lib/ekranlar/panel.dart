@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../bilesenler/ikon.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
@@ -10,6 +11,7 @@ import 'etut.dart';
 import 'notlarim.dart';
 import 'odev_takip.dart';
 import 'odevler.dart';
+import 'panel_ozet.dart';
 import 'ogrencilerim.dart';
 import 'ogrencim.dart';
 import 'program.dart';
@@ -20,8 +22,7 @@ import 'veli_mesaj.dart';
 class Modul {
   Modul({required this.id, required this.ad, required this.aciklama});
 
-  factory Modul.json(Map<String, dynamic> j) =>
-      Modul(id: j['id'] as String, ad: j['ad'] as String? ?? '', aciklama: j['aciklama'] as String? ?? '');
+  factory Modul.json(Map<String, dynamic> j) => Modul(id: j['id'] as String, ad: j['ad'] as String? ?? '', aciklama: j['aciklama'] as String? ?? '');
 
   final String id;
   final String ad;
@@ -30,26 +31,26 @@ class Modul {
 
 /// Uygulamada ekranı hazır olan modüller (id → ekran). Menüyü sunucudaki modül listesi belirler;
 /// burada olmayanlar "Yakında" görünür, rol/yetki süzmesi sunucuda yapılır.
-final _hazirEkranlar = <String, ({IconData ikon, Widget Function(Api api) ekran})>{
-  'takvimim': (ikon: Icons.calendar_month_outlined, ekran: (api) => TakvimimEkrani(api: api)),
-  'devamsizlik-veli': (ikon: Icons.fact_check_outlined, ekran: (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlık')),
-  'devamsizlik-ogrenci': (ikon: Icons.fact_check_outlined, ekran: (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlığım')),
-  'duyurular': (ikon: Icons.campaign_outlined, ekran: (api) => DuyurularEkrani(api: api)),
-  'duyurular-ogretmen': (ikon: Icons.campaign_outlined, ekran: (api) => DuyurularEkrani(api: api)),
-  'odev-takip': (ikon: Icons.assignment_outlined, ekran: (api) => OdevlerEkrani(api: api)),
-  'ders-programi': (ikon: Icons.schedule_outlined, ekran: (api) => ProgramEkrani(api: api)),
-  'notlarim': (ikon: Icons.bar_chart_outlined, ekran: (api) => NotlarimEkrani(api: api)),
-  'ogrencim': (ikon: Icons.person_outline, ekran: (api) => OgrencimEkrani(api: api)),
-  'odev-takip-ogretmen': (ikon: Icons.fact_check_outlined, ekran: (api) => OdevTakipOgretmenEkrani(api: api)),
-  'derslerim': (ikon: Icons.menu_book_outlined, ekran: (api) => DerslerimEkrani(api: api)),
-  'ogrencilerim': (ikon: Icons.groups_outlined, ekran: (api) => OgrencilerimEkrani(api: api)),
-  'veli-bilgilendirme': (ikon: Icons.mark_email_unread_outlined, ekran: (api) => VeliBilgilendirmeEkrani(api: api)),
-  'etut': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogretmen')),
-  'etut-ogrenci': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogrenci')),
-  'etut-veli': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'veli')),
-  'teslim': (ikon: Icons.group_outlined, ekran: (api) => TeslimYetkileriEkrani(api: api)),
-  'teslim-kodu': (ikon: Icons.qr_code_2, ekran: (api) => TeslimKoduEkrani(api: api)),
-  'teslim-kapi': (ikon: Icons.qr_code_scanner, ekran: (api) => TeslimKapiEkrani(api: api)),
+final _hazirEkranlar = <String, Widget Function(Api api)>{
+  'takvimim': (api) => TakvimimEkrani(api: api),
+  'devamsizlik-veli': (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlık'),
+  'devamsizlik-ogrenci': (api) => DevamsizlikEkrani(api: api, baslik: 'Devamsızlığım'),
+  'duyurular': (api) => DuyurularEkrani(api: api),
+  'duyurular-ogretmen': (api) => DuyurularEkrani(api: api),
+  'odev-takip': (api) => OdevlerEkrani(api: api),
+  'ders-programi': (api) => ProgramEkrani(api: api),
+  'notlarim': (api) => NotlarimEkrani(api: api),
+  'ogrencim': (api) => OgrencimEkrani(api: api),
+  'odev-takip-ogretmen': (api) => OdevTakipOgretmenEkrani(api: api),
+  'derslerim': (api) => DerslerimEkrani(api: api),
+  'ogrencilerim': (api) => OgrencilerimEkrani(api: api),
+  'veli-bilgilendirme': (api) => VeliBilgilendirmeEkrani(api: api),
+  'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),
+  'etut-ogrenci': (api) => EtutEkrani(api: api, rol: 'ogrenci'),
+  'etut-veli': (api) => EtutEkrani(api: api, rol: 'veli'),
+  'teslim': (api) => TeslimYetkileriEkrani(api: api),
+  'teslim-kodu': (api) => TeslimKoduEkrani(api: api),
+  'teslim-kapi': (api) => TeslimKapiEkrani(api: api),
 };
 
 class PanelEkrani extends StatefulWidget {
@@ -66,6 +67,7 @@ class _PanelEkraniState extends State<PanelEkrani> {
   String? _hata;
   bool _biyometriVar = false;
   String? _kapatilanDuyuru;
+  int _yenileme = 0;
 
   @override
   void initState() {
@@ -77,7 +79,10 @@ class _PanelEkraniState extends State<PanelEkrani> {
   }
 
   Future<void> _yukle() async {
-    setState(() => _hata = null);
+    setState(() {
+      _hata = null;
+      _yenileme++;
+    });
     widget.oturum.ayariYenile();
     try {
       final j = await widget.oturum.api.get('/api/moduller') as Map<String, dynamic>;
@@ -93,127 +98,145 @@ class _PanelEkraniState extends State<PanelEkrani> {
     final ben = widget.oturum.ben!;
     final moduller = _moduller;
     final kapali = widget.oturum.ayar.kapaliModuller;
-    final acik = [for (final m in moduller ?? <Modul>[]) if (!kapali.contains(m.id)) m];
-    final hazir = [for (final m in acik) if (_hazirEkranlar.containsKey(m.id)) m];
-    final yakinda = [for (final m in acik) if (!_hazirEkranlar.containsKey(m.id)) m];
+    final acik = [
+      for (final m in moduller ?? <Modul>[])
+        if (!kapali.contains(m.id)) m,
+    ];
+    final hazir = [
+      for (final m in acik)
+        if (_hazirEkranlar.containsKey(m.id)) m,
+    ];
+    final yakinda = [
+      for (final m in acik)
+        if (!_hazirEkranlar.containsKey(m.id)) m,
+    ];
     final duyuru = widget.oturum.ayar.duyuru;
+    final menu = PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz, color: Colors.white),
+      tooltip: 'Menü',
+      onSelected: (v) {
+        if (v == 'profil') widget.oturum.profilDegistir();
+        if (v == 'kilit') widget.oturum.kilidiAyarla(!widget.oturum.kilitAcik);
+        if (v == 'cikis') widget.oturum.cikisYap();
+      },
+      itemBuilder: (_) => [
+        if (ben.coklu) const PopupMenuItem(value: 'profil', child: Text('Profil değiştir')),
+        if (_biyometriVar) PopupMenuItem(value: 'kilit', child: Text(widget.oturum.kilitAcik ? 'Biyometrik açılışı kapat' : 'Biyometrik açılışı aç')),
+        const PopupMenuItem(value: 'cikis', child: Text('Çıkış yap')),
+      ],
+    );
+    final ogretmen = ben.rol == 'ogretmen';
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _yukle,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _yukle,
+        edgeOffset: 120,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            PanelBandi(ben: ben, menu: menu, api: widget.oturum.api),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(ben.ad, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -.3)),
-                        const SizedBox(height: 2),
-                        Text(
-                          [ben.unvan, ben.sube].where((e) => e.isNotEmpty).join(' · '),
-                          style: TextStyle(color: context.soluk, fontSize: 14.5),
-                        ),
-                      ],
+                  if (ogretmen)
+                    Transform.translate(
+                      offset: const Offset(0, -34),
+                      child: OgretmenOzeti(key: ValueKey(_yenileme), api: widget.oturum.api),
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_horiz, color: context.soluk),
-                    tooltip: 'Menü',
-                    onSelected: (v) {
-                      if (v == 'profil') widget.oturum.profilDegistir();
-                      if (v == 'kilit') widget.oturum.kilidiAyarla(!widget.oturum.kilitAcik);
-                      if (v == 'cikis') widget.oturum.cikisYap();
-                    },
-                    itemBuilder: (_) => [
-                      if (ben.coklu) const PopupMenuItem(value: 'profil', child: Text('Profil değiştir')),
-                      if (_biyometriVar)
-                        PopupMenuItem(
-                          value: 'kilit',
-                          child: Text(widget.oturum.kilitAcik ? 'Biyometrik açılışı kapat' : 'Biyometrik açılışı aç'),
-                        ),
-                      const PopupMenuItem(value: 'cikis', child: Text('Çıkış yap')),
-                    ],
-                  ),
+                  if (ogretmen) const SizedBox(height: 0) else const SizedBox(height: 16),
+                  if (duyuru != null && duyuru.id != _kapatilanDuyuru)
+                    _DuyuruSeridi(duyuru: duyuru, onKapat: () => setState(() => _kapatilanDuyuru = duyuru.id)),
+                  if (_hata != null)
+                    _Mesaj(_hata!, onTekrar: _yukle)
+                  else if (moduller == null)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+                    )
+                  else
+                    Transform.translate(
+                      offset: Offset(0, ogretmen ? -22 : 0),
+                      child: GridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1 / .9,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        children: [
+                          for (final m in [...hazir, ...yakinda])
+                            _Kare(
+                              modul: m,
+                              hazir: _hazirEkranlar.containsKey(m.id),
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _hazirEkranlar[m.id]!(widget.oturum.api))),
+                            ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-              if (ben.kurum.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(ben.kurum, style: TextStyle(color: context.soluk, fontSize: 13.5)),
-              ],
-              const SizedBox(height: 22),
-              if (duyuru != null && duyuru.id != _kapatilanDuyuru)
-                _DuyuruSeridi(duyuru: duyuru, onKapat: () => setState(() => _kapatilanDuyuru = duyuru.id)),
-              if (_hata != null)
-                _Mesaj(_hata!, onTekrar: _yukle)
-              else if (moduller == null)
-                const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)))
-              else ...[
-                for (final m in hazir)
-                  _ModulKarti(
-                    modul: m,
-                    ikon: _hazirEkranlar[m.id]!.ikon,
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _hazirEkranlar[m.id]!.ekran(widget.oturum.api))),
-                  ),
-                if (yakinda.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Text('Yakında uygulamada', style: TextStyle(color: context.soluk, fontSize: 13.5, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  for (final m in yakinda) _ModulKarti(modul: m, ikon: Icons.schedule, onTap: null),
-                ],
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ModulKarti extends StatelessWidget {
-  const _ModulKarti({required this.modul, required this.ikon, required this.onTap});
+/// Modül karesi (web: .kare): üstte ikon kutusu, altta serif başlık; ekranı olmayan "Yakında".
+class _Kare extends StatelessWidget {
+  const _Kare({required this.modul, required this.hazir, required this.onTap});
 
   final Modul modul;
-  final IconData ikon;
-  final VoidCallback? onTap;
+  final bool hazir;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final etkin = onTap != null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: etkin ? context.kart : context.icZemin,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: context.ince)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Icon(ikon, color: etkin ? context.ana : context.soluk),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(modul.ad, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: etkin ? context.yazi : context.soluk)),
-                      if (modul.aciklama.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(modul.aciklama, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.soluk, fontSize: 13.5, height: 1.3)),
-                      ],
-                    ],
-                  ),
-                ),
-                if (etkin) Icon(Icons.chevron_right, color: context.soluk),
-              ],
-            ),
+    final govde = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: hazir ? context.ana.withValues(alpha: .14) : context.icZemin, borderRadius: BorderRadius.circular(15)),
+                alignment: Alignment.center,
+                child: CizgiIkon(modul.id, renk: hazir ? context.ana : context.soluk),
+              ),
+              Text(
+                modul.ad,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: serif.copyWith(fontSize: 16.5, fontWeight: FontWeight.w600, height: 1.2, color: context.yazi),
+              ),
+            ],
           ),
+          if (!hazir)
+            Positioned(
+              right: -2,
+              top: 0,
+              child: Text('Yakında', style: TextStyle(fontSize: 11, color: context.soluk)),
+            ),
+        ],
+      ),
+    );
+    return Opacity(
+      opacity: hazir ? 1 : .55,
+      child: Material(
+        color: hazir ? context.kart : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: context.ince),
         ),
+        child: hazir ? InkWell(borderRadius: BorderRadius.circular(22), onTap: onTap, child: govde) : govde,
       ),
     );
   }
@@ -227,31 +250,35 @@ class _DuyuruSeridi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
-          decoration: BoxDecoration(
-            color: context.icZemin,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: context.ince),
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: context.icZemin,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.ince),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (duyuru.baslik != null) Text(duyuru.baslik!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+                Text(duyuru.metin, style: TextStyle(color: context.soluk, fontSize: 13.5, height: 1.35)),
+              ],
+            ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (duyuru.baslik != null) Text(duyuru.baslik!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
-                    Text(duyuru.metin, style: TextStyle(color: context.soluk, fontSize: 13.5, height: 1.35)),
-                  ],
-                ),
-              ),
-              IconButton(icon: Icon(Icons.close, size: 18, color: context.soluk), tooltip: 'Kapat', onPressed: onKapat),
-            ],
+          IconButton(
+            icon: Icon(Icons.close, size: 18, color: context.soluk),
+            tooltip: 'Kapat',
+            onPressed: onKapat,
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _Mesaj extends StatelessWidget {
@@ -262,13 +289,17 @@ class _Mesaj extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 24),
-        child: Column(
-          children: [
-            Text(metin, textAlign: TextAlign.center, style: TextStyle(color: context.soluk)),
-            const SizedBox(height: 14),
-            OutlinedButton(onPressed: onTekrar, child: const Text('Tekrar dene')),
-          ],
+    padding: const EdgeInsets.only(top: 24),
+    child: Column(
+      children: [
+        Text(
+          metin,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.soluk),
         ),
-      );
+        const SizedBox(height: 14),
+        OutlinedButton(onPressed: onTekrar, child: const Text('Tekrar dene')),
+      ],
+    ),
+  );
 }

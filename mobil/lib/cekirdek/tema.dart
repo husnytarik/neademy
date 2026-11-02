@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Web arayüzündeki yumuşak, sade renkler (public/style.css "UI kiti" teması).
 class Renk {
   static const ana = Color(0xFF3D5A80);
   static const vurgu = Color(0xFFA4161A);
+
+  /// Üst bant rengi: öğretmende dersin rengi, diğerlerinde marka rengi (web: --bant / --ana).
+  static const bant = Color(0xFF4B5565);
 
   // Açık tema
   static const kagit = Color(0xFFFAF8F4);
@@ -22,6 +26,9 @@ class Renk {
   static const icZeminKoyu = Color(0xFF191C21);
 }
 
+/// Başlıklarda kullanılan serif yazı (web: --serif).
+const serif = TextStyle(fontFamily: 'Charter', fontFamilyFallback: ['Georgia', 'Cambria', 'Noto Serif', 'serif']);
+
 /// Bağlamdan tema renkleri (açık/koyu).
 extension TemaRenkleri on BuildContext {
   bool get koyu => Theme.of(this).brightness == Brightness.dark;
@@ -33,7 +40,8 @@ extension TemaRenkleri on BuildContext {
   Color get ana => koyu ? const Color(0xFF8FB0DA) : Renk.ana;
 }
 
-ThemeData temaOlustur(Brightness parlaklik) {
+ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
+  final bantRengi = bant ?? Renk.bant;
   final koyu = parlaklik == Brightness.dark;
   final yazi = koyu ? Renk.murekkepKoyu : Renk.murekkep;
   final ince = koyu ? Renk.inceKoyu : Renk.ince;
@@ -55,12 +63,16 @@ ThemeData temaOlustur(Brightness parlaklik) {
     colorScheme: sema,
     scaffoldBackgroundColor: koyu ? Renk.kagitKoyu : Renk.kagit,
     appBarTheme: AppBarTheme(
-      backgroundColor: koyu ? Renk.kagitKoyu : Renk.kagit,
-      foregroundColor: yazi,
+      backgroundColor: bantRengi,
+      foregroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      toolbarHeight: 68,
       centerTitle: false,
-      titleTextStyle: TextStyle(color: yazi, fontSize: 19, fontWeight: FontWeight.w600),
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
+      titleTextStyle: serif.copyWith(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w600),
     ),
     dividerColor: ince,
     inputDecorationTheme: InputDecorationTheme(

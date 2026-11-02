@@ -57,27 +57,26 @@ class _NeademyUygulamasiState extends State<NeademyUygulamasi> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(listenable: _oturum, builder: (context, _) => _uygulama());
+  }
+
+  Widget _uygulama() {
+    final bant = _oturum.ben?.renk;
     return MaterialApp(
       title: 'neademy',
       debugShowCheckedModeBanner: false,
-      theme: temaOlustur(Brightness.light),
-      darkTheme: temaOlustur(Brightness.dark),
+      theme: temaOlustur(Brightness.light, bant: bant),
+      darkTheme: temaOlustur(Brightness.dark, bant: bant),
       themeMode: ThemeMode.system,
       locale: const Locale('tr', 'TR'),
       supportedLocales: const [Locale('tr', 'TR')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
       home: ListenableBuilder(
         listenable: _oturum,
         builder: (context, _) => switch (_oturum.durum) {
           Durum.aciliyor => const AcilisEkrani(),
           Durum.baglantiYok => AcilisEkrani(hata: 'Sunucuya ulaşılamadı.', yenidenDene: _oturum.baslat),
-          Durum.guncellemeGerek => const AcilisEkrani(
-              hata: 'Uygulamanın yeni bir sürümü var. Devam etmek için mağazadan güncelleyin.',
-            ),
+          Durum.guncellemeGerek => const AcilisEkrani(hata: 'Uygulamanın yeni bir sürümü var. Devam etmek için mağazadan güncelleyin.'),
           Durum.bakim => AcilisEkrani(hata: _oturum.ayar.bakim, yenidenDene: _oturum.baslat),
           Durum.cikis => GirisEkrani(oturum: _oturum),
           Durum.profilSecimi => ProfilSecEkrani(oturum: _oturum),
