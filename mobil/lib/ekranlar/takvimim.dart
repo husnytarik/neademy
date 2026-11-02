@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
@@ -87,10 +88,13 @@ class _TakvimimEkraniState extends State<TakvimimEkrani> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
-                  _GorunumSecici(hafta: _hafta, degisti: (h) {
-                    setState(() => _hafta = h);
-                    _yukle();
-                  }),
+                  _GorunumSecici(
+                    hafta: _hafta,
+                    degisti: (h) {
+                      setState(() => _hafta = h);
+                      _yukle();
+                    },
+                  ),
                   const SizedBox(height: 14),
                   _Serit(
                     baslik: _hafta
@@ -104,13 +108,15 @@ class _TakvimimEkraniState extends State<TakvimimEkrani> {
                   if (_hata != null)
                     _HataKutusu(_hata!, _yukle)
                   else if (_onbellek[_ay] == null)
-                    const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)))
+                    const Padding(
+                      padding: EdgeInsets.only(top: 48),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+                    )
                   else if (_hafta)
                     ..._haftaIcerigi()
                   else
                     ..._ayIcerigi(_onbellek[_ay]!),
-                  if (_yukleniyor && _onbellek[_ay] != null)
-                    const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(minHeight: 2)),
+                  if (_yukleniyor && _onbellek[_ay] != null) const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(minHeight: 2)),
                 ],
               ),
             ),
@@ -147,17 +153,22 @@ class _TakvimimEkraniState extends State<TakvimimEkrani> {
       _Lejant(_onbellek[_ay]!.gorunenTurler(gunler)),
       const SizedBox(height: 16),
       for (final g in gunler) ...[
-        Row(children: [
-          Text(uzunTarih(g.tarih), style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
-          if (g.tarih == bugun) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-              decoration: BoxDecoration(color: context.ana, borderRadius: BorderRadius.circular(99)),
-              child: Text('Bugün', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 11.5, fontWeight: FontWeight.w600)),
-            ),
+        Row(
+          children: [
+            Text(uzunTarih(g.tarih), style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
+            if (g.tarih == bugun) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                decoration: BoxDecoration(color: context.ana, borderRadius: BorderRadius.circular(99)),
+                child: Text(
+                  'Bugün',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 11.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ],
-        ]),
+        ),
         const SizedBox(height: 10),
         _GunSatirlari(g),
         const SizedBox(height: 18),
@@ -173,16 +184,8 @@ class _GorunumSecici extends StatelessWidget {
   final ValueChanged<bool> degisti;
 
   @override
-  Widget build(BuildContext context) => SegmentedButton<bool>(
-        showSelectedIcon: false,
-        segments: const [ButtonSegment(value: false, label: Text('Ay')), ButtonSegment(value: true, label: Text('Hafta'))],
-        selected: {hafta},
-        onSelectionChanged: (s) => degisti(s.first),
-        style: ButtonStyle(
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(42)),
-        ),
-      );
+  Widget build(BuildContext context) =>
+      Sekmeler(secenekler: const [('ay', 'Ay'), ('hafta', 'Hafta')], secili: hafta ? 'hafta' : 'ay', degisti: (v) => degisti(v == 'hafta'));
 }
 
 class _Serit extends StatelessWidget {
@@ -194,16 +197,61 @@ class _Serit extends StatelessWidget {
   final VoidCallback? onBugun;
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          IconButton(onPressed: onGeri, icon: const Icon(Icons.chevron_left), tooltip: 'Önceki'),
-          Expanded(
-            child: Text(baslik, textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+  Widget build(BuildContext context) {
+    Widget ok(IconData i, String ipucu, VoidCallback f) => Tooltip(
+      message: ipucu,
+      child: InkWell(
+        onTap: f,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: context.kart,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: context.ince),
           ),
-          TextButton(onPressed: onBugun, child: const Text('Bugün')),
-          IconButton(onPressed: onIleri, icon: const Icon(Icons.chevron_right), tooltip: 'Sonraki'),
-        ],
-      );
+          child: Icon(i, size: 22),
+        ),
+      ),
+    );
+    return Row(
+      children: [
+        ok(Icons.arrow_back, 'Önceki', onGeri),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.only(left: 14, right: 6),
+            decoration: BoxDecoration(
+              color: context.kart,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.ince),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    baslik,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onBugun,
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 12)),
+                  child: const Text('Bugün'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ok(Icons.arrow_forward, 'Sonraki', onIleri),
+      ],
+    );
+  }
 }
 
 class _AyIzgarasi extends StatelessWidget {
@@ -218,20 +266,20 @@ class _AyIzgarasi extends StatelessWidget {
   Widget build(BuildContext context) {
     final hucreler = <Widget>[];
     for (final g in ay.gunler) {
-      hucreler.add(_Hucre(
-        gun: g,
-        disari: g.tarih.substring(0, 7) != ay.ay,
-        bugun: g.tarih == bugun,
-        secili: g.tarih == secili,
-        onTap: () => sec(g.tarih),
-      ));
+      hucreler.add(_Hucre(gun: g, disari: g.tarih.substring(0, 7) != ay.ay, bugun: g.tarih == bugun, secili: g.tarih == secili, onTap: () => sec(g.tarih)));
     }
     return Column(
       children: [
-        Row(children: [
-          for (final a in kisaGunAdlari)
-            Expanded(child: Center(child: Text(a, style: TextStyle(fontSize: 12, color: context.soluk)))),
-        ]),
+        Row(
+          children: [
+            for (final a in kisaGunAdlari)
+              Expanded(
+                child: Center(
+                  child: Text(a, style: TextStyle(fontSize: 12, color: context.soluk)),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 6),
         GridView.count(
           crossAxisCount: 7,
@@ -259,8 +307,10 @@ class _Hucre extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ana = context.ana;
-    final kapali = !gun.acik || gun.tatil != null;
-    final turSirasi = [for (final t in turler.keys) if (gun.ogeler.any((o) => o.tur == t)) t];
+    final turSirasi = [
+      for (final t in turler.keys)
+        if (gun.ogeler.any((o) => o.tur == t)) t,
+    ];
     final yaziRengi = secili ? Theme.of(context).colorScheme.onPrimary : (bugun ? ana : context.yazi);
     return Semantics(
       button: true,
@@ -269,7 +319,7 @@ class _Hucre extends StatelessWidget {
       child: Opacity(
         opacity: disari && !secili ? .45 : 1,
         child: Material(
-          color: secili ? ana : (kapali ? context.icZemin : context.kart),
+          color: secili ? ana : context.kart,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: bugun || secili ? ana : context.ince),
@@ -281,7 +331,10 @@ class _Hucre extends StatelessWidget {
               padding: const EdgeInsets.only(top: 7),
               child: Column(
                 children: [
-                  Text('${int.parse(gun.tarih.substring(8))}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: yaziRengi)),
+                  Text(
+                    '${int.parse(gun.tarih.substring(8))}',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: yaziRengi),
+                  ),
                   const SizedBox(height: 5),
                   Wrap(
                     alignment: WrapAlignment.center,
@@ -326,7 +379,11 @@ class _Lejant extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: turler[t]!.renk, shape: BoxShape.circle)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: turler[t]!.renk, shape: BoxShape.circle),
+              ),
               const SizedBox(width: 6),
               Text(turler[t]!.ad, style: TextStyle(fontSize: 13, color: context.soluk)),
             ],
@@ -356,7 +413,10 @@ class _GunSatirlari extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (gun.tatil != null)
-          Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('${gun.tatil} · okul tatil', style: TextStyle(color: context.soluk, fontSize: 14))),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('${gun.tatil} · okul tatil', style: TextStyle(color: context.soluk, fontSize: 14)),
+          ),
         for (final o in gun.ogeler) _Satir(o),
       ],
     );
@@ -413,23 +473,32 @@ class _Satir extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(6)),
-                            child: Text(oge.kisa!, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                            child: Text(
+                              oge.kisa!,
+                              style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700),
+                            ),
                           ),
                         Text(oge.baslik, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                         if (oge.tur != 'ders' && tur != null)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                            decoration: BoxDecoration(border: Border.all(color: renk), borderRadius: BorderRadius.circular(99)),
-                            child: Text(tur.ad, style: TextStyle(color: renk, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: renk),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              tur.ad,
+                              style: TextStyle(color: renk, fontSize: 11.5, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         if (durumAdlari[oge.durum] != null)
-                          Text(durumAdlari[oge.durum]!, style: TextStyle(color: context.soluk, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                            durumAdlari[oge.durum]!,
+                            style: TextStyle(color: context.soluk, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
                       ],
                     ),
-                    if (oge.alt.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(oge.alt, style: TextStyle(color: context.soluk, fontSize: 13.5)),
-                    ],
+                    if (oge.alt.isNotEmpty) ...[const SizedBox(height: 3), Text(oge.alt, style: TextStyle(color: context.soluk, fontSize: 13.5))],
                   ],
                 ),
               ),
@@ -449,14 +518,18 @@ class _HataKutusu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(metin, textAlign: TextAlign.center, style: TextStyle(color: context.soluk)),
-            const SizedBox(height: 14),
-            OutlinedButton(onPressed: tekrar, child: const Text('Tekrar dene')),
-          ],
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          metin,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.soluk),
         ),
-      );
+        const SizedBox(height: 14),
+        OutlinedButton(onPressed: tekrar, child: const Text('Tekrar dene')),
+      ],
+    ),
+  );
 }
