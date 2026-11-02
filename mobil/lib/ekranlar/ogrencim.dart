@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/tema.dart';
+import 'karne.dart';
 
 /// Veli: çocuğun bilgileri, devam ve ödev özeti, öğretmenleri.
 class OgrencimEkrani extends StatelessWidget {
@@ -17,14 +18,15 @@ class OgrencimEkrani extends StatelessWidget {
         cizim: (context, veri) {
           final ogrenciler = (veri as Map<String, dynamic>).l('ogrenciler');
           if (ogrenciler.isEmpty) return const [BosNot('Bağlı öğrenci bulunamadı.')];
-          return [for (final o in ogrenciler) _Ogrenci(o)];
+          return [for (final o in ogrenciler) _Ogrenci(api, o)];
         },
       );
 }
 
 class _Ogrenci extends StatelessWidget {
-  const _Ogrenci(this.o);
+  const _Ogrenci(this.api, this.o);
 
+  final Api api;
   final Map<String, dynamic> o;
 
   @override
@@ -72,6 +74,15 @@ class _Ogrenci extends StatelessWidget {
           ),
         ),
       ]),
+      KartKutu(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => KarneEkrani(api: api, ogrenciId: o.n('id')))),
+        child: Row(children: [
+          Icon(Icons.description_outlined, color: context.soluk),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('Dönem karnesi')),
+          Icon(Icons.chevron_right, color: context.soluk),
+        ]),
+      ),
       if (o.s('kulup').isNotEmpty)
         KartKutu(child: Row(children: [
           Icon(Icons.groups_outlined, color: context.soluk),

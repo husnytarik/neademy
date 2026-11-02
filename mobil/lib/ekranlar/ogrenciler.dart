@@ -4,6 +4,7 @@ import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
+import 'karne.dart';
 import 'notlarim.dart';
 import 'ogrencilerim.dart';
 
@@ -144,6 +145,11 @@ class _OgrencilerEkraniState extends State<OgrencilerEkrani> {
             Expanded(
               child: Text('${liste.length} öğrenci', style: TextStyle(color: context.soluk)),
             ),
+            if (int.tryParse(_sinif) != null)
+              TextButton(
+                onPressed: () => _git(SinifKarneEkrani(api: widget.api, sinifId: int.parse(_sinif))),
+                child: const Text('Sınıf karneleri'),
+              ),
             TextButton(
               onPressed: () => _git(OgrenciFormu(api: widget.api)),
               child: const Text('+ Yeni öğrenci'),
@@ -285,6 +291,10 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
             runSpacing: 6,
             children: [
               OutlinedButton(onPressed: _duzenle, child: const Text('Düzenle')),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => KarneEkrani(api: widget.api, ogrenciId: widget.id))),
+                child: const Text('Dönem karnesi'),
+              ),
               OutlinedButton(onPressed: () => _durum(kayit), child: Text(aktif ? 'Okuldan ayrıldı' : 'Geri al')),
             ],
           ),

@@ -4,6 +4,7 @@ import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
+import 'karne.dart';
 
 /// Mentor (sınıf) öğretmeni: sorumlu olduğu sınıflar ve öğrencileri.
 class OgrencilerimEkrani extends StatelessWidget {
@@ -20,7 +21,13 @@ class OgrencilerimEkrani extends StatelessWidget {
       if (siniflar.isEmpty) return const [BosNot('Sorumlu olduğunuz sınıf yok.')];
       return [
         for (final s in siniflar) ...[
-          Baslik('${s.s('ad')} · ${s.l('ogrenciler').length} öğrenci'),
+          Row(children: [
+            Expanded(child: Baslik('${s.s('ad')} · ${s.l('ogrenciler').length} öğrenci')),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SinifKarneEkrani(api: api, sinifId: s.n('id')))),
+              child: const Text('Sınıf karneleri'),
+            ),
+          ]),
           if (s.l('ogrenciler').isEmpty) const BosNot('Bu sınıfta öğrenci yok.'),
           for (final o in s.l('ogrenciler')) _OgrenciSatiri(api: api, o: o),
         ],
