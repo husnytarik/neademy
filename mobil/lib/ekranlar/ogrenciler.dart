@@ -86,67 +86,10 @@ class _OgrencilerEkraniState extends State<OgrencilerEkrani> {
             return c != 0 ? c : _trKarsilastir(a.s('ad'), b.s('ad'));
           });
       return [
-        TextField(
-          decoration: const InputDecoration(hintText: 'Ad ya da okul no ara…', prefixIcon: Icon(Icons.search)),
-          onChanged: (x) => setState(() => _ara = x),
-        ),
-        const SizedBox(height: 10),
-        if (subeler.length > 1) ...[
-          DropdownButtonFormField<int>(
-            initialValue: _okul,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Okul'),
-            items: [
-              const DropdownMenuItem(value: 0, child: Text('Tüm okullar')),
-              for (final s in subeler)
-                DropdownMenuItem(
-                  value: s.n('id'),
-                  child: Text(s.s('ad'), overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: (x) => setState(() => _okul = x ?? 0),
-          ),
-          const SizedBox(height: 10),
-        ],
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _sinif,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Sınıf'),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('Tüm sınıflar')),
-                  const DropdownMenuItem(value: 'yok', child: Text('Sınıfsız')),
-                  for (final s in siniflar)
-                    DropdownMenuItem(
-                      value: '${s.n('id')}',
-                      child: Text(s.s('ad'), overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                onChanged: (x) => setState(() => _sinif = x ?? ''),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _durum,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Durum'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('Tümü')),
-                  DropdownMenuItem(value: 'aktif', child: Text('Okuyor')),
-                  DropdownMenuItem(value: 'pasif', child: Text('Ayrıldı')),
-                ],
-                onChanged: (x) => setState(() => _durum = x ?? ''),
-              ),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: Text('${liste.length} öğrenci', style: TextStyle(color: context.soluk)),
+              child: Text('${liste.length} öğrenci', style: serif.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
             ),
             if (int.tryParse(_sinif) != null)
               TextButton(
@@ -165,6 +108,71 @@ class _OgrencilerEkraniState extends State<OgrencilerEkrani> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                decoration: const InputDecoration(hintText: 'Ad ya da okul numarasıyla ara', prefixIcon: Icon(Icons.search)),
+                onChanged: (x) => setState(() => _ara = x),
+              ),
+            ),
+            if (subeler.length > 1) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 140,
+                child: DropdownButtonFormField<int>(
+                  initialValue: _okul,
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem(value: 0, child: Text('Tüm okullar', overflow: TextOverflow.ellipsis)),
+                    for (final s in subeler)
+                      DropdownMenuItem(
+                        value: s.n('id'),
+                        child: Text(s.s('ad'), overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (x) => setState(() => _okul = x ?? 0),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _sinif,
+                isExpanded: true,
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Tüm sınıflar')),
+                  const DropdownMenuItem(value: 'yok', child: Text('Sınıfsız')),
+                  for (final s in siniflar)
+                    DropdownMenuItem(
+                      value: '${s.n('id')}',
+                      child: Text(s.s('ad'), overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (x) => setState(() => _sinif = x ?? ''),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _durum,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Tümü')),
+                  DropdownMenuItem(value: 'aktif', child: Text('Okuyor')),
+                  DropdownMenuItem(value: 'pasif', child: Text('Ayrıldı')),
+                ],
+                onChanged: (x) => setState(() => _durum = x ?? ''),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
         if (liste.isEmpty) const BosNot('Gösterilecek öğrenci yok.'),
         for (final o in liste)
           KartKutu(

@@ -49,8 +49,12 @@ class _DuyuruYonetimEkraniState extends State<DuyuruYonetimEkrani> {
     cizim: (context, veri) {
       final liste = (veri as Map<String, dynamic>).l('duyurular');
       return [
-        EkleDugmesi('+ Duyuru yaz', onPressed: _yaz),
-        const Baslik('Yayınlanan duyurular'),
+        Row(
+          children: [
+            const Expanded(child: Baslik('Yayınlanan duyurular')),
+            EkleDugmesi('+ Duyuru yaz', onPressed: _yaz),
+          ],
+        ),
         if (liste.isEmpty) const BosNot('Henüz duyuru yayınlanmadı.'),
         for (final x in liste)
           KartKutu(
@@ -61,7 +65,7 @@ class _DuyuruYonetimEkraniState extends State<DuyuruYonetimEkrani> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(x.s('baslik'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      child: Text(x.s('baslik'), style: serif.copyWith(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                     const SizedBox(width: 8),
                     if (x['tarih'] is num) Text(_gunAy(x['tarih'] as num), style: TextStyle(color: context.soluk, fontSize: 13)),
@@ -75,9 +79,16 @@ class _DuyuruYonetimEkraniState extends State<DuyuruYonetimEkrani> {
                     Expanded(
                       child: Text('${x.s('hedef')} · ${x.n('okunan')}/${x.n('alici')} okudu', style: TextStyle(color: context.soluk, fontSize: 12.5)),
                     ),
-                    TextButton(
+                    OutlinedButton(
                       onPressed: () => _sil(x),
-                      child: Text('Sil', style: TextStyle(color: Colors.red.shade600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFD64545),
+                        side: const BorderSide(color: Color(0xFFD64545)),
+                        minimumSize: const Size(0, 34),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Sil', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
