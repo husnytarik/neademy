@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
 import 'package:neademy/ekranlar/derslerim.dart';
+import 'package:neademy/ekranlar/odev_takip.dart';
 
 Api _api(Map<String, Object> yanitlar) => Api(
       istemci: MockClient((istek) async {
@@ -73,5 +74,22 @@ void main() {
     expect(find.text('Kazanım seç'), findsWidgets);
     await t.scrollUntilVisible(find.text('Dersi bitir'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.text('Dersi bitir'), findsOneWidget);
+  });
+
+  testWidgets('ödev takibi bekleyenleri gösterir', (t) async {
+    final api = _api({
+      '/api/odev/ogretmen': {
+        'bugun': '2026-11-02',
+        'durumlar': {},
+        'odevler': [
+          {'id': 1, 'baslik': 'Sayfa 40', 'sonTarih': '2026-11-05', 'ders': 'Matematik', 'sinif': '6-A', 'toplam': 20, 'yapildi': 3, 'yapilamadi': 1, 'dogrulandi': 10, 'duzeltme': 0, 'soru': 1, 'bekleyen': 4},
+          {'id': 2, 'baslik': 'Sayfa 50', 'sonTarih': '2026-11-06', 'ders': 'Matematik', 'sinif': '6-A', 'toplam': 20, 'yapildi': 0, 'yapilamadi': 0, 'dogrulandi': 20, 'duzeltme': 0, 'soru': 0, 'bekleyen': 0},
+        ],
+      },
+    });
+    await _ciz(t, OdevTakipOgretmenEkrani(api: api));
+    expect(find.text('Sayfa 40'), findsOneWidget);
+    expect(find.text('Sayfa 50'), findsNothing);
+    expect(find.text('4 bekliyor'), findsOneWidget);
   });
 }

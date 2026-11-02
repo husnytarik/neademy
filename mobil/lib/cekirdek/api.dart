@@ -41,6 +41,9 @@ class Api {
         if (jeton != null) 'Authorization': 'Bearer $jeton',
       };
 
+  /// Resim gibi doğrudan indirilen içerikler için kimlik başlığı (Image.network headers).
+  Map<String, String> get kimlik => {if (jeton != null) 'Authorization': 'Bearer $jeton'};
+
   Future<dynamic> get(String yol) => _gonder(() => _istemci.get(Uri.parse('$taban$yol'), headers: _basliklar));
 
   Future<dynamic> post(String yol, [Map<String, dynamic>? govde]) =>

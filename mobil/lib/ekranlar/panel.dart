@@ -8,6 +8,7 @@ import 'devamsizlik.dart';
 import 'duyurular.dart';
 import 'etut.dart';
 import 'notlarim.dart';
+import 'odev_takip.dart';
 import 'odevler.dart';
 import 'ogrencim.dart';
 import 'program.dart';
@@ -37,6 +38,7 @@ final _hazirEkranlar = <String, ({IconData ikon, Widget Function(Api api) ekran}
   'ders-programi': (ikon: Icons.schedule_outlined, ekran: (api) => ProgramEkrani(api: api)),
   'notlarim': (ikon: Icons.bar_chart_outlined, ekran: (api) => NotlarimEkrani(api: api)),
   'ogrencim': (ikon: Icons.person_outline, ekran: (api) => OgrencimEkrani(api: api)),
+  'odev-takip-ogretmen': (ikon: Icons.fact_check_outlined, ekran: (api) => OdevTakipOgretmenEkrani(api: api)),
   'derslerim': (ikon: Icons.menu_book_outlined, ekran: (api) => DerslerimEkrani(api: api)),
   'etut': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogretmen')),
   'etut-ogrenci': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogrenci')),
