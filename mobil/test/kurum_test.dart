@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
+import 'package:neademy/cekirdek/foto.dart';
 import 'package:neademy/ekranlar/kurum.dart';
 
 Api _api(Map<String, Object> yanitlar, {List<String>? kayit}) => Api(
@@ -113,6 +115,23 @@ void main() {
     await t.tap(find.text('Kaydet'));
     await t.pumpAndSettle();
     expect(kayit, contains('POST /api/yonetim/okul-kaydet'));
+  });
+
+  testWidgets('kurum logosu galeriden seçilip yüklenir', (t) async {
+    genis(t);
+    final kayit = <String>[];
+    galeridenLogoSec = () async => Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    await t.pumpWidget(
+      MaterialApp(
+        home: KurumEkrani(api: _api({'/api/yonetim/kurum': _kurum}, kayit: kayit)),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('Düzenle'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Logo ekle'));
+    await t.pumpAndSettle();
+    expect(kayit, contains('POST /api/yonetim/kurum-logo'));
   });
 
   testWidgets('kampüsler: salt okunur özet ve okul sayfası', (t) async {

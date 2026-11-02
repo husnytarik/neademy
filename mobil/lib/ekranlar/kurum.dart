@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
+import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
 
 const _sayiAdlari = [
@@ -105,25 +106,99 @@ Widget _tanitim(BuildContext context, Map<String, dynamic> x, Map<String, dynami
   );
 }
 
-Widget _logoKutusu(BuildContext context, String ad) => Container(
-  width: 46,
-  height: 46,
-  decoration: BoxDecoration(color: context.ana.withValues(alpha: .14), shape: BoxShape.circle),
-  alignment: Alignment.center,
-  child: Text(
+Widget _logoKutusu(BuildContext context, String ad, {Api? api, String? yol, double boyut = 46}) {
+  final harf = Text(
     ad.isEmpty ? '?' : ad.trim().characters.first.toUpperCase(),
-    style: serif.copyWith(fontSize: 20, fontWeight: FontWeight.w600, color: context.ana),
-  ),
-);
+    style: serif.copyWith(fontSize: boyut * .43, fontWeight: FontWeight.w600, color: context.ana),
+  );
+  return Container(
+    width: boyut,
+    height: boyut,
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(color: context.ana.withValues(alpha: .14), shape: BoxShape.circle),
+    alignment: Alignment.center,
+    child: api == null || yol == null
+        ? harf
+        : Image.network('${Api.taban}$yol', headers: api.kimlik, width: boyut, height: boyut, fit: BoxFit.contain, errorBuilder: (_, _, _) => harf),
+  );
+}
 
-Widget _okulSatiri(BuildContext context, Map<String, dynamic> o, VoidCallback ac) {
+String? _okulLogoYolu(Map<String, dynamic> o) => o.s('logo').isEmpty ? null : '/api/okul-logo?id=${o.n('id')}&v=${o.s('logo')}';
+
+/// Kurum ya da okul logosunu gösterir; yükleme ve kaldırma düğmeleri. Değişince sayfa kapanıp liste yenilenir.
+class _LogoAlani extends StatefulWidget {
+  const _LogoAlani({required this.api, required this.ad, required this.yol, required this.yukle, required this.sil});
+
+  final Api api;
+  final String ad;
+  final String? yol;
+  final String yukle;
+  final String sil;
+
+  @override
+  State<_LogoAlani> createState() => _LogoAlaniState();
+}
+
+class _LogoAlaniState extends State<_LogoAlani> {
+  Future<void> _yukle() async {
+    try {
+      final bayt = await galeridenLogoSec();
+      if (bayt == null) {
+        return;
+      }
+      await widget.api.postBayt(widget.yukle, bayt, tur: 'image/png');
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        hataGoster(context, e);
+      }
+    }
+  }
+
+  Future<void> _kaldir() async {
+    try {
+      await widget.api.post(widget.sil, {});
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        hataGoster(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      children: [
+        _logoKutusu(context, widget.ad, api: widget.api, yol: widget.yol, boyut: 64),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            children: [
+              OutlinedButton(onPressed: _yukle, child: Text(widget.yol == null ? 'Logo ekle' : 'Logoyu değiştir')),
+              if (widget.yol != null) TextButton(onPressed: _kaldir, child: const Text('Kaldır')),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _okulSatiri(BuildContext context, Api api, Map<String, dynamic> o, VoidCallback ac) {
   final mudur = o.l('yoneticiler').where((y) => y.s('gorev') == 'mudur').firstOrNull;
   final alt = [o.s('tur'), if (o.n('sinif') > 0) '${o.n('sinif')} sınıf', '${o.n('ogrenci')} öğrenci'].where((e) => e.isNotEmpty).join(' · ');
   return KartKutu(
     onTap: ac,
     child: Row(
       children: [
-        _logoKutusu(context, o.s('ad')),
+        _logoKutusu(context, o.s('ad'), api: api, yol: _okulLogoYolu(o)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -277,7 +352,7 @@ class KampuslerEkrani extends StatelessWidget {
         if (kampusler.isEmpty) const BosNot('Henüz kampüs eklenmedi.'),
         for (final c in kampusler) ...[
           Baslik('${c.s('ad')} · ${c.l('okullar').length} okul'),
-          for (final o in c.l('okullar')) _okulSatiri(context, o, () => _ac(context, _OkulOzeti(api: api, okulId: o.n('id')))),
+          for (final o in c.l('okullar')) _okulSatiri(context, api, o, () => _ac(context, _OkulOzeti(api: api, okulId: o.n('id')))),
           if (c.l('okullar').isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
         ],
       ];
@@ -381,7 +456,7 @@ class _KurumEkraniState extends State<KurumEkrani> {
           children: [
             Row(
               children: [
-                _logoKutusu(context, k.s('ad')),
+                _logoKutusu(context, k.s('ad'), api: api, yol: v.s('logo').isEmpty ? null : '/api/kurum-logo?v=${v.s('logo')}'),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -449,7 +524,7 @@ class _KurumEkraniState extends State<KurumEkrani> {
           ],
         ),
       ),
-      for (final o in okullar) _okulSatiri(context, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
+      for (final o in okullar) _okulSatiri(context, api, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
       if (okullar.isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
       if (yonetim)
         OutlinedButton(
@@ -506,7 +581,7 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
             children: [
               Row(
                 children: [
-                  _logoKutusu(context, o.s('ad')),
+                  _logoKutusu(context, o.s('ad'), api: widget.api, yol: _okulLogoYolu(o)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -699,6 +774,13 @@ class _KurumFormuState extends State<_KurumFormu> with _Kaydet {
           Sekmeler(secenekler: const [('b', 'Bilgiler'), ('t', 'Tanıtım'), ('k', 'Kurucu')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
           const SizedBox(height: 14),
           if (_sekme == 'b') ...[
+            _LogoAlani(
+              api: widget.api,
+              ad: _k.s('ad'),
+              yol: widget.v.s('logo').isEmpty ? null : '/api/kurum-logo?v=${widget.v.s('logo')}',
+              yukle: '/api/yonetim/kurum-logo',
+              sil: '/api/yonetim/kurum-logo-sil',
+            ),
             TextField(
               controller: _ad,
               maxLength: 80,
@@ -882,6 +964,14 @@ class _OkulFormuState extends State<_OkulFormu> with _Kaydet {
           Sekmeler(secenekler: const [('b', 'Bilgiler'), ('t', 'Tanıtım')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
           const SizedBox(height: 14),
           if (_sekme == 'b') ...[
+            if (okul != null)
+              _LogoAlani(
+                api: widget.api,
+                ad: okul.s('ad'),
+                yol: _okulLogoYolu(okul),
+                yukle: '/api/okul-logo?id=${okul.n('id')}',
+                sil: '/api/okul-logo-sil?id=${okul.n('id')}',
+              ),
             TextField(
               controller: _ad,
               maxLength: 80,

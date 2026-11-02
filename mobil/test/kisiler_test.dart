@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
+import 'package:neademy/cekirdek/foto.dart';
 import 'package:neademy/ekranlar/kisiler.dart';
 
 Api _api(Map<String, Object> yanitlar, {List<String>? kayit}) => Api(
@@ -102,6 +104,25 @@ void main() {
     await t.tap(find.widgetWithText(FilterChip, 'Kütüphane'));
     await t.pumpAndSettle();
     expect(kayit, contains('POST /api/yonetim/kullanici-rol'));
+  });
+
+  testWidgets('kişi fotoğrafı seçilip yüklenir', (t) async {
+    genis(t);
+    final kayit = <String>[];
+    galeridenFotoSec = () async => Uint8List.fromList([0xff, 0xd8, 0xff, 1, 2, 3]);
+    await t.pumpWidget(
+      MaterialApp(
+        home: KisilerEkrani(api: _api(_yanit, kayit: kayit)),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('Düzenle'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Boş Kişi'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Fotoğraf ekle'));
+    await t.pumpAndSettle();
+    expect(kayit, contains('POST /api/foto'));
   });
 
   testWidgets('roller sekmesi: yetki sayısı ve rol sayfası', (t) async {

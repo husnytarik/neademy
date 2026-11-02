@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -48,6 +49,10 @@ class Api {
 
   Future<dynamic> post(String yol, [Map<String, dynamic>? govde]) =>
       _gonder(() => _istemci.post(Uri.parse('$taban$yol'), headers: _basliklar, body: jsonEncode(govde ?? {})));
+
+  /// Ham dosya yükler (fotoğraf gibi): gövde JSON değil, bayt dizisidir.
+  Future<dynamic> postBayt(String yol, Uint8List bayt, {String tur = 'image/jpeg'}) =>
+      _gonder(() => _istemci.post(Uri.parse('$taban$yol'), headers: {..._basliklar, 'Content-Type': tur}, body: bayt));
 
   Future<dynamic> _gonder(Future<http.Response> Function() istek) async {
     final http.Response r;

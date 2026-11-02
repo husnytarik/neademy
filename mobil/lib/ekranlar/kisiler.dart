@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
+import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
 
 const _rolAdi = {'yonetim': 'Yönetim', 'ogretmen': 'Öğretmen', 'ogrenci': 'Öğrenci', 'veli': 'Veli'};
@@ -243,6 +244,19 @@ class _KisiDuzenState extends State<_KisiDuzen> {
     super.dispose();
   }
 
+  Future<void> _fotoYukle() async {
+    try {
+      final bayt = await galeridenFotoSec();
+      if (bayt == null) return;
+      await widget.api.postBayt('/api/foto?id=${widget.kisiId}', bayt);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fotoğraf güncellendi.')));
+      setState(() => _n++);
+    } catch (e) {
+      if (mounted) hataGoster(context, e);
+    }
+  }
+
   Future<void> _yap(String yol, Map<String, dynamic> govde, {String? basari}) async {
     try {
       await widget.api.post(yol, govde);
@@ -273,8 +287,30 @@ class _KisiDuzenState extends State<_KisiDuzen> {
       final uyelikler = u.l('uyelikler');
       final kaynak =
           uyelikler.where((m) => m.s('rol') == 'yonetim' && m.s('durum') == 'aktif').firstOrNull ?? uyelikler.where((m) => m.s('durum') == 'aktif').firstOrNull;
+      final foto = u.s('foto');
       return [
-        const Baslik('Ad soyad', ust: 4),
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: context.icZemin,
+              foregroundImage: foto.isEmpty ? null : NetworkImage('${Api.taban}$foto', headers: widget.api.kimlik),
+              child: Text(u.s('ad').isEmpty ? '?' : u.s('ad').characters.first.toUpperCase(), style: serif.copyWith(fontSize: 24)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(onPressed: _fotoYukle, child: Text(foto.isEmpty ? 'Fotoğraf ekle' : 'Fotoğrafı değiştir')),
+                  if (foto.isNotEmpty)
+                    TextButton(onPressed: () => _yap('/api/foto-sil?id=${widget.kisiId}', {}, basari: 'Fotoğraf kaldırıldı.'), child: const Text('Kaldır')),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const Baslik('Ad soyad'),
         TextField(
           controller: _ad,
           maxLength: 80,
