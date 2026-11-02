@@ -15,11 +15,11 @@ import 'package:neademy/ekranlar/ogrencim.dart';
 import 'package:neademy/ekranlar/program.dart';
 
 Api _api(Map<String, Object> yanitlar) => Api(
-      istemci: MockClient((istek) async {
-        final yol = istek.url.path;
-        return http.Response.bytes(utf8.encode(jsonEncode(yanitlar[yol] ?? {})), 200, headers: {'content-type': 'application/json'});
-      }),
-    );
+  istemci: MockClient((istek) async {
+    final yol = istek.url.path;
+    return http.Response.bytes(utf8.encode(jsonEncode(yanitlar[yol] ?? {})), 200, headers: {'content-type': 'application/json'});
+  }),
+);
 
 Future<void> _ciz(WidgetTester t, Widget ekran) async {
   await t.pumpWidget(MaterialApp(home: ekran));
@@ -79,8 +79,30 @@ void main() {
             'id': 1,
             'ad': 'Ayşe Deneme',
             'odevler': [
-              {'id': 1, 'baslik': 'Problemler', 'aciklama': 'Sayfa 12', 'kazanim': 'M.9.1', 'sonTarih': '2026-11-04', 'ders': 'Matematik', 'ogretmen': 'A. Hoca', 'durum': 'verildi', 'dosya': 0, 'yeniMesaj': 0},
-              {'id': 2, 'baslik': 'Deney raporu', 'aciklama': '', 'kazanim': '', 'sonTarih': '2026-10-30', 'ders': 'Fizik', 'ogretmen': 'B. Hoca', 'durum': 'dogrulandi', 'dosya': 1, 'yeniMesaj': 1},
+              {
+                'id': 1,
+                'baslik': 'Problemler',
+                'aciklama': 'Sayfa 12',
+                'kazanim': 'M.9.1',
+                'sonTarih': '2026-11-04',
+                'ders': 'Matematik',
+                'ogretmen': 'A. Hoca',
+                'durum': 'verildi',
+                'dosya': 0,
+                'yeniMesaj': 0,
+              },
+              {
+                'id': 2,
+                'baslik': 'Deney raporu',
+                'aciklama': '',
+                'kazanim': '',
+                'sonTarih': '2026-10-30',
+                'ders': 'Fizik',
+                'ogretmen': 'B. Hoca',
+                'durum': 'dogrulandi',
+                'dosya': 1,
+                'yeniMesaj': 1,
+              },
             ],
           },
         ],
@@ -88,9 +110,7 @@ void main() {
     });
     await _ciz(t, OdevlerEkrani(api: api));
     expect(find.text('Problemler'), findsOneWidget);
-    await t.tap(find.text('Problemler'));
-    await t.pumpAndSettle();
-    expect(find.text('Sayfa 12'), findsWidgets);
+    expect(find.text('Sayfa 12'), findsOneWidget);
   });
 
   testWidgets('ders programı çizilir', (t) async {
@@ -112,11 +132,32 @@ void main() {
               'acik': true,
               'tatil': null,
               'dersler': [
-                {'dersSaati': 1, 'ders': 'Matematik', 'ogretmen': 'A. Hoca', 'aralik': '08:30-09:10', 'iptal': i == 1, 'islendi': i == 0, 'konu': 'Fonksiyonlar', 'devam': i == 0 ? 'gec' : '', 'odevler': [], 'renk': '#2E9E5B'},
+                {
+                  'dersSaati': 1,
+                  'ders': 'Matematik',
+                  'ogretmen': 'A. Hoca',
+                  'aralik': '08:30-09:10',
+                  'iptal': i == 1,
+                  'islendi': i == 0,
+                  'konu': 'Fonksiyonlar',
+                  'devam': i == 0 ? 'gec' : '',
+                  'odevler': [],
+                  'renk': '#2E9E5B',
+                },
               ],
               'etutler': i == 2
                   ? [
-                      {'id': 1, 'konu': 'Soru çözümü', 'saat': '15:00', 'sure': 40, 'yer': 'A1', 'ders': 'Fizik', 'ogretmen': 'B. Hoca', 'yanit': 'bekliyor', 'devam': ''},
+                      {
+                        'id': 1,
+                        'konu': 'Soru çözümü',
+                        'saat': '15:00',
+                        'sure': 40,
+                        'yer': 'A1',
+                        'ders': 'Fizik',
+                        'ogretmen': 'B. Hoca',
+                        'yanit': 'bekliyor',
+                        'devam': '',
+                      },
                     ]
                   : [],
             },
@@ -130,39 +171,54 @@ void main() {
 
   testWidgets('sınav sonuçları çizilir', (t) async {
     Map<String, dynamic> sinav(String ad, num ort) => {
-          'ad': ad,
-          'tarih': '2026-10-20',
-          'yanlisKat': 4,
-          'ortalama': ort,
-          'sira': 3,
-          'giren': 28,
-          'yazili': false,
-          'kapsam': ['Fonksiyonlar'],
-          'siralama': {
-            'sinif': {'sira': 3, 'sayi': 28},
-            'okul': {'sira': 20, 'sayi': 200},
-            'genel': {'sira': 900, 'sayi': 5000},
-          },
-          'dersler': [
+      'ad': ad,
+      'tarih': '2026-10-20',
+      'yanlisKat': 4,
+      'ortalama': ort,
+      'sira': 3,
+      'giren': 28,
+      'yazili': false,
+      'kapsam': ['Fonksiyonlar'],
+      'siralama': {
+        'sinif': {'sira': 3, 'sayi': 28},
+        'okul': {'sira': 20, 'sayi': 200},
+        'genel': {'sira': 900, 'sayi': 5000},
+      },
+      'dersler': [
+        {
+          'ders': 'Matematik',
+          'soruSayisi': 20,
+          'dogru': 14,
+          'yanlis': 4,
+          'bos': 2,
+          'net': 13,
+          'puan': 65,
+          'kazanimlar': [
             {
-              'ders': 'Matematik',
-              'soruSayisi': 20,
-              'dogru': 14,
-              'yanlis': 4,
-              'bos': 2,
-              'net': 13,
-              'puan': 65,
-              'kazanimlar': [
-                {'kazanim': 'Fonksiyon tanımı', 'durum': 'Edinildi', 'sorular': [1, 2], 'dogru': 2, 'toplam': 2},
-                {'kazanim': 'Bileşke fonksiyon', 'durum': 'Eksik', 'sorular': [3, 4], 'dogru': 0, 'toplam': 2},
-              ],
+              'kazanim': 'Fonksiyon tanımı',
+              'durum': 'Edinildi',
+              'sorular': [1, 2],
+              'dogru': 2,
+              'toplam': 2,
+            },
+            {
+              'kazanim': 'Bileşke fonksiyon',
+              'durum': 'Eksik',
+              'sorular': [3, 4],
+              'dogru': 0,
+              'toplam': 2,
             },
           ],
-        };
+        },
+      ],
+    };
     final api = _api({
       '/api/sinav/notlarim': {
         'ogrenciler': [
-          {'ad': 'Ayşe Deneme', 'sinavlar': [sinav('1. Dönem 1. Deneme Sınavı', 72), sinav('Ekim Sınavı', 38)]},
+          {
+            'ad': 'Ayşe Deneme',
+            'sinavlar': [sinav('1. Dönem 1. Deneme Sınavı', 72), sinav('Ekim Sınavı', 38)],
+          },
           {'ad': 'Ali Deneme', 'sinavlar': []},
         ],
       },
@@ -209,8 +265,38 @@ void main() {
           {'ogrenciId': 1, 'ad': 'Ayşe Deneme'},
         ],
         'etutler': [
-          {'id': 1, 'ders': 'Fizik', 'konu': 'Kuvvet', 'tarih': gelecek, 'saat': '15:30', 'sureDk': 40, 'yer': 'A1', 'not': '', 'durum': 'planli', 'ogretmen': 'B. Hoca', 'ogrenciId': 1, 'ogrenci': 'Ayşe Deneme', 'yanit': 'bekliyor', 'devam': ''},
-          {'id': 2, 'ders': 'Kimya', 'konu': 'Mol', 'tarih': '2020-01-10', 'saat': '14:00', 'sureDk': 40, 'yer': '', 'not': '', 'durum': 'planli', 'ogretmen': 'C. Hoca', 'ogrenciId': 1, 'ogrenci': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': 'geldi'},
+          {
+            'id': 1,
+            'ders': 'Fizik',
+            'konu': 'Kuvvet',
+            'tarih': gelecek,
+            'saat': '15:30',
+            'sureDk': 40,
+            'yer': 'A1',
+            'not': '',
+            'durum': 'planli',
+            'ogretmen': 'B. Hoca',
+            'ogrenciId': 1,
+            'ogrenci': 'Ayşe Deneme',
+            'yanit': 'bekliyor',
+            'devam': '',
+          },
+          {
+            'id': 2,
+            'ders': 'Kimya',
+            'konu': 'Mol',
+            'tarih': '2020-01-10',
+            'saat': '14:00',
+            'sureDk': 40,
+            'yer': '',
+            'not': '',
+            'durum': 'planli',
+            'ogretmen': 'C. Hoca',
+            'ogrenciId': 1,
+            'ogrenci': 'Ayşe Deneme',
+            'yanit': 'gelecek',
+            'devam': 'geldi',
+          },
         ],
       },
     });
@@ -221,9 +307,21 @@ void main() {
     final ogretmen = _api({
       '/api/etut/liste': {
         'etutler': [
-          {'id': 1, 'ders': 'Fizik', 'konu': 'Kuvvet', 'tarih': gelecek, 'saat': '15:30', 'sureDk': 40, 'yer': 'A1', 'not': '', 'durum': 'planli', 'ogretmen': 'B. Hoca', 'katilimcilar': [
-            {'ogrenciId': 1, 'ad': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': ''},
-          ]},
+          {
+            'id': 1,
+            'ders': 'Fizik',
+            'konu': 'Kuvvet',
+            'tarih': gelecek,
+            'saat': '15:30',
+            'sureDk': 40,
+            'yer': 'A1',
+            'not': '',
+            'durum': 'planli',
+            'ogretmen': 'B. Hoca',
+            'katilimcilar': [
+              {'ogrenciId': 1, 'ad': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': ''},
+            ],
+          },
         ],
       },
     });
