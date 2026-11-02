@@ -38,12 +38,12 @@ class PanelBandi extends StatelessWidget {
               Positioned(
                 left: 20,
                 right: 18,
-                top: ust + 62,
+                top: ust + 44,
                 child: Row(
                   children: [
                     Container(
-                      width: 68,
-                      height: 68,
+                      width: 86,
+                      height: 86,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -55,9 +55,10 @@ class PanelBandi extends StatelessWidget {
                           ? Image.network(
                               '${Api.taban}${ben.foto}',
                               headers: api.kimlik,
-                              width: 68,
-                              height: 68,
+                              width: 86,
+                              height: 86,
                               fit: BoxFit.cover,
+                              alignment: const Alignment(0, -.64),
                               errorBuilder: (_, _, _) => _harf(),
                             )
                           : _harf(),
@@ -72,9 +73,9 @@ class PanelBandi extends StatelessWidget {
                             ben.ad,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: serif.copyWith(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w600),
+                            style: serif.copyWith(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
                             [ben.unvan, if (ben.unvan.isEmpty) ben.sube].where((e) => e.isNotEmpty).join(' · '),
                             maxLines: 2,
@@ -96,7 +97,7 @@ class PanelBandi extends StatelessWidget {
 
   Widget _harf() => Text(
     _basHarfler,
-    style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700),
+    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
   );
 }
 
