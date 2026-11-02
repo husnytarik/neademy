@@ -66,15 +66,26 @@ class _VeriSayfasiState extends State<VeriSayfasi> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_hata ?? 'Veri alınamadı.', textAlign: TextAlign.center, style: TextStyle(color: context.soluk)),
+              Text(
+                _hata ?? 'Veri alınamadı.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.soluk),
+              ),
               const SizedBox(height: 14),
-              OutlinedButton(onPressed: _yukle, style: OutlinedButton.styleFrom(minimumSize: const Size(140, 46)), child: const Text('Tekrar dene')),
+              OutlinedButton(
+                onPressed: _yukle,
+                style: OutlinedButton.styleFrom(minimumSize: const Size(140, 46)),
+                child: const Text('Tekrar dene'),
+              ),
             ],
           ),
         ),
       );
     }
-    return Scaffold(appBar: AppBar(title: Text(widget.baslik)), body: govde);
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.baslik)),
+      body: govde,
+    );
   }
 }
 
@@ -86,9 +97,15 @@ class BosNot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
-        child: Center(child: Text(metin, textAlign: TextAlign.center, style: TextStyle(color: context.soluk, fontSize: 15))),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 8),
+    child: Center(
+      child: Text(
+        metin,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.soluk, fontSize: 15),
+      ),
+    ),
+  );
 }
 
 /// Bölüm başlığı (öğrenci adı, "Kayıtlar" vb.).
@@ -100,9 +117,81 @@ class Baslik extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.fromLTRB(2, ust, 2, 8),
-        child: Text(metin, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -.2)),
-      );
+    padding: EdgeInsets.fromLTRB(2, ust, 2, 8),
+    child: Text(metin, style: serif.copyWith(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -.2)),
+  );
+}
+
+/// Web'deki hap biçimli sekmeler (.sekmeler): yumuşak zemin üzerinde seçili olan beyaz kabarır.
+class Sekmeler extends StatelessWidget {
+  const Sekmeler({super.key, required this.secenekler, required this.secili, required this.degisti});
+
+  /// (değer, görünen ad)
+  final List<(String, String)> secenekler;
+  final String secili;
+  final ValueChanged<String> degisti;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(color: context.icZemin, borderRadius: BorderRadius.circular(16)),
+    child: Row(
+      children: [
+        for (final (deger, ad) in secenekler)
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => degisti(deger),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: secili == deger ? context.kart : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: secili == deger ? [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 6, offset: const Offset(0, 1))] : null,
+                ),
+                child: Text(
+                  ad,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: secili == deger ? FontWeight.w700 : FontWeight.w500,
+                    color: secili == deger ? context.yazi : context.soluk,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Ders kısaltması rozeti (web: dersChip): dersin sabit renginde yuvarlak köşeli kutu.
+/// Koyu temada koyu ders renkleri okunmaz; yazıda kullanılacak rengi açar.
+Color okunur(BuildContext context, Color r) => Theme.of(context).brightness == Brightness.dark ? Color.lerp(r, Colors.white, .55)! : r;
+
+class DersRozeti extends StatelessWidget {
+  const DersRozeti(this.kisa, this.renk, {super.key, this.boyut = 40});
+
+  final String kisa;
+  final Color renk;
+  final double boyut;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: boyut,
+    height: boyut,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(color: renk.withValues(alpha: .15), borderRadius: BorderRadius.circular(boyut * .32)),
+    child: Text(
+      kisa.isEmpty ? '•' : kisa,
+      maxLines: 1,
+      style: TextStyle(color: okunur(context, renk), fontWeight: FontWeight.w800, fontSize: boyut * .36),
+    ),
+  );
 }
 
 /// Küçük etiket (durum, süre vb.).
@@ -118,7 +207,10 @@ class Cip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(color: r.withValues(alpha: .13), borderRadius: BorderRadius.circular(20)),
-      child: Text(metin, style: TextStyle(color: r, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      child: Text(
+        metin,
+        style: TextStyle(color: r, fontSize: 12.5, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
@@ -134,17 +226,20 @@ class KartKutu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: alt),
-        child: Material(
-          color: context.kart,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: context.ince)),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: Padding(padding: padding, child: child),
-          ),
-        ),
-      );
+    padding: EdgeInsets.only(bottom: alt),
+    child: Material(
+      color: context.kart,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: context.ince),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
+      ),
+    ),
+  );
 }
 
 /// Yatay kaydırılan seçim çipleri (süzgeç).
@@ -158,24 +253,24 @@ class SuzgecCipleri extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 42,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: secenekler.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (_, i) {
-            final (deger, ad) = secenekler[i];
-            return ChoiceChip(
-              label: Text(ad),
-              selected: secili == deger,
-              onSelected: (_) => degisti(deger),
-              showCheckmark: false,
-              side: BorderSide(color: context.ince),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            );
-          },
-        ),
-      );
+    height: 42,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: secenekler.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, i) {
+        final (deger, ad) = secenekler[i];
+        return ChoiceChip(
+          label: Text(ad),
+          selected: secili == deger,
+          onSelected: (_) => degisti(deger),
+          showCheckmark: false,
+          side: BorderSide(color: context.ince),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        );
+      },
+    ),
+  );
 }
 
 /// Sunucudan gelen JSON alanlarını güvenle okumak için kısayollar.
