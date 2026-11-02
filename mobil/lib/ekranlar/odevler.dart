@@ -48,20 +48,36 @@ class _OdevlerEkraniState extends State<OdevlerEkrani> {
       }.toList()..sort((a, b) => a.compareTo(b));
       if (_ders.isNotEmpty && !dersler.contains(_ders)) _ders = '';
       return [
-        SuzgecCipleri(secenekler: _durumSuz, secili: _durum, degisti: (k) => setState(() => _durum = k)),
-        if (dersler.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: DropdownButtonFormField<String>(
-              initialValue: _ders,
-              decoration: const InputDecoration(isDense: true),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('Tüm dersler')),
-                for (final d in dersler) DropdownMenuItem(value: d, child: Text(d)),
-              ],
-              onChanged: (d) => setState(() => _ders = d ?? ''),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _durum,
+                isExpanded: true,
+                decoration: const InputDecoration(isDense: true),
+                items: [for (final (k, ad) in _durumSuz) DropdownMenuItem(value: k, child: Text(ad))],
+                onChanged: (k) => setState(() => _durum = k ?? ''),
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _ders,
+                isExpanded: true,
+                decoration: const InputDecoration(isDense: true),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Tüm dersler')),
+                  for (final d in dersler)
+                    DropdownMenuItem(
+                      value: d,
+                      child: Text(d, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (d) => setState(() => _ders = d ?? ''),
+              ),
+            ),
+          ],
+        ),
         for (final o in ogrenciler) ..._ogrenci(context, o, bugun, durumlar),
       ];
     },
@@ -125,15 +141,15 @@ class _Sayac extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: context.icZemin,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.ince),
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(color: context.icZemin, borderRadius: BorderRadius.circular(12)),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$sayi', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+          Text(
+            '$sayi',
+            style: serif.copyWith(fontSize: 24, fontWeight: FontWeight.w600, color: context.ana),
+          ),
           const SizedBox(height: 2),
           Text(ad, style: TextStyle(color: context.soluk, fontSize: 12.5)),
         ],
@@ -165,15 +181,18 @@ class _OdevKarti extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48,
-              padding: const EdgeInsets.symmetric(vertical: 7),
+              width: 54,
+              padding: const EdgeInsets.symmetric(vertical: 9),
               decoration: BoxDecoration(
                 color: (gecmis ? const Color(0xFFD64545) : context.ana).withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
                 children: [
-                  Text('${son.day}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                  Text(
+                    '${son.day}',
+                    style: serif.copyWith(fontSize: 21, fontWeight: FontWeight.w700, color: gecmis ? const Color(0xFFB3261E) : null),
+                  ),
                   Text(ayAdlari[son.month - 1].substring(0, 3), style: TextStyle(color: context.soluk, fontSize: 12)),
                 ],
               ),
@@ -183,7 +202,7 @@ class _OdevKarti extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(x.s('baslik'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  Text(x.s('baslik'), style: serif.copyWith(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text([x.s('ders'), x.s('ogretmen')].where((e) => e.isNotEmpty).join(' · '), style: TextStyle(color: context.soluk, fontSize: 13.5)),
                   if (x.s('aciklama').isNotEmpty) ...[
@@ -218,6 +237,10 @@ class _OdevKarti extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 22),
+              child: Icon(Icons.chevron_right, size: 20, color: context.soluk),
             ),
           ],
         ),
