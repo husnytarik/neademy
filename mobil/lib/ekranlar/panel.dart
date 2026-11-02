@@ -194,11 +194,8 @@ class _PanelEkraniState extends State<PanelEkrani> {
                   else
                     Transform.translate(
                       offset: Offset(0, ogretmen ? -22 : 0),
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 1 / .9,
+                      child: GridView(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 58),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         padding: EdgeInsets.zero,
@@ -222,7 +219,28 @@ class _PanelEkraniState extends State<PanelEkrani> {
   }
 }
 
-/// Modül karesi (web: .kare): üstte ikon kutusu, altta serif başlık; ekranı olmayan "Yakında".
+/// Modül başına ikon rengi (web: .kare[data-modul] --ik); listede olmayan modül gri kalır.
+Color _modulRengi(String id) {
+  bool on(String x) => id.startsWith(x);
+  if (on('etut')) return const Color(0xFFF97316);
+  if (on('derslerim') || on('ders-programi')) return const Color(0xFF3B82F6);
+  if (const {'not-girisi', 'sinav-yonetim', 'rapor', 'notlarim'}.contains(id)) return const Color(0xFF8B5CF6);
+  if (on('ogrenci-yonetim')) return const Color(0xFF06B6D4);
+  if (id == 'ogrencilerim' || on('devamsizlik')) return const Color(0xFF10B981);
+  if (on('veli-bilgilendirme')) return const Color(0xFFEC4899);
+  if (id == 'kullanici-rol' || id == 'ogrencim') return const Color(0xFF6366F1);
+  if (id == 'okul-kurulum' || id == 'teslim') return const Color(0xFF14B8A6);
+  if (id == 'kurum') return const Color(0xFF0EA5E9);
+  if (id == 'okul-takvimi') return const Color(0xFFF59E0B);
+  if (on('duyuru')) return const Color(0xFFEF4444);
+  if (on('odev-takip')) return const Color(0xFFD97706);
+  if (id == 'zumrem') return const Color(0xFFD946EF);
+  if (on('kulup')) return const Color(0xFFEAB308);
+  if (on('gelisim')) return const Color(0xFF22C55E);
+  return const Color(0xFF64748B);
+}
+
+/// Modül kutusu (web: .kare): solda renkli ikon, yanında serif başlık; ekranı olmayan kesik çizgili "Yakında".
 class _Kare extends StatelessWidget {
   const _Kare({required this.modul, required this.hazir, required this.onTap});
 
@@ -232,47 +250,43 @@ class _Kare extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final renk = _modulRengi(modul.id);
     final govde = Padding(
-      padding: const EdgeInsets.all(16),
-      child: Stack(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(color: hazir ? context.ana.withValues(alpha: .14) : context.icZemin, borderRadius: BorderRadius.circular(15)),
-                alignment: Alignment.center,
-                child: CizgiIkon(modul.id, renk: hazir ? context.ana : context.soluk),
-              ),
-              Text(
-                modul.ad,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: serif.copyWith(fontSize: 16.5, fontWeight: FontWeight.w600, height: 1.2, color: context.yazi),
-              ),
-            ],
-          ),
-          if (!hazir)
-            Positioned(
-              right: -2,
-              top: 0,
-              child: Text('Yakında', style: TextStyle(fontSize: 11, color: context.soluk)),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: hazir ? renk : context.icZemin,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: hazir ? [BoxShadow(color: renk.withValues(alpha: .35), blurRadius: 10, offset: const Offset(0, 4), spreadRadius: -4)] : null,
             ),
+            alignment: Alignment.center,
+            child: CizgiIkon(modul.id, boyut: 19, renk: hazir ? Colors.white : context.soluk),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              modul.ad,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: serif.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600, height: 1.15, color: context.yazi),
+            ),
+          ),
         ],
       ),
     );
+    final sekil = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: hazir ? BorderSide.none : BorderSide(color: context.ince));
     return Opacity(
       opacity: hazir ? 1 : .55,
       child: Material(
         color: hazir ? context.kart : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: context.ince),
-        ),
-        child: hazir ? InkWell(borderRadius: BorderRadius.circular(22), onTap: onTap, child: govde) : govde,
+        elevation: hazir ? 1.5 : 0,
+        shadowColor: Colors.black.withValues(alpha: .25),
+        shape: sekil,
+        child: hazir ? InkWell(customBorder: sekil, onTap: onTap, child: govde) : govde,
       ),
     );
   }

@@ -84,14 +84,7 @@ class _Bas extends StatelessWidget {
   final double yaricap;
 
   @override
-  Widget build(BuildContext context) => CircleAvatar(
-    radius: yaricap,
-    backgroundColor: context.ana.withValues(alpha: .14),
-    child: Text(
-      ad.isEmpty ? '?' : ad.characters.first.toUpperCase(),
-      style: TextStyle(fontSize: yaricap * .8, fontWeight: FontWeight.w700, color: context.ana),
-    ),
-  );
+  Widget build(BuildContext context) => KisiAvatari(ad: ad, yaricap: yaricap);
 }
 
 const _durumAd = {'geldi': 'Geldi', 'gelmedi': 'Gelmedi', 'gec': 'Geç', 'izinli': 'İzinli'};

@@ -229,12 +229,11 @@ class KartKutu extends StatelessWidget {
     padding: EdgeInsets.only(bottom: alt),
     child: Material(
       color: context.kart,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: context.ince),
-      ),
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: .22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Padding(padding: padding, child: child),
       ),
@@ -303,4 +302,32 @@ Future<bool> onayIste(BuildContext context, String soru, {String evet = 'Evet'})
     ),
   );
   return s ?? false;
+}
+
+/// "Deniz Örnek" -> "DÖ" (web: bas); boşsa "?".
+String basHarfler(String ad) {
+  final p = ad.trim().split(RegExp(r'\s+')).where((x) => x.isNotEmpty).take(2).map((x) => x.characters.first);
+  final b = p.join().toUpperCase();
+  return b.isEmpty ? '?' : b;
+}
+
+/// Kişi küçük resmi: fotoğraf varsa o, yoksa ad baş harfleri (web: .avatar).
+class KisiAvatari extends StatelessWidget {
+  const KisiAvatari({super.key, required this.ad, this.foto = '', this.api, this.yaricap = 20});
+
+  final String ad;
+  final String foto;
+  final Api? api;
+  final double yaricap;
+
+  @override
+  Widget build(BuildContext context) => CircleAvatar(
+    radius: yaricap,
+    backgroundColor: context.ana.withValues(alpha: .14),
+    foregroundImage: foto.isEmpty || api == null ? null : NetworkImage('${Api.taban}$foto', headers: api!.kimlik),
+    child: Text(
+      basHarfler(ad),
+      style: TextStyle(color: context.ana, fontWeight: FontWeight.w700, fontSize: yaricap * .7),
+    ),
+  );
 }

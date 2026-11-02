@@ -165,14 +165,7 @@ class _OgrencilerEkraniState extends State<OgrencilerEkrani> {
             onTap: () => _git(OgrenciDosyaEkrani(api: widget.api, id: o.n('id'))),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: context.ana.withValues(alpha: .14),
-                  child: Text(
-                    o.s('ad').isEmpty ? '?' : o.s('ad').characters.first.toUpperCase(),
-                    style: TextStyle(color: context.ana, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: widget.api),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

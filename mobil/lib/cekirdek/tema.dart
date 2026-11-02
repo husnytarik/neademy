@@ -55,7 +55,7 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
     outlineVariant: ince,
   );
   final alanKenar = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(10),
     borderSide: BorderSide(color: ince),
   );
   return ThemeData(
@@ -73,6 +73,20 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
       systemOverlayStyle: SystemUiOverlayStyle.light,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
       titleTextStyle: serif.copyWith(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w600),
+    ),
+    // Web başlığındaki geri düğmesi: yarı saydam, yuvarlak köşeli kutu içinde ok
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (context) => Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .14),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: Colors.white.withValues(alpha: .35)),
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.arrow_back, size: 20, color: Colors.white),
+      ),
     ),
     dividerColor: ince,
     inputDecorationTheme: InputDecorationTheme(

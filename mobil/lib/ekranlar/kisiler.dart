@@ -158,14 +158,7 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
       onTap: _duzenle ? () => _git(_KisiDuzen(api: api, kisiId: u.n('id'), rol: rol)) : null,
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: context.ana.withValues(alpha: .14),
-            child: Text(
-              u.s('ad').isEmpty ? '?' : u.s('ad').characters.first.toUpperCase(),
-              style: TextStyle(color: context.ana, fontWeight: FontWeight.w600),
-            ),
-          ),
+          KisiAvatari(ad: u.s('ad'), foto: u.s('foto'), api: api),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
