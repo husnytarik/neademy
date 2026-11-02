@@ -14,6 +14,7 @@ import 'duyuru_yonetim.dart';
 import 'kulup.dart';
 import 'kisiler.dart';
 import 'kurum.dart';
+import 'ogrenciler.dart';
 import 'zumrem.dart';
 import 'notlarim.dart';
 import 'odev_takip.dart';
@@ -62,6 +63,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'kurum': (api) => KurumEkrani(api: api),
   'kampusler': (api) => KampuslerEkrani(api: api),
   'kullanici-rol': (api) => KisilerEkrani(api: api),
+  'ogrenci-yonetim': (api) => OgrencilerEkrani(api: api),
   'not-girisi': (api) => SinavEkrani(api: api, yonetim: false),
   'sinav-yonetim': (api) => SinavEkrani(api: api, yonetim: true),
   'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),

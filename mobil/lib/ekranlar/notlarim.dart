@@ -25,8 +25,8 @@ class NotlarimEkrani extends StatelessWidget {
             for (final o in ogrenciler) ...[
               Baslik(o.s('ad'), ust: 10),
               if (o.l('sinavlar').isEmpty) const BosNot('Henüz yayınlanmış sınav sonucu yok. Öğretmen yayınladığında burada görünür.'),
-              if (o.l('sinavlar').length > 1) _Gelisim(o.l('sinavlar')),
-              for (final (i, s) in o.l('sinavlar').indexed) _Sinav(s, acik: i == 0),
+              if (o.l('sinavlar').length > 1) SinavGelisimi(o.l('sinavlar')),
+              for (final (i, s) in o.l('sinavlar').indexed) SinavKarti(s, acik: i == 0),
             ],
           ];
         },
@@ -34,8 +34,8 @@ class NotlarimEkrani extends StatelessWidget {
 }
 
 /// Son sınavların ortalama puanı (en eski solda).
-class _Gelisim extends StatelessWidget {
-  const _Gelisim(this.sinavlar);
+class SinavGelisimi extends StatelessWidget {
+  const SinavGelisimi(this.sinavlar, {super.key});
 
   final List<Map<String, dynamic>> sinavlar;
 
@@ -75,8 +75,8 @@ class _Gelisim extends StatelessWidget {
   }
 }
 
-class _Sinav extends StatelessWidget {
-  const _Sinav(this.s, {required this.acik});
+class SinavKarti extends StatelessWidget {
+  const SinavKarti(this.s, {super.key, required this.acik});
 
   final Map<String, dynamic> s;
   final bool acik;
