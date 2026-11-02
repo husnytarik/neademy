@@ -125,6 +125,11 @@ void main() {
       '/api/ogrenci/rapor': _rapor,
       '/api/ogrenci/kayit': _kayit,
       '/api/sinav/ogrenci': {'sinavlar': <Object>[]},
+      '/api/ogrenci/teslim': {
+        'kayitlar': [
+          {'zaman': DateTime.utc(2026, 11, 2, 12, 30).millisecondsSinceEpoch, 'kisi': 'Veli Örnek', 'yakinlik': 'Anne', 'guvenlik': 'Güvenlik Görevlisi'},
+        ],
+      },
     });
     await t.pumpWidget(MaterialApp(home: OgrencilerEkrani(api: api)));
     await t.pumpAndSettle();
@@ -140,6 +145,11 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Düzenle'), findsOneWidget);
     expect(find.textContaining('2 ders saati devamsızlığı'), findsNothing);
+    await t.tap(find.text('Teslim'));
+    await t.pumpAndSettle();
+    expect(find.text('Veli Örnek'), findsOneWidget);
+    expect(find.text('15:30'), findsOneWidget);
+    expect(find.textContaining('Güvenlik: Güvenlik Görevlisi'), findsOneWidget);
     await t.tap(find.text('Kayıt'));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);

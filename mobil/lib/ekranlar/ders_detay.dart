@@ -6,6 +6,7 @@ import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
 import 'ders_bitir.dart';
+import 'odev_takip.dart';
 
 /// Dersin ders saati geldi mi? Gelecek gün ya da henüz başlamamış ders bitirilemez (web: dersBasladi).
 bool dersBasladi(String tarih, String bugun, String aralik) {
@@ -423,9 +424,7 @@ class _OdevlerSekmesiState extends State<_OdevlerSekmesi> {
                 : (x.n('yapildi') > 0 || x.n('soru') > 0)
                 ? 'Takip et · ${x.n('yapildi')} onay bekliyor${x.n('soru') > 0 ? ', ${x.n('soru')} soru' : ''}'
                 : 'Takip et · ${x.n('dogrulandi')}/${x.n('toplam')} doğrulandı',
-            onTakip: () => ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(content: Text('Ödev takibi için panelden "Ödev takip" bölümünü açın.'))),
+            onTakip: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OdevTakipOgretmenEkrani(api: widget.api))),
             sil: () async {
               if (await _sil(context, widget.api, '/api/ders/odev-sil', x.n('id'), x.s('baslik')) && mounted) setState(() => _surum++);
             },

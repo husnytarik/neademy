@@ -226,8 +226,9 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
       api.get('/api/ogrenci/rapor?id=${widget.id}'),
       api.get('/api/ogrenci/kayit?id=${widget.id}'),
       api.get('/api/sinav/ogrenci?id=${widget.id}').catchError((_) => <String, dynamic>{}),
+      api.get('/api/ogrenci/teslim?id=${widget.id}').catchError((_) => <String, dynamic>{}),
     ]);
-    return {'rapor': s[0], 'kayit': s[1], 'sinav': s[2]};
+    return {'rapor': s[0], 'kayit': s[1], 'sinav': s[2], 'teslim': s[3]};
   }
 
   Future<void> _duzenle() async {
@@ -271,7 +272,7 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
       final duzenleyebilir = kayit['duzenleyebilir'] == true;
       final aktif = kayit.m('ogrenci').s('durum') == 'aktif';
       return [
-        Sekmeler(secenekler: const [('genel', 'Genel'), ('sinav', 'Sınavlar'), ('kayit', 'Kayıt')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
+        Sekmeler(secenekler: const [('genel', 'Genel'), ('sinav', 'Sınavlar'), ('teslim', 'Teslim'), ('kayit', 'Kayıt')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
         const SizedBox(height: 8),
         if (!aktif)
           Padding(
@@ -289,10 +290,46 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
           ),
         if (_sekme == 'genel') ..._genel(context, rapor, kayit, sinavlar),
         if (_sekme == 'sinav') ..._sinav(sinavlar),
+        if (_sekme == 'teslim') ..._teslim(context, v.m('teslim').l('kayitlar')),
         if (_sekme == 'kayit') ..._kayit(context, kayit),
       ];
     },
   );
+
+  /// Öğrenciyi okuldan kim, ne zaman teslim aldı (gün gün gruplanır).
+  List<Widget> _teslim(BuildContext context, List<Map<String, dynamic>> kayitlar) {
+    if (kayitlar.isEmpty) return const [BosNot('Henüz teslim kaydı yok.')];
+    final cikti = <Widget>[];
+    String gun = '';
+    for (final k in kayitlar) {
+      final z = DateTime.fromMillisecondsSinceEpoch(k.n('zaman'), isUtc: true).add(const Duration(hours: 3));
+      final g = uzunTarih(tarihYaz(z));
+      if (g != gun) {
+        gun = g;
+        cikti.add(Baslik(g, ust: 14));
+      }
+      final alt = [k.s('yakinlik'), if (k.s('guvenlik').isNotEmpty) 'Güvenlik: ${k.s('guvenlik')}'].where((x) => x.isNotEmpty).join(' · ');
+      cikti.add(
+        KartKutu(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(k.s('kisi'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (alt.isNotEmpty) Text(alt, style: TextStyle(color: context.soluk, fontSize: 12.5)),
+                  ],
+                ),
+              ),
+              Text('${z.hour.toString().padLeft(2, '0')}:${z.minute.toString().padLeft(2, '0')}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      );
+    }
+    return cikti;
+  }
 
   List<Widget> _genel(BuildContext context, Map<String, dynamic> rapor, Map<String, dynamic> kayit, List<Map<String, dynamic>> sinavlar) {
     final dv = rapor.m('devam');
