@@ -5,11 +5,13 @@ import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
 import 'devamsizlik.dart';
 import 'duyurular.dart';
+import 'etut.dart';
 import 'notlarim.dart';
 import 'odevler.dart';
 import 'ogrencim.dart';
 import 'program.dart';
 import 'takvimim.dart';
+import 'teslim.dart';
 
 class Modul {
   Modul({required this.id, required this.ad, required this.aciklama});
@@ -34,6 +36,12 @@ final _hazirEkranlar = <String, ({IconData ikon, Widget Function(Api api) ekran}
   'ders-programi': (ikon: Icons.schedule_outlined, ekran: (api) => ProgramEkrani(api: api)),
   'notlarim': (ikon: Icons.bar_chart_outlined, ekran: (api) => NotlarimEkrani(api: api)),
   'ogrencim': (ikon: Icons.person_outline, ekran: (api) => OgrencimEkrani(api: api)),
+  'etut': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogretmen')),
+  'etut-ogrenci': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'ogrenci')),
+  'etut-veli': (ikon: Icons.event_available_outlined, ekran: (api) => EtutEkrani(api: api, rol: 'veli')),
+  'teslim': (ikon: Icons.group_outlined, ekran: (api) => TeslimYetkileriEkrani(api: api)),
+  'teslim-kodu': (ikon: Icons.qr_code_2, ekran: (api) => TeslimKoduEkrani(api: api)),
+  'teslim-kapi': (ikon: Icons.qr_code_scanner, ekran: (api) => TeslimKapiEkrani(api: api)),
 };
 
 class PanelEkrani extends StatefulWidget {

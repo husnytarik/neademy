@@ -185,3 +185,27 @@ extension JsonOkuma on Map<String, dynamic> {
   List<Map<String, dynamic>> l(String k) => [for (final x in (this[k] as List? ?? const [])) x as Map<String, dynamic>];
   Map<String, dynamic> m(String k) => (this[k] as Map<String, dynamic>?) ?? const {};
 }
+
+/// Hatayı kullanıcıya kısa bir uyarı olarak gösterir.
+void hataGoster(BuildContext context, Object hata) {
+  if (!context.mounted) return;
+  final metin = hata is ApiHata ? hata.mesaj : 'Bir sorun oluştu. Tekrar deneyin.';
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(metin)));
+}
+
+/// Onay penceresi; "Evet" seçilirse true döner.
+Future<bool> onayIste(BuildContext context, String soru, {String evet = 'Evet'}) async {
+  final s = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      content: Text(soru),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(evet)),
+      ],
+    ),
+  );
+  return s ?? false;
+}

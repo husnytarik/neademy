@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neademy/cekirdek/api.dart';
 import 'package:neademy/ekranlar/devamsizlik.dart';
+import 'package:neademy/ekranlar/etut.dart';
+import 'package:neademy/ekranlar/teslim.dart';
 import 'package:neademy/ekranlar/duyurular.dart';
 import 'package:neademy/ekranlar/notlarim.dart';
 import 'package:neademy/ekranlar/odevler.dart';
@@ -197,5 +199,78 @@ void main() {
     await _ciz(t, OgrencimEkrani(api: api));
     expect(find.text('Ayşe Deneme'), findsOneWidget);
     expect(find.text('%90'), findsOneWidget);
+  });
+
+  testWidgets('etüt (veli ve öğretmen) çizilir', (t) async {
+    final gelecek = '${DateTime.now().year + 1}-03-10';
+    final api = _api({
+      '/api/etut/liste': {
+        'cocuklar': [
+          {'ogrenciId': 1, 'ad': 'Ayşe Deneme'},
+        ],
+        'etutler': [
+          {'id': 1, 'ders': 'Fizik', 'konu': 'Kuvvet', 'tarih': gelecek, 'saat': '15:30', 'sureDk': 40, 'yer': 'A1', 'not': '', 'durum': 'planli', 'ogretmen': 'B. Hoca', 'ogrenciId': 1, 'ogrenci': 'Ayşe Deneme', 'yanit': 'bekliyor', 'devam': ''},
+          {'id': 2, 'ders': 'Kimya', 'konu': 'Mol', 'tarih': '2020-01-10', 'saat': '14:00', 'sureDk': 40, 'yer': '', 'not': '', 'durum': 'planli', 'ogretmen': 'C. Hoca', 'ogrenciId': 1, 'ogrenci': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': 'geldi'},
+        ],
+      },
+    });
+    await _ciz(t, EtutEkrani(api: api, rol: 'veli'));
+    expect(find.text('Gelecek'), findsOneWidget);
+    expect(find.text('Gelmeyecek'), findsOneWidget);
+
+    final ogretmen = _api({
+      '/api/etut/liste': {
+        'etutler': [
+          {'id': 1, 'ders': 'Fizik', 'konu': 'Kuvvet', 'tarih': gelecek, 'saat': '15:30', 'sureDk': 40, 'yer': 'A1', 'not': '', 'durum': 'planli', 'ogretmen': 'B. Hoca', 'katilimcilar': [
+            {'ogrenciId': 1, 'ad': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': ''},
+          ]},
+        ],
+      },
+    });
+    await _ciz(t, EtutEkrani(api: ogretmen, rol: 'ogretmen'));
+    expect(find.text('Etüt aç'), findsOneWidget);
+    expect(find.text('1 gelecek'), findsOneWidget);
+  });
+
+  testWidgets('teslim yetkileri çizilir', (t) async {
+    final api = _api({
+      '/api/teslim/liste': {
+        'ogrenciler': [
+          {
+            'id': 1,
+            'ad': 'Ayşe Deneme',
+            'sinif': '9-A',
+            'kisiler': [
+              {'id': 5, 'ad': 'Servis Şoförü', 'yakinlik': 'Servis', 'telefon': '5551112233', 'baglanti': 'abc'},
+            ],
+          },
+        ],
+      },
+    });
+    await _ciz(t, TeslimYetkileriEkrani(api: api));
+    expect(find.text('Servis Şoförü'), findsOneWidget);
+    expect(find.text('Özel bağlantı açık'), findsOneWidget);
+    expect(find.text('Kişi ekle'), findsOneWidget);
+  });
+
+  testWidgets('teslim kodu QR olarak çizilir', (t) async {
+    final api = _api({
+      '/api/teslim/kod': {
+        'kod': 'ABC234',
+        'omur': 45,
+        'kisi': {'ad': 'Veli Deneme', 'yakinlik': 'Veli'},
+        'ogrenciler': [
+          {'ad': 'Ayşe Deneme', 'sinif': '9-A', 'okul': 'Pilot Lise'},
+        ],
+      },
+      '/api/teslim/durum': {'talep': null},
+    });
+    await t.pumpWidget(MaterialApp(home: TeslimKoduEkrani(api: api)));
+    await t.pump(const Duration(milliseconds: 100));
+    await t.pump(const Duration(milliseconds: 100));
+    expect(find.text('ABC 234'), findsOneWidget);
+    expect(find.text('Ayşe Deneme'), findsOneWidget);
+    await t.pumpWidget(const SizedBox()); // zamanlayıcıları kapat
+    expect(t.takeException(), isNull);
   });
 }

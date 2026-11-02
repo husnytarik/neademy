@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Teslim kodunu (QR) okumak için kamera kullanılır.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Uygulamayı Face ID ile hızlıca açmak için kullanılır.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
