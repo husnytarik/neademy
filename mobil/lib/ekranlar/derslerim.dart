@@ -5,6 +5,7 @@ import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
 import 'ders_detay.dart';
+import 'kulup.dart';
 
 export 'ders_bitir.dart' show DersBitirEkrani;
 
@@ -90,9 +91,10 @@ class _DerslerimEkraniState extends State<DerslerimEkrani> {
 
   Future<void> _dersAc(Map<String, dynamic> d, String tarih, {bool programdan = true}) async {
     if (d['kulupId'] != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Kulüp çalışması "Kulüp" bölümünden girilir.')));
+      final bitti = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => KulupOturumEkrani(api: widget.api, kulupId: d.n('kulupId'), tarih: tarih)),
+      );
+      if (bitti == true && mounted) _yukle();
       return;
     }
     final degisti = await Navigator.of(context).push<bool>(
