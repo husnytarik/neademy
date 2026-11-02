@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
+import '../cekirdek/optik.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
 
@@ -1247,6 +1248,63 @@ class _CevapSekmesiState extends State<_CevapSekmesi> {
     }
   }
 
+  Future<void> _optik() async {
+    final ham = await showDialog<_OptikGirdi>(context: context, builder: (_) => const _OptikDialog());
+    if (ham == null || !mounted) {
+      return;
+    }
+    final kayitlar = optikCoz(
+      ham.metin,
+      csv: ham.csv,
+      noUzunluk: ham.noUzunluk,
+      soruSayilari: [for (final d in _dersler) d.n('soruSayisi')],
+    );
+    final harita = {for (final o in _ogrenciler) noSade(o.s('okulNo')): o};
+    var uygulanan = 0;
+    final sorunlar = <String>[];
+    for (final k in kayitlar) {
+      final o = harita[k.no];
+      if (o == null) {
+        sorunlar.add('Satır ${k.satir}: "${k.no}" numaralı öğrenci bu sınavda yok');
+        continue;
+      }
+      for (var j = 0; j < _dersler.length; j++) {
+        if (_dersler[j].s('anahtar').contains('?')) {
+          continue;
+        }
+        _ctrl(o, _dersler[j].n('id')).text = cevapTemizle(j < k.cevap.length ? k.cevap[j] : '');
+      }
+      uygulanan++;
+      if (k.uyari.isNotEmpty) {
+        sorunlar.add('Satır ${k.satir} (${o.s('ad')}): ${k.uyari}');
+      }
+    }
+    setState(() {});
+    final girmeyen = harita.keys.where((no) => !kayitlar.any((k) => k.no == no)).length;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Optik çıktısı'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$uygulanan öğrencinin cevabı yazıldı; dosyada olmayan öğrenci: $girmeyen. Kontrol edip "Cevapları kaydet"e basın.'),
+              if (sorunlar.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text('${sorunlar.length} uyarı:', style: const TextStyle(fontWeight: FontWeight.w700)),
+                for (final u in sorunlar.take(30)) Text('• $u', style: const TextStyle(fontSize: 12.5)),
+                if (sorunlar.length > 30) Text('… ve ${sorunlar.length - 30} uyarı daha', style: const TextStyle(fontSize: 12.5)),
+              ],
+            ],
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam'))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_dersler.isEmpty) return const BosNot('Sınavda ders yok.');
@@ -1269,6 +1327,13 @@ class _CevapSekmesiState extends State<_CevapSekmesi> {
               ? '${ders.s('ders')}: cevap anahtarı henüz tamamlanmadı. Önce Hazırlık sekmesinden anahtarı girin.'
               : '${ders.s('ders')} · ${ders.n('soruSayisi')} soru. Öğrencinin cevaplarını soru sırasıyla yazın (A–E, boş için -).',
           style: TextStyle(color: bekliyor ? const Color(0xFFB45309) : context.soluk, fontSize: 13, height: 1.35),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _optik,
+          icon: const Icon(Icons.content_paste_go_outlined),
+          label: const Text('Optik çıktısını yapıştır'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
         ),
         const SizedBox(height: 10),
         for (final o in _ogrenciler)
@@ -1307,6 +1372,81 @@ class _CevapSekmesiState extends State<_CevapSekmesi> {
       ],
     );
   }
+}
+
+class _OptikGirdi {
+  const _OptikGirdi(this.metin, this.csv, this.noUzunluk);
+
+  final String metin;
+  final bool csv;
+  final int noUzunluk;
+}
+
+class _OptikDialog extends StatefulWidget {
+  const _OptikDialog();
+
+  @override
+  State<_OptikDialog> createState() => _OptikDialogState();
+}
+
+class _OptikDialogState extends State<_OptikDialog> {
+  final _metin = TextEditingController();
+  final _uzunluk = TextEditingController(text: '10');
+  bool _csv = true;
+
+  @override
+  void dispose() {
+    _metin.dispose();
+    _uzunluk.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Optik çıktısı'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Her satır bir öğrencidir; okul numarasıyla eşleştirilir. Boş soru "-", "*" ya da boşluk olabilir.',
+            style: TextStyle(color: context.soluk, fontSize: 13, height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          SegmentedButton<bool>(
+            segments: const [ButtonSegment(value: true, label: Text('CSV')), ButtonSegment(value: false, label: Text('Sabit genişlik'))],
+            selected: {_csv},
+            onSelectionChanged: (v) => setState(() => _csv = v.first),
+          ),
+          if (!_csv) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _uzunluk,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Okul no karakter sayısı', isDense: true),
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextField(
+            controller: _metin,
+            maxLines: 8,
+            minLines: 4,
+            autocorrect: false,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5),
+            decoration: InputDecoration(hintText: _csv ? '12;ABCDE…;ABCD…' : '12        ABCDEABCDE', isDense: true),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _OptikGirdi(_metin.text, _csv, (int.tryParse(_uzunluk.text) ?? 10).clamp(1, 20))),
+        child: const Text('Uygula'),
+      ),
+    ],
+  );
 }
 
 // ─────────────────────────── Yönetim: ayarlar ───────────────────────────

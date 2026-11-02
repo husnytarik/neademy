@@ -266,4 +266,39 @@ void main() {
     await t.pumpAndSettle();
     expect(kayit, contains('POST /api/sinav/puanlar'));
   });
+
+  testWidgets('cevaplar: optik çıktısı yapıştırılınca okul numarasına göre yazılır', (t) async {
+    genis(t);
+    final detay = {
+      'yonetim': true,
+      'sinav': {..._detay['sinav'] as Map<String, Object>},
+      'siniflar': [
+        {'id': 1, 'name': '6-A'},
+      ],
+      'dersler': [
+        {'id': 11, 'ders': 'Fen Bilimleri', 'soruSayisi': 3, 'onay': true, 'anahtar': 'ABC', 'iptal': <Object>[]},
+      ],
+      'ogrenciler': [
+        {'ogrenciId': 5, 'ad': 'Deneme Öğrenci', 'okulNo': '12', 'sinif': '6-A', 'cevaplar': <String, Object>{}},
+      ],
+    };
+    await t.pumpWidget(
+      MaterialApp(
+        home: SinavDetayEkrani(api: _api({'/api/sinav/detay': detay}), id: 1, yonetim: true),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('Cevaplar'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Optik çıktısını yapıştır'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, '012;AB*\n99;ABC');
+    await t.tap(find.text('Uygula'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('1 öğrencinin cevabı yazıldı'), findsOneWidget);
+    expect(find.textContaining('"99" numaralı öğrenci'), findsOneWidget);
+    await t.tap(find.text('Tamam'));
+    await t.pumpAndSettle();
+    expect(find.text('AB-'), findsOneWidget);
+  });
 }
