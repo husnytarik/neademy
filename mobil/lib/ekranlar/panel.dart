@@ -12,6 +12,7 @@ import 'etut.dart';
 import 'gelisim_ogretmen.dart';
 import 'duyuru_yonetim.dart';
 import 'kulup.dart';
+import 'kisiler.dart';
 import 'kurum.dart';
 import 'zumrem.dart';
 import 'notlarim.dart';
@@ -60,6 +61,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'baskan-toplanti': (api) => BaskanToplantiEkrani(api: api),
   'kurum': (api) => KurumEkrani(api: api),
   'kampusler': (api) => KampuslerEkrani(api: api),
+  'kullanici-rol': (api) => KisilerEkrani(api: api),
   'not-girisi': (api) => SinavEkrani(api: api, yonetim: false),
   'sinav-yonetim': (api) => SinavEkrani(api: api, yonetim: true),
   'etut': (api) => EtutEkrani(api: api, rol: 'ogretmen'),
