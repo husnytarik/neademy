@@ -14,6 +14,7 @@ import 'duyuru_yonetim.dart';
 import 'kulup.dart';
 import 'kisiler.dart';
 import 'kurum.dart';
+import 'profil.dart';
 import 'ogrenciler.dart';
 import 'zumrem.dart';
 import 'notlarim.dart';
@@ -148,11 +149,13 @@ class _PanelEkraniState extends State<PanelEkrani> {
       icon: const Icon(Icons.more_horiz, color: Colors.white),
       tooltip: 'Menü',
       onSelected: (v) {
+        if (v == 'hesap') Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ProfilEkrani(api: widget.oturum.api)));
         if (v == 'profil') widget.oturum.profilDegistir();
         if (v == 'kilit') widget.oturum.kilidiAyarla(!widget.oturum.kilitAcik);
         if (v == 'cikis') widget.oturum.cikisYap();
       },
       itemBuilder: (_) => [
+        const PopupMenuItem(value: 'hesap', child: Text('Profilim')),
         if (ben.coklu) const PopupMenuItem(value: 'profil', child: Text('Profil değiştir')),
         if (_biyometriVar) PopupMenuItem(value: 'kilit', child: Text(widget.oturum.kilitAcik ? 'Biyometrik açılışı kapat' : 'Biyometrik açılışı aç')),
         const PopupMenuItem(value: 'cikis', child: Text('Çıkış yap')),
