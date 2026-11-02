@@ -153,8 +153,14 @@ class _OgrencilerEkraniState extends State<OgrencilerEkrani> {
                 onPressed: () => _git(SinifKarneEkrani(api: widget.api, sinifId: int.parse(_sinif))),
                 child: const Text('Sınıf karneleri'),
               ),
-            TextButton(
+            FilledButton(
               onPressed: () => _git(OgrenciFormu(api: widget.api)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+              ),
               child: const Text('+ Yeni öğrenci'),
             ),
           ],
