@@ -240,7 +240,7 @@ class _GelisimOgrenciEkraniState extends State<GelisimOgrenciEkrani> {
     final kaydedildi = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) =>
-            _GorusmeFormu(api: widget.api, ogrenciId: widget.ogrenci.n('id'), donemler: rapor.l('donemler'), bugun: rapor.s('bugun'), mevcut: mevcut, tur: tur),
+            GorusmeFormu(api: widget.api, ogrenciId: widget.ogrenci.n('id'), donemler: rapor.l('donemler'), bugun: rapor.s('bugun'), mevcut: mevcut, tur: tur),
       ),
     );
     if (kaydedildi == true && mounted) setState(() => _yenile++);
@@ -496,8 +496,8 @@ class _GozlemFormuState extends State<_GozlemFormu> {
   );
 }
 
-class _GorusmeFormu extends StatefulWidget {
-  const _GorusmeFormu({required this.api, required this.ogrenciId, required this.donemler, required this.bugun, required this.mevcut, required this.tur});
+class GorusmeFormu extends StatefulWidget {
+  const GorusmeFormu({super.key, required this.api, required this.ogrenciId, required this.donemler, required this.bugun, required this.mevcut, required this.tur});
 
   final Api api;
   final int ogrenciId;
@@ -507,10 +507,10 @@ class _GorusmeFormu extends StatefulWidget {
   final String tur;
 
   @override
-  State<_GorusmeFormu> createState() => _GorusmeFormuState();
+  State<GorusmeFormu> createState() => _GorusmeFormuDurum();
 }
 
-class _GorusmeFormuState extends State<_GorusmeFormu> {
+class _GorusmeFormuDurum extends State<GorusmeFormu> {
   late String _tur = widget.mevcut?.s('tur') ?? widget.tur;
   late String _tarih = widget.mevcut?.s('tarih') ?? widget.bugun;
   late int? _donem = widget.mevcut?['donemId'] as int?;
