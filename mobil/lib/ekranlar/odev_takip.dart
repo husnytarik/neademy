@@ -293,8 +293,12 @@ class _OgrenciOdevState extends State<_OgrenciOdev> {
           decoration: const InputDecoration(hintText: 'Neyin düzeltileceğini yazın'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(d, c.text.trim()), child: const Text('Gönder')),
+          DiyalogEylemleri(
+            children: [
+              TextButton(onPressed: () => Navigator.pop(d), child: const Text('Vazgeç')),
+              FilledButton(onPressed: () => Navigator.pop(d, c.text.trim()), child: const Text('Gönder')),
+            ],
+          ),
         ],
       ),
     );

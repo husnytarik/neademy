@@ -1290,7 +1290,11 @@ class _CevapSekmesiState extends State<_CevapSekmesi> {
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam'))],
+        actions: [
+          DiyalogEylemleri(
+            children: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam'))],
+          ),
+        ],
       ),
     );
   }
@@ -1433,10 +1437,14 @@ class _OptikDialogState extends State<_OptikDialog> {
       ),
     ),
     actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, _OptikGirdi(_metin.text, _csv, (int.tryParse(_uzunluk.text) ?? 10).clamp(1, 20))),
-        child: const Text('Uygula'),
+      DiyalogEylemleri(
+        children: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _OptikGirdi(_metin.text, _csv, (int.tryParse(_uzunluk.text) ?? 10).clamp(1, 20))),
+            child: const Text('Uygula'),
+          ),
+        ],
       ),
     ],
   );

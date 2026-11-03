@@ -114,6 +114,15 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
+    // Web'deki ikincil düğme gibi: ince çerçeveli, yuvarlak köşeli
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        side: BorderSide(color: ana.withValues(alpha: .5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
     textTheme: Typography.material2021().black.apply(bodyColor: yazi, displayColor: yazi),
   );
 }

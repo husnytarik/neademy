@@ -290,14 +290,52 @@ void hataGoster(BuildContext context, Object hata) {
 }
 
 /// Onay penceresi; "Evet" seçilirse true döner.
+/// Pencere düğmeleri: çerçeveli ve eşit genişlikte yan yana (üçten fazlaysa alt alta).
+class DiyalogEylemleri extends StatelessWidget {
+  const DiyalogEylemleri({super.key, required this.children, this.dikey = false});
+
+  final List<Widget> children;
+  final bool dikey;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    const boy = WidgetStatePropertyAll(Size(0, 46));
+    final aralik = SizedBox(width: dikey ? 0 : 10, height: dikey ? 8 : 0);
+    return Theme(
+      data: tema.copyWith(
+        filledButtonTheme: FilledButtonThemeData(style: tema.filledButtonTheme.style?.copyWith(minimumSize: boy)),
+        textButtonTheme: TextButtonThemeData(style: tema.textButtonTheme.style?.copyWith(minimumSize: boy)),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: tema.outlinedButtonTheme.style?.copyWith(minimumSize: boy)),
+      ),
+      child: dikey
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[if (i > 0) aralik, children[i]],
+              ],
+            )
+          : Row(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[if (i > 0) aralik, Expanded(child: children[i])],
+              ],
+            ),
+    );
+  }
+}
+
 Future<bool> onayIste(BuildContext context, String soru, {String evet = 'Evet'}) async {
   final s = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       content: Text(soru),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(evet)),
+        DiyalogEylemleri(
+          children: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(evet)),
+          ],
+        ),
       ],
     ),
   );

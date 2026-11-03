@@ -303,9 +303,14 @@ class _SinifProgramiState extends State<_SinifProgrami> {
               title: const Text('Programda dolu hücreler var'),
               content: const Text('Mevcut programı silip baştan mı kuralım, yoksa yalnızca eksik saatleri mi tamamlayalım?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
-                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Eksikleri tamamla')),
-                TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Baştan kur')),
+                DiyalogEylemleri(
+                  dikey: true,
+                  children: [
+                    FilledButton(onPressed: () => Navigator.pop(c, false), child: const Text('Eksikleri tamamla')),
+                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Baştan kur')),
+                    TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
+                  ],
+                ),
               ],
             ),
           )
