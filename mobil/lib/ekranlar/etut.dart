@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../bilesenler/ortak.dart';
+import '../bilesenler/yoklama_ogeleri.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
@@ -452,8 +453,102 @@ class _EtutFormuState extends State<_EtutFormu> {
   late int _sure = (widget.secenek['sureler'] as List?)?.map((e) => e as num).map((e) => e.toInt()).firstOrNull ?? 40;
   int? _ders;
   final _siniflar = <int>{};
-  final _ogrenciler = <int>{};
+  final _cikarilan = <int>{};
   String? _hata;
+
+  List<Map<String, dynamic>> _sinifOgrencileri(int sinifId) => [
+    for (final o in widget.secenek.l('ogrenciler'))
+      if (o.n('sinifId') == sinifId) o,
+  ];
+
+  int _davetliSayisi(int sinifId) => _sinifOgrencileri(sinifId).where((o) => !_cikarilan.contains(o.n('id'))).length;
+
+  /// Seçili sınıflardaki, listeden çıkarılmamış öğrencilerin kimlikleri.
+  List<int> get _davetliler => {
+    for (final sid in _siniflar)
+      for (final o in _sinifOgrencileri(sid))
+        if (!_cikarilan.contains(o.n('id'))) o.n('id'),
+  }.toList();
+
+  void _sinifDegistir(Iterable<Map<String, dynamic>> siniflar, bool ekle) => setState(() {
+    for (final c in siniflar) {
+      if (ekle) {
+        _siniflar.add(c.n('id'));
+      } else {
+        _siniflar.remove(c.n('id'));
+        _cikarilan.removeAll(_sinifOgrencileri(c.n('id')).map((o) => o.n('id')));
+      }
+    }
+  });
+
+  static int _adSirasi(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final x = int.tryParse(RegExp(r'^\d+').firstMatch(a.s('ad'))?.group(0) ?? '') ?? 999;
+    final y = int.tryParse(RegExp(r'^\d+').firstMatch(b.s('ad'))?.group(0) ?? '') ?? 999;
+    return x != y ? x.compareTo(y) : a.s('ad').compareTo(b.s('ad'));
+  }
+
+  List<Widget> _sinifGruplari(BuildContext context, List<Map<String, dynamic>> siniflar) {
+    final seviyeler = <String, List<Map<String, dynamic>>>{};
+    for (final c in siniflar) {
+      final sv = RegExp(r'^\d+').firstMatch(c.s('ad'))?.group(0) ?? 'Diğer';
+      seviyeler.putIfAbsent(sv, () => []).add(c);
+    }
+    final anahtarlar = seviyeler.keys.toList()..sort((a, b) => (int.tryParse(a) ?? 999).compareTo(int.tryParse(b) ?? 999));
+    return [
+      for (final sv in anahtarlar) ...[
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                int.tryParse(sv) != null ? '$sv. sınıflar' : sv,
+                style: TextStyle(color: context.soluk, fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+            TextButton(
+              onPressed: () => _sinifDegistir(seviyeler[sv]!, !seviyeler[sv]!.every((c) => _siniflar.contains(c.n('id')))),
+              child: Text(seviyeler[sv]!.every((c) => _siniflar.contains(c.n('id'))) ? 'Tümünü kaldır' : 'Tümü'),
+            ),
+          ],
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final c in seviyeler[sv]!..sort(_adSirasi))
+              _SinifCipi(
+                ad: c.s('ad'),
+                toplam: _sinifOgrencileri(c.n('id')).length,
+                secili: _siniflar.contains(c.n('id')) ? _davetliSayisi(c.n('id')) : null,
+                onTap: () => _sinifDegistir([c], !_siniflar.contains(c.n('id'))),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+      ],
+    ];
+  }
+
+  List<Widget> _secilenSiniflar(BuildContext context, List<Map<String, dynamic>> siniflar) => [
+    for (final c in siniflar.where((c) => _siniflar.contains(c.n('id'))).toList()..sort(_adSirasi)) ...[
+      Padding(
+        padding: const EdgeInsets.only(top: 10, bottom: 8),
+        child: Text(
+          '${c.s('ad')} · ${_davetliSayisi(c.n('id'))}/${_sinifOgrencileri(c.n('id')).length} öğrenci',
+          style: TextStyle(color: context.soluk, fontSize: 13, fontWeight: FontWeight.w700),
+        ),
+      ),
+      YoklamaIzgarasi(
+        cocuklar: [
+          for (final o in _sinifOgrencileri(c.n('id')))
+            _OgrenciCipi(
+              ad: o.s('ad'),
+              secili: !_cikarilan.contains(o.n('id')),
+              onTap: () => setState(() => _cikarilan.contains(o.n('id')) ? _cikarilan.remove(o.n('id')) : _cikarilan.add(o.n('id'))),
+            ),
+        ],
+      ),
+    ],
+  ];
 
   @override
   void dispose() {
@@ -465,7 +560,7 @@ class _EtutFormuState extends State<_EtutFormu> {
 
   void _gonder() {
     if (_konu.text.trim().length < 2) return setState(() => _hata = 'Konuyu yazın.');
-    if (_siniflar.isEmpty && _ogrenciler.isEmpty) return setState(() => _hata = 'En az bir sınıf ya da öğrenci seçin.');
+    if (_davetliler.isEmpty) return setState(() => _hata = 'En az bir sınıf seçin; listede en az bir öğrenci kalmalı.');
     Navigator.pop(context, {
       'konu': _konu.text.trim(),
       'tarih': tarihYaz(_tarih),
@@ -474,8 +569,8 @@ class _EtutFormuState extends State<_EtutFormu> {
       'dersId': _ders,
       'yer': _yer.text.trim(),
       'not': _not.text.trim(),
-      'sinifIds': _siniflar.toList(),
-      'ogrenciIds': _ogrenciler.toList(),
+      'sinifIds': <int>[],
+      'ogrenciIds': _davetliler,
     });
   }
 
@@ -486,7 +581,6 @@ class _EtutFormuState extends State<_EtutFormu> {
     ];
     final dersler = widget.secenek.l('dersler');
     final siniflar = widget.secenek.l('siniflar');
-    final ogrenciler = widget.secenek.l('ogrenciler');
     return Scaffold(
       appBar: AppBar(title: const Text('Yeni etüt')),
       body: SafeArea(
@@ -566,35 +660,15 @@ class _EtutFormuState extends State<_EtutFormu> {
               decoration: const InputDecoration(labelText: 'Not (isteğe bağlı)'),
             ),
             const Baslik('Sınıflar'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final s in siniflar)
-                  FilterChip(
-                    label: Text(s.s('ad')),
-                    selected: _siniflar.contains(s.n('id')),
-                    onSelected: (v) => setState(() => v ? _siniflar.add(s.n('id')) : _siniflar.remove(s.n('id'))),
-                  ),
-              ],
-            ),
-            Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: Text('Tek tek öğrenci seç${_ogrenciler.isEmpty ? '' : ' (${_ogrenciler.length})'}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                children: [
-                  for (final o in ogrenciler)
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(o.s('ad')),
-                      value: _ogrenciler.contains(o.n('id')),
-                      onChanged: (v) => setState(() => v == true ? _ogrenciler.add(o.n('id')) : _ogrenciler.remove(o.n('id'))),
-                    ),
-                ],
+            ..._sinifGruplari(context, siniflar),
+            Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 2),
+              child: Text(
+                _davetliler.isEmpty ? 'Henüz sınıf seçilmedi.' : 'Davet edilecek öğrenci: ${_davetliler.length}',
+                style: TextStyle(color: context.soluk, fontSize: 13.5),
               ),
             ),
+            ..._secilenSiniflar(context, siniflar),
             if (_hata != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -608,6 +682,92 @@ class _EtutFormuState extends State<_EtutFormu> {
               onPressed: _gonder,
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               child: const Text('Etüt aç'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sınıf düğmesi: ad ve altında öğrenci sayısı (seçiliyse davet edilen/toplam).
+class _SinifCipi extends StatelessWidget {
+  const _SinifCipi({required this.ad, required this.toplam, required this.secili, required this.onTap});
+
+  final String ad;
+  final int toplam;
+  final int? secili;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final acik = secili != null;
+    final renk = context.ana;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 64),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: acik ? renk.withValues(alpha: secili == toplam ? .16 : .08) : context.icZemin,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: acik ? renk : context.ince, width: acik ? 1.5 : 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(ad, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            Text(acik ? '$secili/$toplam' : '$toplam', style: TextStyle(fontSize: 11.5, color: context.soluk)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Seçili sınıftaki öğrenci: dokununca listeden çıkar / geri ekle.
+class _OgrenciCipi extends StatelessWidget {
+  const _OgrenciCipi({required this.ad, required this.secili, required this.onTap});
+
+  final String ad;
+  final bool secili;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const yesil = Color(0xFF2E9E5B);
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.fromLTRB(12, 0, 5, 0),
+        decoration: BoxDecoration(
+          color: secili ? yesil.withValues(alpha: .12) : context.icZemin,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: secili ? yesil.withValues(alpha: .4) : context.ince),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                ad,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, height: 1.15, color: secili ? null : context.soluk, decoration: secili ? null : TextDecoration.lineThrough),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: secili ? yesil : context.soluk.withValues(alpha: .5), shape: BoxShape.circle),
+              child: Text(
+                secili ? '✓' : '+',
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),

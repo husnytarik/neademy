@@ -333,6 +333,58 @@ void main() {
     expect(find.text('1 gelecek'), findsOneWidget);
   });
 
+  testWidgets('yeni etüt: sınıf seçilince öğrencileri gelir, tek tek çıkarılabilir', (t) async {
+    t.view.physicalSize = const Size(900, 2400);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    Map<String, dynamic>? gonderilen;
+    final api = Api(
+      istemci: MockClient((istek) async {
+        Object yanit = {};
+        if (istek.url.path == '/api/etut/liste') yanit = {'etutler': []};
+        if (istek.url.path == '/api/etut/secenek') {
+          yanit = {
+            'siniflar': [
+              {'id': 1, 'ad': '9-A'},
+              {'id': 2, 'ad': '9-B'},
+            ],
+            'ogrenciler': [
+              {'id': 11, 'ad': 'Ayşe Yıldız', 'sinifId': 1},
+              {'id': 12, 'ad': 'Mehmet Kaya', 'sinifId': 1},
+              {'id': 13, 'ad': 'Zeynep Demir', 'sinifId': 2},
+            ],
+            'dersler': [],
+            'sureler': [40],
+          };
+        }
+        if (istek.url.path == '/api/etut/ekle') gonderilen = jsonDecode(istek.body) as Map<String, dynamic>;
+        return http.Response.bytes(utf8.encode(jsonEncode(yanit)), 200, headers: {'content-type': 'application/json'});
+      }),
+    );
+    await _ciz(t, EtutEkrani(api: api, rol: 'ogretmen'));
+    await t.tap(find.text('Etüt aç'));
+    await t.pumpAndSettle();
+    expect(find.text('Henüz sınıf seçilmedi.'), findsOneWidget);
+    expect(find.text('Ayşe Yıldız'), findsNothing);
+
+    await t.tap(find.text('9-A'));
+    await t.pumpAndSettle();
+    expect(find.text('Davet edilecek öğrenci: 2'), findsOneWidget);
+    expect(find.text('Ayşe Yıldız'), findsOneWidget);
+    expect(find.text('Zeynep Demir'), findsNothing);
+
+    await t.tap(find.text('Mehmet Kaya'));
+    await t.pumpAndSettle();
+    expect(find.text('Davet edilecek öğrenci: 1'), findsOneWidget);
+    expect(find.text('9-A · 1/2 öğrenci'), findsOneWidget);
+
+    await t.enterText(find.byType(TextField).first, 'Kuvvet tekrarı');
+    await t.tap(find.widgetWithText(FilledButton, 'Etüt aç'));
+    await t.pumpAndSettle();
+    expect(gonderilen?['ogrenciIds'], [11]);
+    expect(gonderilen?['sinifIds'], isEmpty);
+  });
+
   testWidgets('teslim yetkileri çizilir', (t) async {
     final api = _api({
       '/api/teslim/liste': {
