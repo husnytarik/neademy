@@ -193,7 +193,12 @@ void main() {
     await _ciz(t, DersBitirEkrani(api: api, ders: ders, tarih: '2026-11-02'));
     expect(find.text('Ali Deneme'), findsOneWidget);
     expect(find.text('Veli Deneme'), findsOneWidget);
-    expect(find.text('Gelmedi'), findsWidgets);
+    expect(find.text('✓'), findsNWidgets(2));
+    await t.tap(find.text('Ali Deneme'));
+    await t.pumpAndSettle();
+    await t.tapAt(t.getCenter(find.text('Ali Deneme').last) + const Offset(0, 72));
+    await t.pumpAndSettle();
+    expect(find.text('✗'), findsNWidgets(2));
     expect(find.text('Kazanım seç'), findsWidgets);
     await t.scrollUntilVisible(find.text('Dersi bitir'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.text('Dersi bitir'), findsOneWidget);

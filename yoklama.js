@@ -131,18 +131,17 @@ export async function yoklamaApi({ req, res, url, o, json, govde, denetle }) {
     if (baslamadi(tarih, dersSaati)) return hata(400, 'Bu ders henüz başlamadı');
     const ders = dersBul(o.membership_id, sinifId, tarih, dersSaati);
     if (!ders) return hata(404, 'Bu tarihte bu ders size ait değil');
-    // Müfredatta kazanımı olan derste konu yazılmaz: ünite listesinden kazanım seçilir, konu başlığı seçimden üretilir
+    // Kazanım seçilirse konu başlığı seçimden üretilir; seçilmezse (etkinlik hazırlığı gibi) konu serbest yazılır
     const sec = kazanimCoz(ders.ders, ders.sinif, b.kazanimlar);
     if (sec.hata) return hata(400, sec.hata);
     let konu, kazanim;
-    if (sec.var) {
-      if (!sec.girdiler.length) return hata(400, 'İşlenen konu için en az bir kazanım seçin');
+    if (sec.var && sec.girdiler.length) {
       konu = sec.konu;
       kazanim = sec.girdiler.join('\n');
     } else {
       konu = String(b.konu || '').trim();
       kazanim = '';
-      if (konu.length < 2 || konu.length > 120) return hata(400, 'İşlenen konu 2-120 karakter olmalı');
+      if (konu.length < 2 || konu.length > 120) return hata(400, 'Kazanım seçin ya da işlenen konuyu yazın (2-120 karakter)');
     }
     const aciklama = String(b.aciklama || '').trim().slice(0, 500);
     const odevBaslik = String(b.odev?.baslik || '').trim();

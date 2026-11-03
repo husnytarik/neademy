@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bilesenler/kazanim_secici.dart';
 import '../bilesenler/ortak.dart';
+import '../bilesenler/yoklama_ogeleri.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
@@ -37,13 +38,6 @@ class DersBitirGovde extends StatefulWidget {
 }
 
 class _DersBitirGovdeState extends State<DersBitirGovde> {
-  static const _durumlar = [
-    ('geldi', 'Geldi', Color(0xFF2E9E5B)),
-    ('gelmedi', 'Gelmedi', Color(0xFFD64545)),
-    ('gec', 'Geç', Color(0xFFE0A100)),
-    ('izinli', 'İzinli', Color(0xFF8A867D)),
-  ];
-
   Map<String, dynamic>? _veri;
   String? _hata;
   bool _kaydediyor = false;
@@ -185,12 +179,14 @@ class _DersBitirGovdeState extends State<DersBitirGovde> {
             );
     }
     final ogrenciler = j.l('ogrenciler');
-    final say = {for (final d in _durumlar) d.$1: 0};
+    final say = {for (final d in yoklamaDurumlari) d.$1: 0};
     for (final o in ogrenciler) {
-      say[_durum[o.n('ogrenciId')] ?? 'geldi'] = (say[_durum[o.n('ogrenciId')] ?? 'geldi'] ?? 0) + 1;
+      final k = _durum[o.n('ogrenciId')] ?? 'geldi';
+      say[k] = (say[k] ?? 0) + 1;
     }
     final tamam = j['tamam'] == true && j['iptal'] != true;
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
         if (j['iptal'] == true)
@@ -203,37 +199,26 @@ class _DersBitirGovdeState extends State<DersBitirGovde> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(spacing: 8, runSpacing: 6, children: [for (final d in _durumlar) Cip('${d.$2} ${say[d.$1]}', renk: d.$3)]),
+              YoklamaOzeti(sayilar: say),
+              const SizedBox(height: 12),
               if (ogrenciler.isNotEmpty && say['geldi'] != ogrenciler.length)
-                TextButton.icon(
+                TopluGeldiDugmesi(
                   onPressed: () => setState(() {
                     for (final o in ogrenciler) {
                       _durum[o.n('ogrenciId')] = 'geldi';
                     }
                   }),
-                  icon: const Icon(Icons.done_all, size: 18),
-                  label: const Text('Hepsini geldi yap'),
                 ),
-              if (ogrenciler.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text('Bu sınıfta aktif öğrenci yok.', style: TextStyle(color: context.soluk)),
+              if (ogrenciler.isEmpty) Text('Bu sınıfta aktif öğrenci yok.', style: TextStyle(color: context.soluk)),
+              if (ogrenciler.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                YoklamaIzgarasi(
+                  cocuklar: [
+                    for (final o in ogrenciler)
+                      YoklamaHapi(ad: o.s('ad'), durum: _durum[o.n('ogrenciId')] ?? 'geldi', degisti: (v) => setState(() => _durum[o.n('ogrenciId')] = v)),
+                  ],
                 ),
-              for (final o in ogrenciler)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(o.s('ad'), style: const TextStyle(fontSize: 15.5))),
-                      PopupMenuButton<String>(
-                        tooltip: 'Durum',
-                        onSelected: (v) => setState(() => _durum[o.n('ogrenciId')] = v),
-                        itemBuilder: (_) => [for (final d in _durumlar) PopupMenuItem(value: d.$1, child: Text(d.$2))],
-                        child: _DurumHapi(_durumlar.firstWhere((d) => d.$1 == (_durum[o.n('ogrenciId')] ?? 'geldi'))),
-                      ),
-                    ],
-                  ),
-                ),
+              ],
             ],
           ),
         ),
@@ -245,13 +230,16 @@ class _DersBitirGovdeState extends State<DersBitirGovde> {
               KazanimAlani(secim: _kazanim),
               ListenableBuilder(
                 listenable: _kazanim,
-                builder: (_, _) => _kazanim.yuklendi && !_kazanim.var_
+                builder: (_, _) => _kazanim.yuklendi && !(_kazanim.var_ && _kazanim.kodlar.isNotEmpty)
                     ? Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(top: 10, bottom: 10),
                         child: TextField(
                           controller: _konu,
                           maxLength: 120,
-                          decoration: const InputDecoration(labelText: 'Konu', hintText: 'Örn. Atölye çalışması'),
+                          decoration: InputDecoration(
+                            labelText: _kazanim.var_ ? 'Ya da konuyu kendin yaz' : 'Konu',
+                            hintText: 'Örn. Etkinlik için hazırlık yapıldı',
+                          ),
                         ),
                       )
                     : const SizedBox.shrink(),
@@ -307,31 +295,4 @@ class _DersBitirGovdeState extends State<DersBitirGovde> {
       ],
     );
   }
-}
-
-class _DurumHapi extends StatelessWidget {
-  const _DurumHapi(this.d);
-
-  final (String, String, Color) d;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 96,
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    decoration: BoxDecoration(color: d.$3.withValues(alpha: .13), borderRadius: BorderRadius.circular(20)),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            d.$2,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: d.$3, fontWeight: FontWeight.w700, fontSize: 13.5),
-          ),
-        ),
-        Icon(Icons.arrow_drop_down, size: 18, color: d.$3),
-      ],
-    ),
-  );
 }

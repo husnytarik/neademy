@@ -303,14 +303,13 @@ export async function dersApi({ req, res, url, o, json, govde, denetle }) {
     const tarih = String(b.tarih || '');
     let kazanim = '';
     if (yol === '/api/ders/konu-ekle') {
-      // Konu yazılmaz: ünitedeki kazanımlar listeden seçilir, başlık seçimden türetilir (MEB listesi olmayan derslerde serbest başlık)
+      // Kazanım seçilirse başlık seçimden türetilir; seçilmezse (etkinlik hazırlığı gibi) başlık serbest yazılır
       const sec = kazanimCoz(a.ders, a.sinif, b.kazanimlar);
       if (sec.hata) return hata(400, sec.hata);
-      if (sec.var) {
-        if (!sec.kodlar.length) return hata(400, 'En az bir kazanım seçin');
+      if (sec.var && sec.kodlar.length) {
         baslik = sec.konu;
         kazanim = sec.girdiler.join('\n');
-      } else if (baslik.length < 2 || baslik.length > 120) return hata(400, 'Başlık 2-120 karakter olmalı');
+      } else if (baslik.length < 2 || baslik.length > 120) return hata(400, 'Kazanım seçin ya da konuyu yazın (2-120 karakter)');
     } else {
       if (baslik.length < 2 || baslik.length > 120) return hata(400, 'Başlık 2-120 karakter olmalı');
       const sec = b.kazanimKod ? kazanimCoz(a.ders, a.sinif, [b.kazanimKod]) : { girdiler: [] };

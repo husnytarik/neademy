@@ -68,6 +68,8 @@ class _NeademyUygulamasiState extends State<NeademyUygulamasi> with WidgetsBindi
       theme: temaOlustur(Brightness.light, bant: bant),
       darkTheme: temaOlustur(Brightness.dark, bant: bant),
       themeMode: ThemeMode.system,
+      builder: (context, child) =>
+          GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => FocusManager.instance.primaryFocus?.unfocus(), child: child),
       locale: const Locale('tr', 'TR'),
       supportedLocales: const [Locale('tr', 'TR')],
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],

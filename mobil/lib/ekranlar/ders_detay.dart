@@ -260,7 +260,12 @@ class _EkleBasligi extends StatelessWidget {
         Expanded(
           child: Text(baslik, style: serif.copyWith(fontSize: 18, fontWeight: FontWeight.w600)),
         ),
-        FilledButton.tonalIcon(onPressed: ac, icon: const Icon(Icons.add, size: 18), label: Text(dugme)),
+        FilledButton.tonalIcon(
+          onPressed: ac,
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+          icon: const Icon(Icons.add, size: 18),
+          label: Text(dugme),
+        ),
       ],
     ),
   );
@@ -526,13 +531,13 @@ class _EkleSayfasiState extends State<EkleSayfasi> {
         KazanimAlani(secim: _kazanim),
         ListenableBuilder(
           listenable: _kazanim,
-          builder: (_, _) => (!widget.konu || (_kazanim.yuklendi && !_kazanim.var_))
+          builder: (_, _) => (!widget.konu || (_kazanim.yuklendi && !(_kazanim.var_ && _kazanim.kodlar.isNotEmpty)))
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: TextField(
                     controller: _baslik,
                     maxLength: 120,
-                    decoration: const InputDecoration(labelText: 'Başlık'),
+                    decoration: InputDecoration(labelText: widget.konu && _kazanim.var_ ? 'Ya da konuyu kendin yaz' : 'Başlık'),
                   ),
                 )
               : const SizedBox.shrink(),
