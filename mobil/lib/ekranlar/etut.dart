@@ -109,64 +109,8 @@ class _EtutEkraniState extends State<EtutEkrani> {
   }
 
   Future<void> _yoklama(Map<String, dynamic> e) async {
-    final durum = <int, String>{for (final k in e.l('katilimcilar')) k.n('ogrenciId'): k.s('devam').isEmpty ? 'geldi' : k.s('devam')};
-    final tamam = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: .75,
-          maxChildSize: .95,
-          builder: (c, kaydir) => Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Yoklama · ${e.s('konu')}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: kaydir,
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  children: [
-                    for (final k in e.l('katilimcilar'))
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(k.s('ad'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 6),
-                            SegmentedButton<String>(
-                              showSelectedIcon: false,
-                              segments: [for (final d in _devamAd.entries) ButtonSegment(value: d.key, label: Text(d.value))],
-                              selected: {durum[k.n('ogrenciId')]!},
-                              onSelectionChanged: (s) => set(() => durum[k.n('ogrenciId')] = s.first),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, 16 + MediaQuery.of(c).padding.bottom),
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(c, true),
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                  child: const Text('Kaydet'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (tamam != true) return;
+    final durum = await Navigator.of(context).push<Map<int, String>>(MaterialPageRoute(builder: (_) => _EtutYoklamasi(etut: e)));
+    if (durum == null) return;
     await _islem(
       () => widget.api.post('/api/etut/yoklama', {
         'etutId': e.n('id'),
@@ -429,6 +373,77 @@ class _OgretmenEtut extends StatelessWidget {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Etüt yoklaması: web'deki gibi özet çubuğu, "hepsini geldi yap" ve öğrenci hapları (halka menüyle seçilir).
+class _EtutYoklamasi extends StatefulWidget {
+  const _EtutYoklamasi({required this.etut});
+
+  final Map<String, dynamic> etut;
+
+  @override
+  State<_EtutYoklamasi> createState() => _EtutYoklamasiState();
+}
+
+class _EtutYoklamasiState extends State<_EtutYoklamasi> {
+  static const _secenekler = {'geldi', 'gelmedi', 'izinli'};
+  late final Map<int, String> _durum = {for (final k in widget.etut.l('katilimcilar')) k.n('ogrenciId'): k.s('devam').isEmpty ? 'geldi' : k.s('devam')};
+
+  @override
+  Widget build(BuildContext context) {
+    final katilimcilar = widget.etut.l('katilimcilar');
+    final sayilar = <String, int>{};
+    for (final d in _durum.values) {
+      sayilar[d] = (sayilar[d] ?? 0) + 1;
+    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('Yoklama')),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                children: [
+                  Text(widget.etut.s('konu'), style: serif.copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 14),
+                  YoklamaOzeti(sayilar: sayilar),
+                  const SizedBox(height: 12),
+                  TopluGeldiDugmesi(onPressed: () => setState(() => _durum.updateAll((_, _) => 'geldi'))),
+                  const SizedBox(height: 12),
+                  YoklamaIzgarasi(
+                    cocuklar: [
+                      for (final k in katilimcilar)
+                        YoklamaHapi(
+                          ad: k.s('ad'),
+                          durum: _durum[k.n('ogrenciId')] ?? 'geldi',
+                          secenekler: _secenekler,
+                          alt: _yanitAd[k.s('yanit')] ?? '',
+                          altRenk: switch (k.s('yanit')) {
+                            'gelecek' => _yesil,
+                            'gelmeyecek' => _kirmizi,
+                            _ => null,
+                          },
+                          degisti: (v) => setState(() => _durum[k.n('ogrenciId')] = v),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, _durum),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                child: const Text('Yoklamayı kaydet'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

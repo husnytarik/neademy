@@ -119,11 +119,18 @@ class TopluGeldiDugmesi extends StatelessWidget {
 
 /// Öğrenci hapı: adı ve sağda durum simgesi; dokununca pasta menü açılır.
 class YoklamaHapi extends StatelessWidget {
-  const YoklamaHapi({super.key, required this.ad, required this.durum, required this.degisti});
+  const YoklamaHapi({super.key, required this.ad, required this.durum, required this.degisti, this.secenekler, this.alt, this.altRenk});
 
   final String ad;
   final String durum;
   final ValueChanged<String> degisti;
+
+  /// Halka menüde gösterilecek durum kodları (boşsa dördü de).
+  final Set<String>? secenekler;
+
+  /// Adın altındaki küçük etiket (etütte velinin yanıtı gibi).
+  final String? alt;
+  final Color? altRenk;
 
   @override
   Widget build(BuildContext context) {
@@ -134,11 +141,11 @@ class YoklamaHapi extends StatelessWidget {
       onTap: () async {
         final kutu = context.findRenderObject() as RenderBox;
         final alan = kutu.localToGlobal(Offset.zero) & kutu.size;
-        final secilen = await pastaAc(context, alan, ad, durum);
+        final secilen = await pastaAc(context, alan, ad, durum, secenekler: secenekler);
         if (secilen != null) degisti(secilen);
       },
       child: Container(
-        height: 40,
+        height: alt == null ? 40 : 48,
         padding: const EdgeInsets.fromLTRB(12, 0, 5, 0),
         decoration: BoxDecoration(
           color: Color.alphaBlend(d.$4.withValues(alpha: .12), zemin),
@@ -148,7 +155,21 @@ class YoklamaHapi extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(ad, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.15)),
+              child: alt == null
+                  ? Text(ad, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.15))
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(ad, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.15)),
+                        Text(
+                          alt!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10.5, height: 1.2, color: altRenk ?? context.soluk),
+                        ),
+                      ],
+                    ),
             ),
             const SizedBox(width: 6),
             Container(
@@ -192,7 +213,7 @@ const _ic = 40.0;
 const _dis = 104.0;
 
 /// Hedefin çevresinde dört dilimli halka menü açar; seçilen durum kodunu döndürür.
-Future<String?> pastaAc(BuildContext context, Rect hedef, String ad, String mevcut) => showGeneralDialog<String>(
+Future<String?> pastaAc(BuildContext context, Rect hedef, String ad, String mevcut, {Set<String>? secenekler}) => showGeneralDialog<String>(
   context: context,
   barrierDismissible: true,
   barrierLabel: 'Kapat',
@@ -214,7 +235,7 @@ Future<String?> pastaAc(BuildContext context, Rect hedef, String ad, String mevc
           top: cy - pay,
           width: 2 * pay,
           height: 2 * pay,
-          child: _Pasta(ad: ad, mevcut: mevcut),
+          child: _Pasta(ad: ad, mevcut: mevcut, secenekler: secenekler),
         ),
       ],
     );
@@ -222,10 +243,11 @@ Future<String?> pastaAc(BuildContext context, Rect hedef, String ad, String mevc
 );
 
 class _Pasta extends StatelessWidget {
-  const _Pasta({required this.ad, required this.mevcut});
+  const _Pasta({required this.ad, required this.mevcut, this.secenekler});
 
   final String ad;
   final String mevcut;
+  final Set<String>? secenekler;
 
   String? _dilim(Offset p) {
     final r = p.distance;
@@ -233,6 +255,7 @@ class _Pasta extends StatelessWidget {
     String? en;
     var enDeger = -2.0;
     for (final e in _yon.entries) {
+      if (secenekler != null && !secenekler!.contains(e.key)) continue;
       final k = (p.dx * e.value.dx + p.dy * e.value.dy) / r;
       if (k > enDeger) {
         enDeger = k;
@@ -253,7 +276,7 @@ class _Pasta extends StatelessWidget {
         if (s != null) Navigator.pop(context, s);
       },
       child: CustomPaint(
-        painter: _PastaCizici(mevcut, Theme.of(context).colorScheme.surface, murekkep),
+        painter: _PastaCizici(mevcut, Theme.of(context).colorScheme.surface, murekkep, secenekler),
         child: Center(
           child: SizedBox(
             width: 70,
@@ -270,8 +293,9 @@ class _Pasta extends StatelessWidget {
 }
 
 class _PastaCizici extends CustomPainter {
-  _PastaCizici(this.mevcut, this.zemin, this.murekkep);
+  _PastaCizici(this.mevcut, this.zemin, this.murekkep, this.secenekler);
 
+  final Set<String>? secenekler;
   final String mevcut;
   final Color zemin;
   final Color murekkep;
@@ -291,6 +315,7 @@ class _PastaCizici extends CustomPainter {
     canvas.translate(size.width / 2, size.height / 2);
     const bosluk = 0.035;
     for (final d in yoklamaDurumlari) {
+      if (secenekler != null && !secenekler!.contains(d.$1)) continue;
       final y = _yon[d.$1]!;
       final orta = math.atan2(y.dy, y.dx);
       final yol = _yol(orta - math.pi / 4 + bosluk, orta + math.pi / 4 - bosluk);

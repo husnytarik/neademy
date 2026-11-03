@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:neademy/bilesenler/yoklama_ogeleri.dart';
 import 'package:neademy/cekirdek/api.dart';
 import 'package:neademy/ekranlar/devamsizlik.dart';
 import 'package:neademy/ekranlar/etut.dart';
@@ -383,6 +384,60 @@ void main() {
     await t.pumpAndSettle();
     expect(gonderilen?['ogrenciIds'], [11]);
     expect(gonderilen?['sinifIds'], isEmpty);
+  });
+
+  testWidgets('etüt yoklaması: hap + halka menü, 3 seçenek, kaydedilir', (t) async {
+    t.view.physicalSize = const Size(900, 2400);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    final gecmis = DateTime.now().subtract(const Duration(days: 1));
+    final tarih = '${gecmis.year}-${gecmis.month.toString().padLeft(2, '0')}-${gecmis.day.toString().padLeft(2, '0')}';
+    Map<String, dynamic>? gonderilen;
+    final api = Api(
+      istemci: MockClient((istek) async {
+        Object yanit = {};
+        if (istek.url.path == '/api/etut/liste') {
+          yanit = {
+            'etutler': [
+              {
+                'id': 7,
+                'ders': 'Fizik',
+                'konu': 'Kuvvet',
+                'tarih': tarih,
+                'saat': '15:30',
+                'sureDk': 40,
+                'yer': '',
+                'not': '',
+                'durum': 'planli',
+                'ogretmen': 'B. Hoca',
+                'katilimcilar': [
+                  {'ogrenciId': 1, 'ad': 'Ayşe Deneme', 'yanit': 'gelecek', 'devam': ''},
+                  {'ogrenciId': 2, 'ad': 'Can Test', 'yanit': 'gelmeyecek', 'devam': ''},
+                ],
+              },
+            ],
+          };
+        }
+        if (istek.url.path == '/api/etut/yoklama') gonderilen = jsonDecode(istek.body) as Map<String, dynamic>;
+        return http.Response.bytes(utf8.encode(jsonEncode(yanit)), 200, headers: {'content-type': 'application/json'});
+      }),
+    );
+    await _ciz(t, EtutEkrani(api: api, rol: 'ogretmen'));
+    await t.tap(find.text('Yoklama al'));
+    await t.pumpAndSettle();
+    expect(find.text('Hepsini geldi yap'), findsOneWidget);
+    expect(find.text('Gelmeyecek'), findsOneWidget);
+
+    await t.tap(find.text('Can Test'));
+    await t.pumpAndSettle();
+    final merkez = t.getCenter(find.byType(YoklamaHapi).last);
+    await t.tapAt(merkez + const Offset(0, 70));
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Yoklamayı kaydet'));
+    await t.pumpAndSettle();
+    expect(gonderilen?['etutId'], 7);
+    expect((gonderilen?['kayitlar'] as List).map((k) => (k as Map)['durum']), ['geldi', 'gelmedi']);
   });
 
   testWidgets('teslim yetkileri çizilir', (t) async {
