@@ -268,7 +268,7 @@ class _SinavDetayEkraniState extends State<SinavDetayEkrani> {
       case 'hazirlik':
         return _HazirlikSekmesi(key: key, api: widget.api, sinavId: widget.id, yonetim: widget.yonetim);
       case 'sonuc':
-        return _SonucSekmesi(key: key, api: widget.api, sinavId: widget.id);
+        return _SonucSekmesi(key: key, api: widget.api, sinavId: widget.id, detay: widget.yonetim ? d : null);
       case 'analiz':
         return _AnalizSekmesi(key: key, api: widget.api, sinavId: widget.id);
       case 'puan':
@@ -659,10 +659,13 @@ class _DersHazirlikEkraniState extends State<_DersHazirlikEkrani> {
 // ─────────────────────────── Sonuç ───────────────────────────
 
 class _SonucSekmesi extends StatelessWidget {
-  const _SonucSekmesi({super.key, required this.api, required this.sinavId});
+  const _SonucSekmesi({super.key, required this.api, required this.sinavId, this.detay});
 
   final Api api;
   final int sinavId;
+
+  /// Yönetimde: öğrencilerin cevapları ve cevap anahtarı (soru soru inceleme için).
+  final Map<String, dynamic>? detay;
 
   @override
   Widget build(BuildContext context) => _Yuklu(
@@ -726,7 +729,7 @@ class _SonucSekmesi extends StatelessWidget {
           for (final g in sirali)
             KartKutu(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              onTap: g['ortalama'] is num ? () => _ogrenciRaporu(context, g, dersler, j.m('sinav')) : null,
+              onTap: g['ortalama'] is num ? () => _ogrenciRaporu(context, g, dersler, j.m('sinav'), detay) : null,
               child: Row(
                 children: [
                   SizedBox(
@@ -764,6 +767,24 @@ class _SonucSekmesi extends StatelessWidget {
     },
   );
 
+  /// Öğrencinin bu dersteki soru soru cevapları (yalnız yönetim; web'deki "Cevaplar" sekmesi gibi).
+  static List<Widget> _soruSoru(BuildContext c, String dersId, int ogrenciId, Map<String, dynamic>? detay) {
+    if (detay == null) return const [];
+    final x = detay.l('dersler').where((e) => '${e.n('id')}' == dersId).firstOrNull;
+    final og = detay.l('ogrenciler').where((e) => e.n('ogrenciId') == ogrenciId).firstOrNull;
+    final cevap = og?.m('cevaplar').s(dersId) ?? '';
+    if (x == null || cevap.isEmpty) return const [];
+    return [
+      CevapIzgarasi(
+        soruSayisi: x.n('soruSayisi'),
+        anahtar: x.s('anahtar'),
+        cevap: cevap,
+        iptal: [for (final i in (x['iptal'] as List? ?? const [])) (i as num).toInt()],
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
   static double? _dersOrtalama(List<Map<String, dynamic>> girenler, String dersId) {
     final p = <num>[
       for (final g in girenler)
@@ -772,7 +793,13 @@ class _SonucSekmesi extends StatelessWidget {
     return p.isEmpty ? null : p.fold<double>(0, (t, x) => t + x) / p.length;
   }
 
-  static void _ogrenciRaporu(BuildContext context, Map<String, dynamic> g, List<Map<String, dynamic>> dersler, Map<String, dynamic> sinav) {
+  static void _ogrenciRaporu(
+    BuildContext context,
+    Map<String, dynamic> g,
+    List<Map<String, dynamic>> dersler,
+    Map<String, dynamic> sinav,
+    Map<String, dynamic>? detay,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -824,11 +851,85 @@ class _SonucSekmesi extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
+            if (detay != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text('Soru soru: yeşil doğru, kırmızı yanlış (altında doğru şık), gri boş.', style: TextStyle(color: c.soluk, fontSize: 12.5)),
+              ),
             for (final d in dersler)
-              if (g.m('dersler').m(d.s('id')).isNotEmpty) _RaporDers(d.s('ders'), g.m('dersler').m(d.s('id'))),
+              if (g.m('dersler').m(d.s('id')).isNotEmpty) ...[
+                _RaporDers(d.s('ders'), g.m('dersler').m(d.s('id'))),
+                ..._soruSoru(c, d.s('id'), g.n('ogrenciId'), detay),
+              ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Soru soru işaret: yeşil doğru, kırmızı yanlış (altında doğru şık), gri boş, çizgili iptal (doğru sayılır).
+class CevapIzgarasi extends StatelessWidget {
+  const CevapIzgarasi({super.key, required this.soruSayisi, required this.anahtar, required this.cevap, this.iptal = const []});
+
+  final int soruSayisi;
+  final String anahtar;
+  final String cevap;
+  final List<int> iptal;
+
+  @override
+  Widget build(BuildContext context) {
+    const yesil = Color(0xFF2E9E5B);
+    const kirmizi = Color(0xFFD64545);
+    return Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      children: [
+        for (var i = 0; i < soruSayisi; i++)
+          Builder(
+            builder: (context) {
+              final h = i < cevap.length && cevap[i] != '-' && cevap[i] != ' ' && cevap[i] != '*' ? cevap[i].toUpperCase() : '-';
+              final dogru = i < anahtar.length ? anahtar[i] : '?';
+              final ipt = iptal.contains(i + 1);
+              final renk = ipt
+                  ? context.soluk
+                  : h == '-'
+                  ? context.soluk
+                  : h == dogru
+                  ? yesil
+                  : kirmizi;
+              final yanlis = !ipt && h != '-' && h != dogru;
+              return Container(
+                width: 40,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: renk.withValues(alpha: ipt || h == '-' ? .10 : .14),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: renk.withValues(alpha: .45)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('${i + 1}', style: TextStyle(fontSize: 9.5, color: context.soluk, height: 1.1)),
+                    Text(
+                      h == '-' ? '·' : h,
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: renk, height: 1.15),
+                    ),
+                    SizedBox(
+                      height: 12,
+                      child: yanlis
+                          ? Text(
+                              dogru,
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: yesil, height: 1.1),
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

@@ -282,11 +282,7 @@ void main() {
         {'ogrenciId': 5, 'ad': 'Deneme Öğrenci', 'okulNo': '12', 'sinif': '6-A', 'cevaplar': <String, Object>{}},
       ],
     };
-    await t.pumpWidget(
-      MaterialApp(
-        home: SinavDetayEkrani(api: _api({'/api/sinav/detay': detay}), id: 1, yonetim: true),
-      ),
-    );
+    await t.pumpWidget(MaterialApp(home: SinavDetayEkrani(api: _api({'/api/sinav/detay': detay}), id: 1, yonetim: true)));
     await t.pumpAndSettle();
     await t.tap(find.text('Cevaplar'));
     await t.pumpAndSettle();
@@ -300,5 +296,41 @@ void main() {
     await t.tap(find.text('Tamam'));
     await t.pumpAndSettle();
     expect(find.text('AB-'), findsOneWidget);
+  });
+
+  testWidgets('sonuç: yönetim öğrenci raporunda soru soru doğru/yanlış ve doğru şık görür', (t) async {
+    genis(t);
+    final detay = {
+      'yonetim': true,
+      'sinav': {..._detay['sinav'] as Map<String, Object>},
+      'siniflar': [
+        {'id': 1, 'name': '6-A'},
+      ],
+      'dersler': [
+        {'id': 11, 'ders': 'Fen Bilimleri', 'soruSayisi': 3, 'onay': true, 'anahtar': 'ABC', 'iptal': <Object>[]},
+      ],
+      'ogrenciler': [
+        {
+          'ogrenciId': 5,
+          'ad': 'Deneme Öğrenci',
+          'okulNo': '12',
+          'sinif': '6-A',
+          'cevaplar': {'11': 'AD-'},
+        },
+      ],
+    };
+    final api = _api({'/api/sinav/detay': detay, '/api/sinav/hazirlik': _hazirlik, '/api/sinav/sonuc': _sonuc});
+    await t.pumpWidget(MaterialApp(home: SinavDetayEkrani(api: api, id: 1, yonetim: true)));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Sonuç'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Deneme Öğrenci'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.byType(CevapIzgarasi), findsOneWidget);
+    // 2. soru yanlış: işaret D, doğru şık B altında; 1. doğru (A), 3. boş
+    expect(find.text('D'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('·'), findsOneWidget);
   });
 }
