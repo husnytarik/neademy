@@ -268,7 +268,7 @@ class _SinavDetayEkraniState extends State<SinavDetayEkrani> {
       case 'hazirlik':
         return _HazirlikSekmesi(key: key, api: widget.api, sinavId: widget.id, yonetim: widget.yonetim);
       case 'sonuc':
-        return _SonucSekmesi(key: key, api: widget.api, sinavId: widget.id, detay: widget.yonetim ? d : null);
+        return _SonucSekmesi(key: key, api: widget.api, sinavId: widget.id, detay: d);
       case 'analiz':
         return _AnalizSekmesi(key: key, api: widget.api, sinavId: widget.id);
       case 'puan':
@@ -664,7 +664,7 @@ class _SonucSekmesi extends StatelessWidget {
   final Api api;
   final int sinavId;
 
-  /// Yönetimde: öğrencilerin cevapları ve cevap anahtarı (soru soru inceleme için).
+  /// Sınav ayrıntısı: öğrenci cevapları ve cevap anahtarı (soru soru inceleme için; yönetimde hepsi, öğretmende kendi dersi).
   final Map<String, dynamic>? detay;
 
   @override
@@ -771,7 +771,11 @@ class _SonucSekmesi extends StatelessWidget {
   static List<Widget> _soruSoru(BuildContext c, String dersId, int ogrenciId, Map<String, dynamic>? detay) {
     if (detay == null) return const [];
     final x = detay.l('dersler').where((e) => '${e.n('id')}' == dersId).firstOrNull;
-    final og = detay.l('ogrenciler').where((e) => e.n('ogrenciId') == ogrenciId).firstOrNull;
+    // Yönetimde öğrenci satırında, öğretmende ayrı listede (yalnız kendi ders ve sınıfları)
+    final og = [
+      ...detay.l('ogrenciler'),
+      ...detay.l('cevapKayitlari'),
+    ].where((e) => e.n('ogrenciId') == ogrenciId && e.m('cevaplar').s(dersId).isNotEmpty).firstOrNull;
     final cevap = og?.m('cevaplar').s(dersId) ?? '';
     if (x == null || cevap.isEmpty) return const [];
     return [

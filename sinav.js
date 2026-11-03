@@ -591,11 +591,24 @@ export async function sinavApi({ req, res, url, o, json, govde, denetle }) {
       JOIN sinav_dersler d ON d.id = p.sinav_ders_id WHERE d.sinav_id = ?`).all(s.id)) puanlar[p.ogrenciId] = p.puan;
     if (!yon) {
       // Öğretmen: yazılıda yalnız ders verdiği sınıfların öğrencileri (puan girişi için); testte öğrenci listesi sonuç ekranından gelir
-      const benimSiniflar = [...new Set(ciftler(s.id, o.membership_id).map(c => c.sinifId))];
+      const cift = ciftler(s.id, o.membership_id);
+      const benimSiniflar = [...new Set(cift.map(c => c.sinifId))];
       const ogr = s.tur === 'yazili' ? sinifOgrencileri(benimSiniflar).map(g => ({ ...g, puan: puanlar[g.ogrenciId] ?? null })) : [];
+      // Testte öğretmen, dersini verdiği sınıfların öğrencilerinin kendi dersindeki cevaplarını soru soru görür (anahtar zaten hazırlıkta açık)
+      const cevapKayitlari = [];
+      if (s.tur === 'test') {
+        const harita = {};
+        for (const c of db.prepare(`SELECT c.sinav_ders_id AS dersId, c.student_membership_id AS ogrenciId, c.cevaplar
+          FROM sinav_cevaplar c JOIN sinav_dersler d ON d.id = c.sinav_ders_id WHERE d.sinav_id = ?`).all(s.id)) (harita[c.ogrenciId] ||= {})[c.dersId] = c.cevaplar;
+        for (const g of sinifOgrencileri(benimSiniflar)) {
+          const c = {};
+          for (const d of benimDersler) if (harita[g.ogrenciId]?.[d.id] && cift.some(x => x.sinifId === g.sinifId && x.ders === d.ders)) c[d.id] = harita[g.ogrenciId][d.id];
+          if (Object.keys(c).length) cevapKayitlari.push({ ogrenciId: g.ogrenciId, cevaplar: c });
+        }
+      }
       json(res, 200, {
         yonetim: false, sinav, siniflar: siniflar.filter(c => benimSiniflar.includes(c.id)),
-        dersler: benimDersler.map(({ id, ders, soruSayisi, onay }) => ({ id, ders, soruSayisi, onay })), ogrenciler: ogr,
+        dersler: benimDersler.map(({ id, ders, soruSayisi, onay, anahtar, iptal }) => ({ id, ders, soruSayisi, onay, anahtar, iptal })), ogrenciler: ogr, cevapKayitlari,
       });
       return true;
     }

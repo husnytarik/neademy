@@ -333,4 +333,38 @@ void main() {
     expect(find.text('B'), findsOneWidget);
     expect(find.text('·'), findsOneWidget);
   });
+
+  testWidgets('sonuç: sınavı hazırlayan öğretmen de öğrenci raporunda soru soru doğru/yanlış ve doğru şık görür', (t) async {
+    genis(t);
+    final detay = {
+      'yonetim': false,
+      'sinav': {..._detay['sinav'] as Map<String, Object>},
+      'siniflar': [
+        {'id': 1, 'name': '6-A'},
+      ],
+      'dersler': [
+        {'id': 11, 'ders': 'Fen Bilimleri', 'soruSayisi': 3, 'onay': true, 'anahtar': 'ABC', 'iptal': <Object>[]},
+      ],
+      'ogrenciler': <Object>[],
+      'cevapKayitlari': [
+        {
+          'ogrenciId': 5,
+          'cevaplar': {'11': 'AD-'},
+        },
+      ],
+    };
+    final api = _api({'/api/sinav/detay': detay, '/api/sinav/hazirlik': _hazirlik, '/api/sinav/sonuc': _sonuc});
+    await t.pumpWidget(MaterialApp(home: SinavDetayEkrani(api: api, id: 1, yonetim: false)));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Sonuç'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Deneme Öğrenci'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.byType(CevapIzgarasi), findsOneWidget);
+    // 2. soru yanlış: işaret D, doğru şık B altında; 1. doğru (A), 3. boş
+    expect(find.text('D'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('·'), findsOneWidget);
+  });
 }
