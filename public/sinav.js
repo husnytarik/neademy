@@ -1021,7 +1021,7 @@ function hazirlikKart(d, tek) {
   const durum = d.onay ? ['Onaylandı', 'onay'] : d.tamam ? ['Onay bekliyor', 'bekle'] : ['Eksik', 'eksik'];
   const ust = el('summary', undefined, 'hz-ust');
   const ad = el('span', undefined, 'hz-ad');
-  ad.append(el('strong', d.ders), el('small', `${d.soruSayisi} soru · anahtar ${d.sik}/${d.soruSayisi}${d.gerekli ? ` · kazanım ${d.kazanim}/${d.gerekli}` : ''}`));
+  ad.append(el('strong', d.ders), el('small', `${d.soruSayisi} soru · anahtar ${d.sik}/${d.gerekli}${d.gerekli ? ` · kazanım ${d.kazanim}/${d.gerekli}` : ''}`));
   ust.append(ad, el('span', durum[0], 'hz-durum ' + durum[1]));
   satir.append(ust);
   const govde = el('div', undefined, 'hz-govde');

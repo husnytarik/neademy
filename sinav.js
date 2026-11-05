@@ -324,12 +324,13 @@ export async function sinavApi({ req, res, url, o, json, govde, denetle }) {
 
   const kazanimListe = v => [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean))];
 
-  // Dersin hazırlık durumu: anahtar ve kazanım kaç soruda girildi (iptal edilen soruda kazanım aranmaz)
+  // Dersin hazırlık durumu: anahtar ve kazanım kaç soruda girildi (iptal edilen soruda ikisi de aranmaz)
   const hazirlik = (d, kazDizi) => {
-    const sik = [...d.anahtar].filter(c => SIKLAR.includes(c)).length;
+    // İptal edilen soru herkese doğru sayılır: şık da kazanım da aranmaz
+    const sik = [...d.anahtar].filter((c, i) => SIKLAR.includes(c) && !d.iptal.includes(i + 1)).length;
     const gerekli = d.soruSayisi - d.iptal.length;
     const kazanim = kazDizi.filter((k, i) => k && !d.iptal.includes(i + 1)).length;
-    return { sik, kazanim, gerekli, tamam: d.soruSayisi > 0 && sik === d.soruSayisi && kazanim === gerekli };
+    return { sik, kazanim, gerekli, tamam: gerekli > 0 && sik === gerekli && kazanim === gerekli };
   };
 
 
@@ -692,7 +693,7 @@ export async function sinavApi({ req, res, url, o, json, govde, denetle }) {
     const d = dersleri(e.s.id).find(x => x.id === dersId);
     if (b.onay) {
       const h = hazirlik(d, kazanimlari(e.s.id).get(dersId));
-      if (!h.tamam) return hata(400, `Onaylamadan önce tüm cevapları (${h.sik}/${d.soruSayisi}) ve kazanımları (${h.kazanim}/${h.gerekli}) girin`);
+      if (!h.tamam) return hata(400, `Onaylamadan önce tüm cevapları (${h.sik}/${h.gerekli}) ve kazanımları (${h.kazanim}/${h.gerekli}) girin`);
       db.prepare('UPDATE sinav_dersler SET onay = 1, onaylayan = ?, onay_tarih = ? WHERE id = ?').run(o.membership_id, Date.now(), dersId);
     } else db.prepare('UPDATE sinav_dersler SET onay = 0, onaylayan = NULL, onay_tarih = NULL WHERE id = ?').run(dersId);
     denetle(o.user_id, b.onay ? 'sinav-onay' : 'sinav-onay-kaldir', { id: e.s.id, dersId });

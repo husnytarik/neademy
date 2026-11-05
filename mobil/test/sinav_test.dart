@@ -201,6 +201,36 @@ void main() {
     expect(kayit, contains('POST /api/sinav/sorular'));
   });
 
+  testWidgets('hazırlık: kazanım listeden seçilir, üsttekiyle aynı yapılır', (t) async {
+    genis(t);
+    final api = _api({
+      '/api/sinav/detay': _detay,
+      '/api/sinav/hazirlik': _hazirlik,
+      '/api/kazanim': {
+        'dersler': ['Fen Bilimleri'],
+        'kazanimlar': [
+          {'kod': 'F.6.1.1', 'metin': 'Kuvvetin etkilerini açıklar.'},
+        ],
+      },
+    });
+    await t.pumpWidget(MaterialApp(home: SinavDetayEkrani(api: api, id: 1, yonetim: false)));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Fen Bilimleri'));
+    await t.pumpAndSettle();
+    // 2. sorunun kazanım kutusundaki arama düğmesi
+    await t.tap(find.byTooltip('Kazanım seç').at(1));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('Kuvvetin etkilerini açıklar.'), findsOneWidget);
+    await t.tap(find.text('Kuvvetin etkilerini açıklar.'));
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'F.6.1.1 – Kuvvetin etkilerini açıklar.'), findsOneWidget);
+    // 3. soru "üsttekiyle aynı"
+    await t.tap(find.byTooltip('Üsttekiyle aynı').at(1));
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'F.6.1.1 – Kuvvetin etkilerini açıklar.'), findsNWidgets(2));
+  });
+
   testWidgets('sonuç sekmesi: ortalama, sıralı öğrenciler ve öğrenci raporu', (t) async {
     genis(t);
     final api = _api({'/api/sinav/detay': _detay, '/api/sinav/hazirlik': _hazirlik, '/api/sinav/sonuc': _sonuc});

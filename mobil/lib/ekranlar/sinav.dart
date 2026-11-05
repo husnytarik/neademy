@@ -380,6 +380,7 @@ class _HazirlikSekmesiState extends State<_HazirlikSekmesi> {
     getir: () => widget.api.get('/api/sinav/hazirlik?id=${widget.sinavId}'),
     cizim: (context, veri, _) {
       final dersler = (veri as Map<String, dynamic>).l('dersler');
+      final duzey = veri.n('duzey');
       if (dersler.isEmpty) return const BosNot('Bu sınavda dersiniz yok.');
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,7 +395,7 @@ class _HazirlikSekmesiState extends State<_HazirlikSekmesi> {
               onTap: () async {
                 final tamam = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
-                    builder: (_) => _DersHazirlikEkrani(api: widget.api, sinavId: widget.sinavId, ders: d, yonetim: widget.yonetim),
+                    builder: (_) => _DersHazirlikEkrani(api: widget.api, sinavId: widget.sinavId, ders: d, yonetim: widget.yonetim, duzey: duzey),
                   ),
                 );
                 if (tamam == true && mounted) setState(() => _yenile++);
@@ -417,7 +418,7 @@ class _HazirlikSekmesiState extends State<_HazirlikSekmesi> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${d.n('soruSayisi')} soru · cevap ${d.n('sik')}/${d.n('soruSayisi')} · kazanım ${d.n('kazanim')}/${d.n('gerekli')}',
+                    '${d.n('soruSayisi')} soru · cevap ${d.n('sik')}/${d.n('gerekli')} · kazanım ${d.n('kazanim')}/${d.n('gerekli')}',
                     style: TextStyle(color: context.soluk, fontSize: 13),
                   ),
                   if (d['onay'] == true && d.s('onayAd').isNotEmpty)
@@ -433,12 +434,13 @@ class _HazirlikSekmesiState extends State<_HazirlikSekmesi> {
 
 /// Bir dersin soru soru cevap anahtarı, iptal ve kazanım girişi.
 class _DersHazirlikEkrani extends StatefulWidget {
-  const _DersHazirlikEkrani({required this.api, required this.sinavId, required this.ders, required this.yonetim});
+  const _DersHazirlikEkrani({required this.api, required this.sinavId, required this.ders, required this.yonetim, this.duzey = 0});
 
   final Api api;
   final int sinavId;
   final Map<String, dynamic> ders;
   final bool yonetim;
+  final int duzey;
 
   @override
   State<_DersHazirlikEkrani> createState() => _DersHazirlikEkraniState();
@@ -482,6 +484,22 @@ class _DersHazirlikEkraniState extends State<_DersHazirlikEkrani> {
       _degisti = true;
     });
     FocusScope.of(context).unfocus();
+  }
+
+  Future<void> _kazanimSec(int i) async {
+    FocusScope.of(context).unfocus();
+    final secilen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _KazanimAramasi(api: widget.api, ders: widget.ders.s('ders'), duzey: widget.duzey),
+    );
+    if (secilen != null && mounted) {
+      setState(() {
+        _kazanim[i].text = secilen;
+        _degisti = true;
+      });
+    }
   }
 
   Future<bool> _kaydet() async {
@@ -620,7 +638,26 @@ class _DersHazirlikEkraniState extends State<_DersHazirlikEkrani> {
                         minLines: 1,
                         maxLines: 3,
                         maxLength: 300,
-                        decoration: const InputDecoration(hintText: 'Kazanım', isDense: true, counterText: ''),
+                        decoration: InputDecoration(
+                          hintText: 'Kazanım seçin ya da yazın',
+                          isDense: true,
+                          counterText: '',
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (i > 0)
+                                IconButton(
+                                  tooltip: 'Üsttekiyle aynı',
+                                  icon: const Icon(Icons.arrow_upward, size: 20),
+                                  onPressed: () => setState(() {
+                                    _kazanim[i].text = _kazanim[i - 1].text;
+                                    _degisti = true;
+                                  }),
+                                ),
+                              IconButton(tooltip: 'Kazanım seç', icon: const Icon(Icons.search, size: 22), onPressed: () => _kazanimSec(i)),
+                            ],
+                          ),
+                        ),
                       ),
                     if (widget.ders.l('sorular')[i].s('kim').isNotEmpty)
                       Padding(
@@ -649,6 +686,183 @@ class _DersHazirlikEkraniState extends State<_DersHazirlikEkrani> {
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                 child: const Text('Kaydet ve onayla'),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// MEB kazanım programından arama: ders ve sınıf düzeyine göre süzer, dokunulan kazanım soruya yazılır (web'deki kazanım listesi gibi).
+class _KazanimAramasi extends StatefulWidget {
+  const _KazanimAramasi({required this.api, required this.ders, required this.duzey});
+
+  final Api api;
+  final String ders;
+  final int duzey;
+
+  @override
+  State<_KazanimAramasi> createState() => _KazanimAramasiState();
+}
+
+class _KazanimAramasiState extends State<_KazanimAramasi> {
+  final _q = TextEditingController();
+  List<String> _programlar = [];
+  String _program = '';
+  bool _duzeyli = true;
+  List<Map<String, dynamic>> _sonuc = [];
+  bool _yukleniyor = true;
+  int _sayac = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _duzeyli = widget.duzey > 0;
+    _baslat();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _baslat() async {
+    try {
+      final j = await widget.api.get('/api/kazanim?dersler=1') as Map<String, dynamic>;
+      _programlar = [for (final d in (j['dersler'] as List? ?? const [])) d.toString()];
+    } on ApiHata {
+      _programlar = [];
+    }
+    if (_programlar.contains(widget.ders)) _program = widget.ders;
+    await _ara();
+  }
+
+  Future<void> _ara() async {
+    final benim = ++_sayac;
+    final q = _q.text.trim();
+    if (_program.isEmpty && q.length < 2) {
+      if (mounted) {
+        setState(() {
+          _sonuc = [];
+          _yukleniyor = false;
+        });
+      }
+      return;
+    }
+    if (mounted) setState(() => _yukleniyor = true);
+    try {
+      final sinif = _duzeyli ? widget.duzey : 0;
+      final yol = '/api/kazanim?q=${Uri.encodeQueryComponent(q)}&sinif=$sinif&ders=${Uri.encodeQueryComponent(_program)}';
+      final j = await widget.api.get(yol) as Map<String, dynamic>;
+      if (benim != _sayac || !mounted) return;
+      setState(() {
+        _sonuc = j.l('kazanimlar');
+        _yukleniyor = false;
+      });
+    } on ApiHata {
+      if (benim == _sayac && mounted) {
+        setState(() {
+          _sonuc = [];
+          _yukleniyor = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .85,
+      maxChildSize: .95,
+      builder: (context, kaydirma) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    key: ValueKey(_program),
+                    initialValue: _program,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Kazanım programı dersi'),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('Tüm dersler')),
+                      for (final d in _programlar)
+                        DropdownMenuItem(
+                          value: d,
+                          child: Text(d, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (v) {
+                      _program = v ?? '';
+                      _ara();
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _q,
+                    onChanged: (_) => _ara(),
+                    decoration: const InputDecoration(hintText: 'Kazanımda ara', prefixIcon: Icon(Icons.search)),
+                  ),
+                  if (widget.duzey > 0)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: FilterChip(
+                          label: Text('${widget.duzey}. sınıf kazanımları'),
+                          selected: _duzeyli,
+                          onSelected: (v) {
+                            _duzeyli = v;
+                            _ara();
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (_yukleniyor) const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: _sonuc.isEmpty && !_yukleniyor
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _program.isEmpty && _q.text.trim().length < 2
+                            ? 'Tüm programlarda aramak için en az 2 harf yazın ya da yukarıdan ders seçin.'
+                            : 'Sonuç yok. Sınıf süzgecini ya da "Tüm dersler"i deneyin; ya da kazanımı elle yazın.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.soluk),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: kaydirma,
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+                      itemCount: _sonuc.length,
+                      separatorBuilder: (_, _) => Divider(height: 1, color: context.ince),
+                      itemBuilder: (context, n) {
+                        final k = _sonuc[n];
+                        final kod = k.s('kod');
+                        return ListTile(
+                          title: Text(k.s('metin'), style: const TextStyle(fontSize: 14, height: 1.3)),
+                          subtitle: kod.isEmpty
+                              ? null
+                              : Text(
+                                  kod,
+                                  style: TextStyle(color: context.ana, fontWeight: FontWeight.w700, fontSize: 12.5),
+                                ),
+                          onTap: () {
+                            final metin = '${kod.isEmpty ? '' : '$kod – '}${k.s('metin')}';
+                            Navigator.pop(context, metin.length > 300 ? metin.substring(0, 300) : metin);
+                          },
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),
