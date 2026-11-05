@@ -154,16 +154,16 @@ class _DersSatiri extends StatelessWidget {
           Container(
             width: 66,
             padding: const EdgeInsets.symmetric(vertical: 7),
-            decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(9)),
+            decoration: BoxDecoration(color: renk.withValues(alpha: .16), borderRadius: BorderRadius.circular(9)),
             child: Column(
               children: [
                 Text(
                   '${d.n('dersSaati')}.',
-                  style: serif.copyWith(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700, height: 1.1),
+                  style: serif.copyWith(color: okunur(context, renk), fontSize: 17, fontWeight: FontWeight.w700, height: 1.1),
                 ),
                 Text(
                   saat,
-                  style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: okunur(context, renk), fontSize: 12.5, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
