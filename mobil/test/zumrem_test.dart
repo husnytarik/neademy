@@ -59,6 +59,20 @@ Map<String, Object> _yanitlar({required bool baskan}) => {
     ],
     'tekrarlar': {'haftalik': 'Her hafta', 'yok': 'Tek seferlik'},
   },
+  '/api/zumre/baskanlar/liste': {
+    'toplantilar': [
+      {
+        'id': 9,
+        'baslik': 'Başkanlar kurulu',
+        'tarih': '2026-11-04',
+        'saat': '14:00',
+        'yer': 'Müdür odası',
+        'gundem': 'Dönem planı',
+        'karar': '',
+        'basladi': true,
+      },
+    ],
+  },
 };
 
 void main() {
@@ -77,9 +91,14 @@ void main() {
     expect(find.text('Fen Bilimleri zümresi'), findsOneWidget);
     expect(find.text('+ Toplantı ekle'), findsOneWidget);
     expect(find.text('Haftalık zümre'), findsOneWidget);
-    expect(find.text('Toplantıyı bitir'), findsOneWidget);
     expect(find.text('Ortak sınav yapılacak'), findsOneWidget);
-    expect(find.text('Başkanlar'), findsOneWidget);
+    // Başkanlar toplantısı ayrı sekmede değil, Toplantılar sekmesinde
+    expect(find.text('Başkanlar'), findsNothing);
+    expect(find.text('Zümre başkanları toplantıları'), findsOneWidget);
+    expect(find.text('Başkanlar kurulu'), findsOneWidget);
+    expect(find.text('Toplantıyı bitir'), findsNWidgets(2));
+    // Düğme dar kalmaz: "Toplantıyı bitir" yazısı tek satırda
+    expect(t.getSize(find.text('Toplantıyı bitir').first).height, lessThan(24));
   });
 
   testWidgets('zümre öğretmeni: düzenleme düğmeleri yok; yazılar ve öğretmenler sekmeleri çalışır', (t) async {
@@ -89,6 +108,7 @@ void main() {
     expect(find.text('+ Toplantı ekle'), findsNothing);
     expect(find.text('Toplantıyı bitir'), findsNothing);
     expect(find.text('Başkanlar'), findsNothing);
+    expect(find.text('Zümre başkanları toplantıları'), findsNothing);
 
     await t.tap(find.text('Yazılar'));
     await t.pumpAndSettle();
@@ -110,7 +130,7 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    await t.tap(find.text('Toplantıyı bitir'));
+    await t.tap(find.text('Toplantıyı bitir').first);
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextField), 'Sınav tarihi belirlendi');
     await t.tap(find.text('Kaydet'));

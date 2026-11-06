@@ -24,16 +24,19 @@ String _zaman(Object? ms) {
 
 /// Zümre: toplantılar ve kararlar, zümrede paylaşılan yazılar, öğretmenler; zümre başkanları ayrıca başkanlar toplantılarını görür.
 class ZumremEkrani extends StatefulWidget {
-  const ZumremEkrani({super.key, required this.api});
+  const ZumremEkrani({super.key, required this.api, this.courseId});
 
   final Api api;
+
+  /// Açılışta seçili olacak zümre (panelden bir toplantıya dokununca).
+  final int? courseId;
 
   @override
   State<ZumremEkrani> createState() => _ZumremEkraniState();
 }
 
 class _ZumremEkraniState extends State<ZumremEkrani> {
-  int? _secili;
+  late int? _secili = widget.courseId;
 
   @override
   Widget build(BuildContext context) => VeriSayfasi(
@@ -82,6 +85,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
   void initState() {
     super.initState();
     _yukle();
+    if (widget.baskanMi) _baskanlariYukle();
   }
 
   @override
@@ -114,7 +118,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
       if (!mounted) return;
       if (ileti != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ileti)));
       await _yukle();
-      if (_sekme == 'baskanlar') await _baskanlariYukle();
+      if (widget.baskanMi) await _baskanlariYukle();
     } catch (e) {
       if (mounted) hataGoster(context, e);
     }
@@ -164,19 +168,15 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
         Text('${(v['zumre'] as Map)['ad']} zümresi', style: serif.copyWith(fontSize: 21, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
         Sekmeler(
-          secenekler: [('toplanti', 'Toplantılar'), ('yazi', 'Yazılar'), ('ogretmen', 'Öğretmenler'), if (widget.baskanMi) ('baskanlar', 'Başkanlar')],
+          secenekler: [('toplanti', 'Toplantılar'), ('yazi', 'Yazılar'), ('ogretmen', 'Öğretmenler')],
           secili: _sekme,
-          degisti: (s) {
-            setState(() => _sekme = s);
-            if (s == 'baskanlar' && _baskanlar == null) _baskanlariYukle();
-          },
+          degisti: (s) => setState(() => _sekme = s),
         ),
         const SizedBox(height: 12),
         ...switch (_sekme) {
           'toplanti' => _toplantilar(context, v),
           'yazi' => _yazilar(context, v),
-          'ogretmen' => _ogretmenler(context, v),
-          _ => _baskanlarSekmesi(context),
+          _ => _ogretmenler(context, v),
         },
       ],
     );
@@ -238,6 +238,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
             ),
           ),
       ],
+      if (widget.baskanMi) ..._baskanToplantilari(context),
     ];
   }
 
@@ -303,7 +304,9 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
                   Expanded(
                     child: Text('${uzunTarih(bekleyen)} toplantısı yapıldı, kararı yazılmadı', style: TextStyle(color: context.soluk, fontSize: 12.5)),
                   ),
+                  const SizedBox(width: 8),
                   FilledButton(
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
                     onPressed: () => _karar(
                       baslik: '${t.s('baslik')} · ${uzunTarih(bekleyen)}',
                       karar: '',
@@ -432,22 +435,12 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
     ];
   }
 
-  // ---- Başkanlar toplantıları ----
-  List<Widget> _baskanlarSekmesi(BuildContext context) {
-    final b = _baskanlar;
-    if (b == null) {
-      return [
-        Padding(
-          padding: const EdgeInsets.only(top: 30),
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: context.ana)),
-        ),
-      ];
-    }
-    final liste = b.l('toplantilar');
-    if (liste.isEmpty) {
-      return [const BosNot('Yönetim zümre başkanları toplantısı kurduğunda burada görünür; toplantıdan sonra alınan kararlar da burada yazılır.')];
-    }
+  // ---- Zümre başkanları toplantıları (Toplantılar sekmesinde, zümre toplantılarının altında) ----
+  List<Widget> _baskanToplantilari(BuildContext context) {
+    final liste = _baskanlar?.l('toplantilar') ?? const <Map<String, dynamic>>[];
+    if (liste.isEmpty) return const [];
     return [
+      const Baslik('Zümre başkanları toplantıları'),
       Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text('Bu toplantılar ve kararları yalnızca yönetim ile zümre başkanlarına görünür.', style: TextStyle(color: context.soluk, fontSize: 12.5)),
@@ -484,8 +477,16 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: t.s('karar').isEmpty
-                      ? FilledButton(onPressed: () => _baskanKarar(t), child: const Text('Toplantıyı bitir'))
-                      : OutlinedButton(onPressed: () => _baskanKarar(t), child: const Text('Kararı düzenle')),
+                      ? FilledButton(
+                          style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+                          onPressed: () => _baskanKarar(t),
+                          child: const Text('Toplantıyı bitir'),
+                        )
+                      : OutlinedButton(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 42)),
+                          onPressed: () => _baskanKarar(t),
+                          child: const Text('Kararı düzenle'),
+                        ),
                 ),
             ],
           ),

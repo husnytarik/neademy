@@ -7,6 +7,7 @@ import '../cekirdek/oturum.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
 import 'derslerim.dart';
+import 'zumrem.dart';
 
 /// Panelin renkli üst bandı: avatar, ad, unvan (web: .bant.profil).
 class PanelBandi extends StatelessWidget {
@@ -230,6 +231,11 @@ class _OgretmenOzetiState extends State<OgretmenOzeti> {
             baslik: t.s('baslik'),
             alt: [t['baskanlar'] == true ? t.s('zumre') : '${t.s('zumre')} zümresi', t.s('saat'), t.s('yer')].where((e) => e.isNotEmpty).join(' · '),
             sayi: kalan == 0 ? 'Bugün' : (kalan == 1 ? 'Yarın' : '$kalan gün sonra'),
+            ac: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ZumremEkrani(api: widget.api, courseId: t['courseId'] as int?),
+              ),
+            ),
           ),
         );
       }
@@ -434,7 +440,7 @@ class _KazanimKarti extends StatelessWidget {
 }
 
 class _BekleyenSatiri extends StatelessWidget {
-  const _BekleyenSatiri({required this.ikon, required this.renk, required this.baslik, required this.alt, required this.sayi, this.detay = const []});
+  const _BekleyenSatiri({required this.ikon, required this.renk, required this.baslik, required this.alt, required this.sayi, this.detay = const [], this.ac});
 
   final String ikon;
   final Color renk;
@@ -442,6 +448,9 @@ class _BekleyenSatiri extends StatelessWidget {
   final String alt;
   final String sayi;
   final List<Object> detay;
+
+  /// Satıra dokununca açılacak sayfa (detay listesi yoksa).
+  final VoidCallback? ac;
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +485,12 @@ class _BekleyenSatiri extends StatelessWidget {
         Icon(Icons.chevron_right, size: 20, color: context.soluk),
       ],
     );
-    if (detay.isEmpty) return Padding(padding: const EdgeInsets.symmetric(vertical: 11), child: ust);
+    if (detay.isEmpty) {
+      return InkWell(
+        onTap: ac,
+        child: Padding(padding: const EdgeInsets.symmetric(vertical: 11), child: ust),
+      );
+    }
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
