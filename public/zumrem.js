@@ -8,7 +8,7 @@ let duzenle;           // düzenlenen toplantı (null: yeni toplantı, undefined
 let kararForm = null;  // açık karar formu: { toplantiId, tarih, baslik, karar }
 let baskanMi = false;  // herhangi bir zümrenin başkanı mı (Başkanlar sekmesi için)
 let bToplantilar = null; // /api/zumre/baskanlar/liste yanıtı
-let bKarar = null;     // karar yazılan başkanlar toplantısı id
+let yaziTaslak = '';   // "Zümreyle paylaş" ile yazı kutusuna önceden konan metin
 
 function el(tag, metin, sinif) {
   const e = document.createElement(tag);
@@ -179,7 +179,7 @@ function toplantilariCiz(k) {
 // ---- Yazılar: zümredeki herkes yazabilir ----
 function yaziFormu() {
   const f = el('form', undefined, 'zm-form');
-  const yazi = el('textarea'); yazi.maxLength = 1000; yazi.required = true; yazi.placeholder = 'Zümreye bir not, duyuru ya da bilgi yazın…';
+  const yazi = el('textarea'); yazi.maxLength = 1000; yazi.required = true; yazi.value = yaziTaslak; yaziTaslak = ''; yazi.placeholder = 'Zümreye bir not, duyuru ya da bilgi yazın…';
   yazi.setAttribute('aria-label', 'Zümreye yaz');
   const g = el('button', 'Paylaş', 'birincil kucuk'); g.type = 'submit';
   f.append(yazi, g);
@@ -218,7 +218,7 @@ function yazilariCiz(k) {
 // ---- Başkanlar: yönetimin kurduğu zümre başkanları toplantıları ----
 function baskanlarCiz(k) {
   if (!bToplantilar) return k.append(el('p', 'Yükleniyor…', 'alt'));
-  if (!bToplantilar.toplantilar.length) return k.append(el('p', 'Yönetim zümre başkanları toplantısı kurduğunda burada görünür; toplantıdan sonra alınan kararlar da burada yazılır.', 'alt'));
+  if (!bToplantilar.toplantilar.length) return k.append(el('p', 'Yönetim zümre başkanları toplantısı kurduğunda burada görünür; toplantıyı yönetim bitirir, alınan kararları siz de buradan okur ve isterseniz zümrenizle paylaşırsınız.', 'alt'));
   k.append(el('p', 'Bu toplantılar ve kararları yalnızca yönetim ile zümre başkanlarına görünür.', 'alt'));
   for (const t of bToplantilar.toplantilar) {
     const s = el('div', undefined, 'zm-yazi');
@@ -226,34 +226,17 @@ function baskanlarCiz(k) {
     ust.append(el('strong', t.baslik), el('small', `${uzunTarih(t.tarih)} ${t.saat}${t.yer ? ' · ' + t.yer : ''}`));
     s.append(ust);
     if (t.gundem) s.append(el('p', t.gundem, 'zm-gundem'));
-    if (bKarar === t.id) {
-      const f = el('form', undefined, 'zm-form');
-      const m = el('textarea'); m.maxLength = 2000; m.value = t.karar; m.placeholder = 'Toplantıda alınan kararlar…';
-      m.setAttribute('aria-label', 'Alınan kararlar');
+    if (t.karar) {
+      s.append(el('strong', 'Yönetimin notu / alınan kararlar'), el('p', t.karar, 'zm-gundem'));
+      s.append(el('small', `${t.kararYazan || ''} · ${zamanYaz(t.kararZamani)}`));
       const d = el('div', undefined, 'zm-dugme');
-      const g = el('button', 'Kaydet', 'birincil kucuk'); g.type = 'submit';
-      d.append(g, dugme('Vazgeç', () => { bKarar = null; ciz(); }));
-      f.append(m, d);
-      f.addEventListener('submit', async e => {
-        e.preventDefault();
-        const r = await api('/api/zumre/baskanlar/karar', { id: t.id, karar: m.value });
-        if (!r.ok) return mesaj(r.veri.hata || 'Kaydedilemedi', 'hata');
-        mesaj('Karar kaydedildi.', 'basari');
-        bKarar = null;
-        baskanlariYukle();
-      });
-      s.append(f);
-    } else {
-      if (t.karar) {
-        s.append(el('strong', 'Alınan kararlar'), el('p', t.karar, 'zm-gundem'));
-        s.append(el('small', `${t.kararYazan || ''} · ${zamanYaz(t.kararZamani)}`));
-      } else if (t.basladi) s.append(el('p', 'Karar henüz yazılmadı.', 'alt'));
-      if (t.basladi) {
-        const d = el('div', undefined, 'zm-dugme');
-        d.append(dugme(t.karar ? 'Kararı düzenle' : 'Toplantıyı bitir', () => { bKarar = t.id; ciz(); }, t.karar ? 'ikincil kucuk' : 'birincil kucuk'));
-        s.append(d);
-      }
-    }
+      d.append(dugme('Zümremle paylaş', () => {
+        yaziTaslak = `${t.baslik} (${uzunTarih(t.tarih)}) toplantısında alınan kararlar:
+${t.karar}`.slice(0, 1000);
+        sekme = 'yazi'; mesaj(''); ciz();
+      }));
+      s.append(d);
+    } else if (t.basladi) s.append(el('p', 'Toplantı yapıldı; yönetim kararları yazdığında burada görünür.', 'alt'));
     k.append(s);
   }
 }

@@ -284,7 +284,7 @@ async function baskanlarApi({ req, res, url, o, json, govde, denetle }) {
       const okullar = okullariOf(t.id);
       if (!gorebilir(t, okullar)) continue;
       toplantilar.push({ id: t.id, okullar, okulIds: okullar.map(x => x.id), okul: okullar.map(x => x.ad).join(', '), baslik: t.baslik, tarih: t.tarih, saat: t.saat, yer: t.yer, gundem: t.gundem,
-        karar: t.karar, kararYazan: t.kararYazan, kararZamani: t.karar_zamani, olusturan: t.olusturan, basladi: basladi(t), duzenleyebilir: duzenleyebilir(t) });
+        karar: t.karar, kararYazan: t.kararYazan, kararZamani: t.karar_zamani, olusturan: t.olusturan, basladi: basladi(t), duzenleyebilir: duzenleyebilir(t), kararYazabilir: yonetim });
     }
     return json(res, 200, {
       yonetim, kurum,
@@ -346,8 +346,9 @@ async function baskanlarApi({ req, res, url, o, json, govde, denetle }) {
     return json(res, 200, { tamam: true }), true;
   }
 
-  // Alınan kararlar: toplantıyı görebilen yönetici ya da katılan okulun zümre başkanı yazar; toplantı yapıldıktan sonra, boş metin kararı siler
+  // Alınan kararlar: toplantıyı bitirmek yönetime aittir (görebildiği toplantıda); zümre başkanları yalnızca okur. Toplantı yapıldıktan sonra, boş metin kararı siler
   if (yol === '/api/zumre/baskanlar/karar') {
+    if (!yonetim) return hata(403, 'Toplantıyı ve kararlarını yalnızca yönetim yazar; zümre başkanları okur');
     const t = toplanti(b.id);
     if (!t) return hata(404, 'Toplantı bulunamadı');
     if (!gorebilir(t, okullariOf(t.id))) return hata(403, 'Bu toplantıya okulunuz katılmıyor');

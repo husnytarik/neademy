@@ -463,7 +463,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
               if (t.s('karar').isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'Alınan kararlar',
+                  'Yönetimin notu / alınan kararlar',
                   style: TextStyle(color: context.soluk, fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 Text(t.s('karar'), style: const TextStyle(height: 1.35)),
@@ -471,22 +471,16 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
               ] else if (t['basladi'] == true)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text('Karar henüz yazılmadı.', style: TextStyle(color: context.soluk)),
+                  child: Text('Toplantı yapıldı; yönetim kararları yazdığında burada görünür.', style: TextStyle(color: context.soluk)),
                 ),
-              if (t['basladi'] == true)
+              if (t.s('karar').isNotEmpty)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: t.s('karar').isEmpty
-                      ? FilledButton(
-                          style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
-                          onPressed: () => _baskanKarar(t),
-                          child: const Text('Toplantıyı bitir'),
-                        )
-                      : OutlinedButton(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 42)),
-                          onPressed: () => _baskanKarar(t),
-                          child: const Text('Kararı düzenle'),
-                        ),
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 42)),
+                    onPressed: () => _zumreylePaylas(t),
+                    child: const Text('Zümremle paylaş'),
+                  ),
                 ),
             ],
           ),
@@ -494,11 +488,12 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
     ];
   }
 
-  Future<void> _baskanKarar(Map<String, dynamic> t) => _karar(
-    baslik: t.s('baslik'),
-    karar: t.s('karar'),
-    kaydet: (m) => _gonder('/api/zumre/baskanlar/karar', {'id': t.n('id'), 'karar': m}, ileti: 'Karar kaydedildi.'),
-  );
+  /// Yönetimin yazdığı kararı zümre yazısı olarak hazırlar; başkan düzenleyip paylaşır.
+  void _zumreylePaylas(Map<String, dynamic> t) {
+    final metin = '${t.s('baslik')} (${uzunTarih(t.s('tarih'))}) toplantısında alınan kararlar:\n${t.s('karar')}';
+    _yazi.text = metin.length > 1000 ? metin.substring(0, 1000) : metin;
+    setState(() => _sekme = 'yazi');
+  }
 }
 
 class _KararSayfasi extends StatefulWidget {

@@ -68,7 +68,9 @@ Map<String, Object> _yanitlar({required bool baskan}) => {
         'saat': '14:00',
         'yer': 'Müdür odası',
         'gundem': 'Dönem planı',
-        'karar': '',
+        'karar': 'Dönem planı onaylandı',
+        'kararYazan': 'Müdür',
+        'kararZamani': 1790000000000,
         'basladi': true,
       },
     ],
@@ -96,9 +98,12 @@ void main() {
     expect(find.text('Başkanlar'), findsNothing);
     expect(find.text('Zümre başkanları toplantıları'), findsOneWidget);
     expect(find.text('Başkanlar kurulu'), findsOneWidget);
-    expect(find.text('Toplantıyı bitir'), findsNWidgets(2));
+    // Başkanlar toplantısını yönetim bitirir: başkan yalnızca kararı okur, düğme yok
+    expect(find.text('Toplantıyı bitir'), findsOneWidget);
+    expect(find.text('Dönem planı onaylandı'), findsOneWidget);
+    expect(find.text('Kararı düzenle'), findsNothing);
     // Düğme dar kalmaz: "Toplantıyı bitir" yazısı tek satırda
-    expect(t.getSize(find.text('Toplantıyı bitir').first).height, lessThan(24));
+    expect(t.getSize(find.text('Toplantıyı bitir')).height, lessThan(24));
   });
 
   testWidgets('zümre öğretmeni: düzenleme düğmeleri yok; yazılar ve öğretmenler sekmeleri çalışır', (t) async {
@@ -130,11 +135,30 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    await t.tap(find.text('Toplantıyı bitir').first);
+    await t.tap(find.text('Toplantıyı bitir'));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextField), 'Sınav tarihi belirlendi');
     await t.tap(find.text('Kaydet'));
     await t.pumpAndSettle();
     expect(kayit, contains('POST /api/zumre/karar'));
+  });
+
+  testWidgets('başkan, yönetimin kararını zümresiyle paylaşır: yazı kutusu doldurulur', (t) async {
+    genis(t);
+    final kayit = <String>[];
+    await t.pumpWidget(
+      MaterialApp(
+        home: ZumremEkrani(api: _api(_yanitlar(baskan: true), kayit: kayit)),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('Zümremle paylaş'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Dönem planı onaylandı'), findsOneWidget);
+    expect(find.text('Paylaş'), findsOneWidget);
+    await t.tap(find.text('Paylaş'));
+    await t.pumpAndSettle();
+    expect(kayit, contains('POST /api/zumre/yazi'));
+    expect(kayit, isNot(contains('POST /api/zumre/baskanlar/karar')));
   });
 }
