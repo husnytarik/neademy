@@ -142,8 +142,9 @@ class _DersSatiri extends StatelessWidget {
   Widget build(BuildContext context) {
     final iptal = d['iptal'] == true;
     final renk = rengiCoz(d['renk'] as String?) ?? context.ana;
-    // Kutu dolu kalır ama zeminle sırıtmasın diye rengin yumuşatılmış hali kullanılır
-    final kutu = Color.lerp(renk, Colors.white, .38)!;
+    // Kutu dolu kalır: doygunluğu düşük, açık pastel zemin + aynı tonda koyu yazı
+    final kutu = pastelZemin(renk);
+    final yazi = pastelYazi(renk);
     final odevler = d.l('odevler');
     final devam = d.s('devam');
     final saat = d.s('aralik').split(RegExp(r'[–-]')).first;
@@ -161,11 +162,11 @@ class _DersSatiri extends StatelessWidget {
               children: [
                 Text(
                   '${d.n('dersSaati')}.',
-                  style: serif.copyWith(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700, height: 1.1),
+                  style: serif.copyWith(color: yazi, fontSize: 17, fontWeight: FontWeight.w700, height: 1.1),
                 ),
                 Text(
                   saat,
-                  style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: yazi, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ],
             ),

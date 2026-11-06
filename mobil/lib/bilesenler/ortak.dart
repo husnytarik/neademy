@@ -173,6 +173,18 @@ class Sekmeler extends StatelessWidget {
 /// Koyu temada koyu ders renkleri okunmaz; yazıda kullanılacak rengi açar.
 Color okunur(BuildContext context, Color r) => Theme.of(context).brightness == Brightness.dark ? Color.lerp(r, Colors.white, .55)! : r;
 
+/// Dolu ders kutuları için: aynı tonda ama doygunluğu düşürülmüş, açık pastel zemin (soluk değil, parlak da değil).
+Color pastelZemin(Color r) {
+  final h = HSLColor.fromColor(r);
+  return h.withSaturation((h.saturation * .55).clamp(.18, .42)).withLightness(.76).toColor();
+}
+
+/// [pastelZemin] üstünde okunur koyu yazı: aynı ton, düşük açıklık.
+Color pastelYazi(Color r) {
+  final h = HSLColor.fromColor(r);
+  return h.withSaturation((h.saturation * .8).clamp(.25, .6)).withLightness(.2).toColor();
+}
+
 class DersRozeti extends StatelessWidget {
   const DersRozeti(this.kisa, this.renk, {super.key, this.boyut = 40});
 
