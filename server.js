@@ -789,6 +789,28 @@ function statik(req, res, url) {
   fs.createReadStream(tam).pipe(res);
 }
 
+// Mobil uygulamanın web sürümü (flutter build web --base-href /uygulama/ --dart-define=API=): /uygulama/ altında, uygulamayla birebir aynı ekranlar.
+// Klasör: MOBIL_WEB ortam değişkeni ya da <proje>/mobil/build/web. Oturum jetonla (mobildeki gibi) tutulur; aynı kökten servis edildiği için CORS gerekmez.
+const mobilWebDir = path.resolve(process.env.MOBIL_WEB || path.join(dir, 'mobil', 'build', 'web'));
+const uygulamaTurleri = { ...turler, '.json': 'application/json; charset=utf-8', '.wasm': 'application/wasm', '.otf': 'font/otf', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.map': 'application/json', '.webp': 'image/webp' };
+function uygulamaStatik(req, res, url) {
+  if (url.pathname === '/uygulama') { res.writeHead(302, { Location: '/uygulama/' }); res.end(); return; }
+  let ad = decodeURIComponent(url.pathname.slice('/uygulama'.length));
+  if (ad === '/' || ad === '') ad = '/index.html';
+  const tam = path.normalize(path.join(mobilWebDir, ad));
+  if (!tam.startsWith(mobilWebDir + path.sep) || !fs.existsSync(tam) || !fs.statSync(tam).isFile()) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end(fs.existsSync(mobilWebDir) ? 'Bulunamadı' : 'Uygulamanın web sürümü bu sunucuda kurulu değil');
+  }
+  res.writeHead(200, {
+    'Content-Type': uygulamaTurleri[path.extname(tam)] || 'application/octet-stream',
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+  });
+  fs.createReadStream(tam).pipe(res);
+}
+
 const sunucu = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -797,6 +819,7 @@ const sunucu = http.createServer(async (req, res) => {
       catch { res.writeHead(503); return res.end('db'); }
     }
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (url.pathname === '/uygulama' || url.pathname.startsWith('/uygulama/')) return uygulamaStatik(req, res, url);
     statik(req, res, url);
   } catch (e) {
     console.error(e);
