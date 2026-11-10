@@ -384,6 +384,19 @@ CREATE TABLE IF NOT EXISTS sessions (
   membership_id INTEGER NOT NULL REFERENCES memberships(id),
   expires_at    INTEGER NOT NULL
 );
+-- Tanıtım sayfasındaki satın alma talepleri (ödeme okulla ayrıca yapılır; burada yalnızca iletişim talebi tutulur)
+CREATE TABLE IF NOT EXISTS satin_alma_talepleri (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  okul        TEXT NOT NULL,
+  yetkili     TEXT NOT NULL,
+  telefon     TEXT NOT NULL,
+  eposta      TEXT NOT NULL DEFAULT '',
+  ogrenci_sayisi INTEGER,
+  paket       TEXT NOT NULL DEFAULT '',
+  not_metni   TEXT NOT NULL DEFAULT '',
+  durum       TEXT NOT NULL DEFAULT 'yeni',
+  created_at  INTEGER NOT NULL
+);
 `);
 
 // --- Şema geçişleri (eski veritabanlarını yeni şemaya taşır) ---

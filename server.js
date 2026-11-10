@@ -321,6 +321,24 @@ async function api(req, res, url) {
     return json(res, 200, { rol: o.role, moduller: liste });
   }
 
+  // Tanıtım sayfasından satın alma talebi (herkese açık; yalnızca iletişim bilgisi alır, ödeme alınmaz)
+  if (req.method === 'POST' && url.pathname === '/api/satin-alma') {
+    if (hizAsildi(ip)) return json(res, 429, { hata: 'Çok fazla deneme. Lütfen biraz bekleyin.' });
+    let g;
+    try { g = await govde(req, 4000); } catch { return json(res, 400, { hata: 'Geçersiz istek' }); }
+    const metin = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+    const okul = metin(g.okul, 120), yetkili = metin(g.yetkili, 80), telefon = metin(g.telefon, 20), eposta = metin(g.eposta, 120);
+    const paket = ['okul', 'kampus', 'kurum'].includes(g.paket) ? g.paket : '';
+    const not = String(g.not ?? '').trim().slice(0, 1000);
+    const ogr = Number.parseInt(g.ogrenciSayisi, 10);
+    if (!okul || !yetkili) return json(res, 400, { hata: 'Okul adı ve yetkili adı gerekli' });
+    if (telefon.replace(/\D/g, '').length < 10) return json(res, 400, { hata: 'Geçerli bir telefon numarası yazın' });
+    if (eposta && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return json(res, 400, { hata: 'E-posta adresi geçersiz' });
+    db.prepare('INSERT INTO satin_alma_talepleri (okul, yetkili, telefon, eposta, ogrenci_sayisi, paket, not_metni, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(okul, yetkili, telefon, eposta, Number.isFinite(ogr) && ogr > 0 && ogr < 1_000_000 ? ogr : null, paket, not, Date.now());
+    return json(res, 200, { tamam: true });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/cikis') {
     const sid = sidAl(req);
     if (sid) db.prepare('DELETE FROM sessions WHERE id = ?').run(sha(sid));
@@ -734,6 +752,7 @@ const turler = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset
 
 function statik(req, res, url) {
   let ad = url.pathname === '/' ? '/index.html' : url.pathname;
+  if (ad === '/tanitim') ad = '/tanitim.html';
   if (ad === '/panel') ad = '/panel.html';
   if (ad === '/kullanicilar') ad = '/kullanicilar.html';
   if (ad === '/kisiler') ad = '/kisiler.html';
