@@ -3,158 +3,270 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1726">
   <title>neademy - Okul yönetim platformu</title>
-  <meta name="description" content="neademy: okulun yönetimini, öğretmenlerini, öğrencilerini ve velilerini tek yerde buluşturan okul yönetim platformu. Web ve mobil uygulama.">
-  <link rel="stylesheet" href="/tanitim.css?v=1">
+  <meta name="description" content="neademy: yönetim, öğretmen, öğrenci ve veliyi tek yerde buluşturan okul yönetim platformu. iPhone, Android ve web.">
+  <link rel="stylesheet" href="/tanitim.css?v=2">
 </head>
 <body>
-  <header class="ust">
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <symbol id="i-okul" viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M12 9v.01"/></symbol>
+    <symbol id="i-kisi" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.8.7 3 2.4 3 5.2"/></symbol>
+    <symbol id="i-takvim" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-yoklama" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12.3 2.6 2.6 4.6-5.4"/></symbol>
+    <symbol id="i-sinav" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4"/></symbol>
+    <symbol id="i-odev" viewBox="0 0 24 24"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v17H7.5A2.5 2.5 0 0 0 5 21.5zM5 21.5V4.5M9 7h6M9 11h4"/></symbol>
+    <symbol id="i-zumre" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></symbol>
+    <symbol id="i-duyuru" viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10zM17 9.5a4 4 0 0 1 0 5M19.5 7a7.5 7.5 0 0 1 0 10"/></symbol>
+    <symbol id="i-kulup" viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></symbol>
+    <symbol id="i-gelisim" viewBox="0 0 24 24"><path d="M3 20h18M6 16l4-5 3 3 5-7"/><path d="M15 7h3.5v3.5"/></symbol>
+    <symbol id="i-bilgi" viewBox="0 0 24 24"><path d="M21 4 3 11l7 2.5L12.5 21zM10 13.5 21 4"/></symbol>
+    <symbol id="i-teslim" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.4 3 8 7.5 9.5 4.5-1.5 7.5-5.1 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+
+  <header class="ust" id="ust">
     <div class="kap ust-ic">
-      <a class="marka" href="/">neademy</a>
+      <a class="marka" href="/" aria-label="neademy ana sayfa"><span class="logo" aria-hidden="true">n</span>neademy</a>
       <nav class="menu" aria-label="Sayfa bölümleri">
-        <a href="#nedir">Nedir</a>
-        <a href="#roller">Kimler için</a>
         <a href="#ozellikler">Özellikler</a>
+        <a href="#roller">Roller</a>
         <a href="#uygulama">Uygulama</a>
         <a href="#guvenlik">Güvenlik</a>
+        <a href="#sss">SSS</a>
+        <a class="giris-link" href="https://app.neademy.com/">Giriş yap</a>
         <a class="dugme kucuk" href="#satin-al">Satın al</a>
       </nav>
     </div>
   </header>
 
   <main>
+    <!-- Kahraman -->
     <section class="kahraman">
-      <div class="kap">
-        <p class="etiket">Okul yönetim platformu</p>
-        <h1>Okulun tamamı, tek yerde.</h1>
-        <p class="giris">Yönetim, öğretmen, öğrenci ve veli aynı sistemde buluşur. Ders programından yoklamaya, sınavdan veli bilgilendirmeye kadar okulun günlük işi düzenli ve izlenebilir olur.</p>
-        <div class="eylem">
-          <a class="dugme" href="#satin-al">Satın alma talebi bırak</a>
-          <a class="dugme bos" href="https://app.neademy.com/">Giriş yap</a>
-        </div>
-        <p class="not">Web tarayıcıdan ve iPhone / Android uygulamasından kullanılır.</p>
-      </div>
-    </section>
-
-    <section id="nedir" class="bolum">
-      <div class="kap">
-        <h2>neademy nedir?</h2>
-        <p class="geniş">neademy, okulların ve eğitim kurumlarının günlük işleyişini yöneten bir platformdur. Okul kendi adıyla ve kendi öğretmen, öğrenci ve velileriyle çalışır; her kullanıcı yalnızca kendi rolünün gördüğü ekranları görür.</p>
-        <div class="izgara uc">
-          <article class="kart">
-            <h3>Düzen</h3>
-            <p>Sınıflar, kadro, haftalık ders programı ve okul takvimi tek merkezden kurulur; değişiklik herkese anında yansır.</p>
-          </article>
-          <article class="kart">
-            <h3>Takip</h3>
-            <p>Yoklama, ödev, sınav sonuçları ve gelişim gözlemleri kayıt altındadır. Veli çocuğunu, öğretmen sınıfını, yönetim okulu izler.</p>
-          </article>
-          <article class="kart">
-            <h3>İletişim</h3>
-            <p>Duyurular, toplantılar, zümre çalışmaları ve veli bilgilendirmeleri ayrı uygulamalara dağılmadan aynı yerden yürür.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="roller" class="bolum soluk">
-      <div class="kap">
-        <h2>Kimler için?</h2>
-        <p class="geniş">Her rolün ekranı, o rolün işine göre sadeleştirilmiştir.</p>
-        <div class="izgara dort">
-          <article class="kart">
-            <h3>Yönetim</h3>
-            <p>Müdür, müdür yardımcısı, rehberlik, kurum yönetimi. Okulu kurar, kişileri ve sınıfları yönetir, duyuru yapar, rapor alır.</p>
-          </article>
-          <article class="kart">
-            <h3>Öğretmen</h3>
-            <p>Dersini, yoklamasını, ödevini ve sınavını yürütür. Zümresiyle çalışır; zümre başkanıysa başkanlar toplantısına katılır.</p>
-          </article>
-          <article class="kart">
-            <h3>Öğrenci</h3>
-            <p>Ders programını, ödevlerini, notlarını ve devamsızlığını görür; kulüplere ve etütlere katılır.</p>
-          </article>
-          <article class="kart">
-            <h3>Veli</h3>
-            <p>Çocuğunun programını, notlarını, devamsızlığını ve gelişimini izler; etüt onayı verir, teslim yetkilerini yönetir.</p>
-          </article>
-        </div>
-        <p class="not">Okul güvenliği için ayrıca teslim kapısı ekranı da vardır.</p>
-      </div>
-    </section>
-
-    <section id="ozellikler" class="bolum">
-      <div class="kap">
-        <h2>Neler yapabilir?</h2>
-        <div class="izgara uc">
-          <article class="kart"><h3>Okul kurulumu</h3><p>Okul, kampüs ve kurum yapısı; sınıflar, kadro ve kademeler.</p></article>
-          <article class="kart"><h3>Kişiler ve öğrenciler</h3><p>Öğretmen, öğrenci ve veli kayıtları; veli bağlantıları ve öğrenci dosyası.</p></article>
-          <article class="kart"><h3>Haftalık ders programı</h3><p>Sınıf ve öğretmen bazlı program; okul takvimi, tatiller ve ders saatleri.</p></article>
-          <article class="kart"><h3>Yoklama ve ders defteri</h3><p>Derse göre yoklama, işlenen konu ve ödev; devamsızlığın veliye görünmesi.</p></article>
-          <article class="kart"><h3>Sınavlar</h3><p>Cevap anahtarı, kazanım eşleştirme, optik okuma ve sonuç raporları.</p></article>
-          <article class="kart"><h3>Ödev takibi</h3><p>Kim, hangi ödevi yaptı; sınıf ve öğrenci bazlı görünüm.</p></article>
-          <article class="kart"><h3>Zümre çalışmaları</h3><p>Zümre yazışmaları, toplantılar ve zümre başkanlarının toplantısı; alınan kararlar zümrelerle paylaşılır.</p></article>
-          <article class="kart"><h3>Duyurular ve takvim</h3><p>Hedef kitleye göre duyuru; kişisel takvim ve okul etkinlikleri.</p></article>
-          <article class="kart"><h3>Kulüpler ve etütler</h3><p>Kulüp çalışmaları ve yoklaması; veli onaylı etüt planı.</p></article>
-          <article class="kart"><h3>Gelişim raporu</h3><p>Öğretmen gözlemleri ve öğrencinin gelişim raporu, karne ekranı.</p></article>
-          <article class="kart"><h3>Veli bilgilendirme</h3><p>Velilere gönderilen bilgilendirmeler tek kayıtta tutulur.</p></article>
-          <article class="kart"><h3>Güvenli teslim</h3><p>Veli teslim yetkililerini tanımlar; QR teslim koduyla kapıda doğrulama yapılır.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section id="uygulama" class="bolum soluk">
       <div class="kap iki">
-        <div>
-          <h2>Her cihazda aynı uygulama</h2>
-          <p class="geniş">neademy, iPhone ve Android için yerel uygulama olarak gelir; aynı ekranlar tarayıcıdan da açılır. Telefonda parmak izi / yüz tanıma ile hızlı giriş yapılır.</p>
-          <ul class="liste">
-            <li>Rolüne göre sadeleşen, yumuşak ve anlaşılır ekranlar</li>
-            <li>Birden fazla rolü olan kişi (ör. hem öğretmen hem veli) aynı hesapla rol değiştirir</li>
-            <li>Uygulama kullanıcıya ücretsizdir; hesapları okul açar</li>
-          </ul>
+        <div class="rv">
+          <p class="etiket">Okul yönetim platformu</p>
+          <h1>neademy ile <span class="vurgu">okulunuz</span> tek yerde</h1>
+          <p class="giris">Yönetim, öğretmen, öğrenci ve veli aynı sistemde buluşur. Ders programı, yoklama, sınav ve veli bilgilendirme dağınık araçlardan çıkıp cebinizdeki tek uygulamaya taşınır.</p>
           <div class="eylem">
-            <a class="dugme bos" href="https://app.neademy.com/uygulama/">Uygulamanın web sürümünü aç</a>
+            <a class="dugme" href="#satin-al">Satın alma talebi bırak <svg class="ik"><use href="#i-ok"/></svg></a>
+            <a class="dugme bos" href="https://app.neademy.com/uygulama/">Web sürümünü dene</a>
           </div>
+          <ul class="mini">
+            <li>iPhone, Android ve web</li>
+            <li>Velilere ve öğrencilere ücretsiz</li>
+            <li>Okulun kendi adıyla</li>
+          </ul>
         </div>
-        <div class="telefon" aria-hidden="true">
-          <div class="ekran">
-            <div class="cubuk"></div>
-            <div class="satir"><span class="nokta a"></span><span>Matematik</span><em>09:00</em></div>
-            <div class="satir"><span class="nokta b"></span><span>Fen Bilimleri</span><em>09:50</em></div>
-            <div class="satir"><span class="nokta c"></span><span>Türkçe</span><em>10:50</em></div>
-            <div class="satir"><span class="nokta d"></span><span>İngilizce</span><em>11:40</em></div>
-            <div class="cubuk kisa"></div>
+        <div class="sahne rv">
+          <div class="tel buyuk" role="img" aria-label="Ders programı ekranı örneği">
+            <div class="ek">
+              <div class="ek-ust"><b>Ders programı</b><span>Salı</span></div>
+              <div class="gunler"><i>Pzt</i><i class="sec">Sal</i><i>Çar</i><i>Per</i><i>Cum</i></div>
+              <div class="ders c1"><em>09:00</em><div><b>Matematik</b><small>7-A · Ayşe Öğretmen</small></div></div>
+              <div class="ders c2"><em>09:50</em><div><b>Fen Bilimleri</b><small>7-A · Murat Öğretmen</small></div></div>
+              <div class="ders c3"><em>10:50</em><div><b>Türkçe</b><small>7-A · Selin Öğretmen</small></div></div>
+              <div class="ders c4"><em>11:40</em><div><b>İngilizce</b><small>7-A · Deniz Öğretmen</small></div></div>
+              <div class="ders c5"><em>13:20</em><div><b>Beden Eğitimi</b><small>7-A · Kaan Öğretmen</small></div></div>
+              <div class="alt-cubuk"><i class="a"></i><i></i><i></i><i></i></div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="guvenlik" class="bolum">
+    <!-- Sorun -->
+    <section class="bolum koyu2" id="nedir">
+      <div class="kap iki ters">
+        <div class="sahne rv">
+          <div class="tel" role="img" aria-label="Yoklama ekranı örneği">
+            <div class="ek">
+              <div class="ek-ust"><b>Yoklama</b><span>Matematik · 7-A</span></div>
+              <div class="konu">Konu: Oran ve orantı</div>
+              <div class="ogr"><span class="av">A</span><b>Ada Yıldız</b><u class="g">Geldi</u></div>
+              <div class="ogr"><span class="av">K</span><b>Kerem Aksoy</b><u class="g">Geldi</u></div>
+              <div class="ogr"><span class="av">E</span><b>Elif Sönmez</b><u class="y">Gelmedi</u></div>
+              <div class="ogr"><span class="av">M</span><b>Mert Kaya</b><u class="g">Geldi</u></div>
+              <div class="ogr"><span class="av">Z</span><b>Zeynep Tan</b><u class="i">İzinli</u></div>
+              <div class="kaydet">Kaydet</div>
+            </div>
+          </div>
+        </div>
+        <div class="rv">
+          <p class="etiket">Sorun</p>
+          <h2>Dağınıklığa son</h2>
+          <h3 class="alt-baslik">Mesaj grupları, tablolar ve defterler yerine tek sistem</h3>
+          <p class="par">Okulun bilgisi çoğu zaman birçok yere dağılır: yoklama bir yerde, ödev başka yerde, veliye giden mesaj bir başka yerde. Kim hangi sınavdan kaç aldı, hangi öğrenci kaç gün gelmedi gibi sorular cevapsız kalır.</p>
+          <p class="par">neademy bu dağınıklığı tek bir yerde toplar. Ders, öğrenci, öğretmen ve veli bilgisi birbirine bağlıdır; öğretmen yoklamayı girdiği anda veli devamsızlığı görür.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Öne çıkan -->
+    <section class="bolum">
+      <div class="kap rv">
+        <p class="etiket">Öne çıkan</p>
+        <h2>Her rolün kendi ekranı</h2>
+        <p class="par">Müdürün, öğretmenin, öğrencinin ve velinin ihtiyacı aynı değildir. neademy’de herkes yalnızca kendi işine yarayan ekranları görür. Birden fazla rolü olan biri (örneğin hem öğretmen hem veli) tek hesapla rol değiştirir. Yetkisi olmayan veriye sunucu hiçbir koşulda izin vermez.</p>
+      </div>
+    </section>
+
+    <!-- Özellikler -->
+    <section class="bolum koyu2" id="ozellikler">
       <div class="kap">
-        <h2>Çocuk verisi, özenle</h2>
-        <p class="geniş">Öğrenci ve veli bilgileri hassas kişisel veridir. neademy bu verileri korumak üzere tasarlandı.</p>
-        <div class="izgara uc">
-          <article class="kart"><h3>Şifreli saklama</h3><p>T.C. kimlik, telefon ve pasaport numaraları veritabanında şifrelenmiş saklanır.</p></article>
-          <article class="kart"><h3>Doğrulamalı giriş</h3><p>Giriş, telefona gelen tek kullanımlık kodla yapılır; kimlik bilgisi deneme sınırı ve kilitleme ile korunur.</p></article>
-          <article class="kart"><h3>Rol bazlı yetki</h3><p>Her kullanıcı yalnızca rolünün gerektirdiği veriyi görür; yetkisiz erişim sunucuda engellenir.</p></article>
+        <div class="rv">
+          <p class="etiket">Özellikler</p>
+          <h2>neademy neler sunar</h2>
+        </div>
+        <div class="ozgrid rv">
+          <article><svg class="ik"><use href="#i-okul"/></svg><h3>Okul kurulumu</h3><p>Okul, kampüs ve kurum yapısı; sınıflar, kadro ve kademeler tek yerden kurulur.</p></article>
+          <article><svg class="ik"><use href="#i-kisi"/></svg><h3>Kişiler ve öğrenciler</h3><p>Öğretmen, öğrenci ve veli kayıtları; veli bağlantıları ve öğrenci dosyası.</p></article>
+          <article><svg class="ik"><use href="#i-takvim"/></svg><h3>Ders programı ve takvim</h3><p>Sınıf ve öğretmen bazlı haftalık program; okul takvimi, tatiller, ders saatleri.</p></article>
+          <article><svg class="ik"><use href="#i-yoklama"/></svg><h3>Yoklama ve ders defteri</h3><p>Derse göre yoklama, işlenen konu ve ödev. Devamsızlık veliye anında görünür.</p></article>
+          <article><svg class="ik"><use href="#i-sinav"/></svg><h3>Sınavlar</h3><p>Cevap anahtarı, kazanım eşleştirme, optik okuma ve sonuç raporları.</p></article>
+          <article><svg class="ik"><use href="#i-odev"/></svg><h3>Ödev takibi</h3><p>Kim hangi ödevi yaptı; sınıf ve öğrenci bazlı görünüm.</p></article>
+          <article><svg class="ik"><use href="#i-zumre"/></svg><h3>Zümre çalışmaları</h3><p>Zümre yazışmaları ve toplantıları; başkanlar toplantısında alınan kararlar zümrelerle paylaşılır.</p></article>
+          <article><svg class="ik"><use href="#i-duyuru"/></svg><h3>Duyurular</h3><p>Hedef kitleye göre duyuru; okul etkinlikleri ve kişisel takvim.</p></article>
+          <article><svg class="ik"><use href="#i-kulup"/></svg><h3>Kulüpler ve etütler</h3><p>Kulüp çalışmaları ve yoklaması; veli onaylı etüt planı.</p></article>
+          <article><svg class="ik"><use href="#i-gelisim"/></svg><h3>Gelişim raporu</h3><p>Öğretmen gözlemleri, öğrencinin gelişim raporu ve karne ekranı.</p></article>
+          <article><svg class="ik"><use href="#i-bilgi"/></svg><h3>Veli bilgilendirme</h3><p>Velilere gönderilen bilgilendirmeler tek kayıtta, geriye dönük izlenebilir.</p></article>
+          <article><svg class="ik"><use href="#i-teslim"/></svg><h3>Güvenli teslim</h3><p>Veli teslim yetkililerini tanımlar; kapıda QR teslim koduyla doğrulama yapılır.</p></article>
         </div>
       </div>
     </section>
 
-    <section id="satin-al" class="bolum satin">
-      <div class="kap iki">
-        <div>
-          <h2>Satın alma</h2>
-          <p class="geniş">neademy’yi okul ya da kurum olarak edinirsiniz. Uygulamanın içinde satın alma yoktur; velilere ve öğrencilere ücret yansımaz. Talebinizi bırakın, sizi arayıp okulunuza uygun planı birlikte belirleyelim.</p>
-          <ol class="adim">
-            <li><strong>Talep</strong><span>Formu doldurun.</span></li>
-            <li><strong>Görüşme</strong><span>Okulunuzun ihtiyacını dinler, teklifi iletiriz.</span></li>
-            <li><strong>Kurulum</strong><span>Okulunuz, sınıflarınız ve kadronuz sisteme tanımlanır.</span></li>
-            <li><strong>Kullanıma geçiş</strong><span>Öğretmen, öğrenci ve veli hesapları açılır.</span></li>
-          </ol>
+    <!-- Ekran görüntüleri -->
+    <section class="bolum" id="uygulama">
+      <div class="kap">
+        <div class="rv">
+          <p class="etiket">Uygulama</p>
+          <h2>Her cihazda aynı uygulama</h2>
+          <p class="par genis">iPhone ve Android için yerel uygulama; aynı ekranlar tarayıcıdan da açılır. Telefonda parmak izi ve yüz tanımayla hızlı giriş yapılır.</p>
         </div>
-        <form id="talep" class="form" novalidate>
+        <div class="telsira rv">
+          <figure>
+            <div class="tel" role="img" aria-label="Veli ekranı örneği">
+              <div class="ek">
+                <div class="ek-ust"><b>Çocuğum</b><span>Ada Yıldız · 7-A</span></div>
+                <div class="kutular"><div><strong>0</strong><small>Devamsızlık</small></div><div><strong>85</strong><small>Son sınav</small></div><div><strong>2</strong><small>Ödev</small></div></div>
+                <div class="kartk"><b>Teslim kodu</b>
+                  <svg class="qr" viewBox="0 0 11 11" aria-hidden="true"><path d="M0 0h4v4H0zM7 0h4v4H7zM0 7h4v4H0zM5 1h1v2H5zM5 5h2v1H5zM8 5h1v2H8zM5 8h1v3H5zM7 8h1v1H7zM9 9h2v2H9zM1 1h2v2H1zM8 1h2v2H8zM1 8h2v2H1z" fill-rule="evenodd"/></svg>
+                  <small>Kapıda gösterin, güvenlik doğrulasın</small>
+                </div>
+                <div class="kartk"><b>Etüt onayı bekliyor</b><small>Cuma 15:30 · Matematik</small></div>
+              </div>
+            </div>
+            <figcaption>Veli ve teslim</figcaption>
+          </figure>
+          <figure>
+            <div class="tel" role="img" aria-label="Duyurular ekranı örneği">
+              <div class="ek">
+                <div class="ek-ust"><b>Duyurular</b><span>3 yeni</span></div>
+                <div class="duy"><i class="n1"></i><div><b>Veli toplantısı</b><small>14 Kasım · Tüm veliler</small></div></div>
+                <div class="duy"><i class="n2"></i><div><b>Okul gezisi onayı</b><small>7. sınıflar · Son gün Perşembe</small></div></div>
+                <div class="duy"><i class="n3"></i><div><b>Karne günü</b><small>Tüm öğrenciler</small></div></div>
+                <div class="duy"><i class="n4"></i><div><b>Zümre başkanları toplantısı</b><small>Yönetim notu eklendi</small></div></div>
+              </div>
+            </div>
+            <figcaption>Duyurular ve toplantılar</figcaption>
+          </figure>
+          <figure>
+            <div class="tel" role="img" aria-label="Sınav sonuçları ekranı örneği">
+              <div class="ek">
+                <div class="ek-ust"><b>Sınav sonuçları</b><span>1. dönem</span></div>
+                <div class="cizgi"><span>Matematik</span><div><i class="w85"></i></div><em>85</em></div>
+                <div class="cizgi"><span>Fen Bil.</span><div><i class="w78"></i></div><em>78</em></div>
+                <div class="cizgi"><span>Türkçe</span><div><i class="w92"></i></div><em>92</em></div>
+                <div class="cizgi"><span>İngilizce</span><div><i class="w70"></i></div><em>70</em></div>
+                <div class="cizgi"><span>Sosyal</span><div><i class="w88"></i></div><em>88</em></div>
+                <div class="kartk"><b>Kazanım raporu</b><small>Zayıf kazanım: Oran orantı</small></div>
+              </div>
+            </div>
+            <figcaption>Sınav ve kazanım</figcaption>
+          </figure>
+        </div>
+        <div class="eylem orta rv">
+          <a class="dugme bos" href="https://app.neademy.com/uygulama/">Uygulamanın web sürümünü aç</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roller -->
+    <section class="bolum koyu2" id="roller">
+      <div class="kap">
+        <div class="rv">
+          <p class="etiket">Kimler için</p>
+          <h2>Okulun herkesi için</h2>
+        </div>
+        <div class="roller rv">
+          <article><span class="no">01</span><h3>Yönetim</h3><p>Müdür, müdür yardımcısı, rehberlik ve kurum yönetimi. Okulu kurar, kişileri ve sınıfları yönetir, duyuru yapar, rapor alır.</p></article>
+          <article><span class="no">02</span><h3>Öğretmen</h3><p>Dersini, yoklamasını, ödevini ve sınavını yürütür. Zümresiyle çalışır; zümre başkanıysa başkanlar toplantısına katılır.</p></article>
+          <article><span class="no">03</span><h3>Öğrenci</h3><p>Ders programını, ödevlerini, notlarını ve devamsızlığını görür; kulüplere ve etütlere katılır.</p></article>
+          <article><span class="no">04</span><h3>Veli</h3><p>Çocuğunun programını, notlarını ve gelişimini izler; etüt onayı verir, teslim yetkililerini yönetir.</p></article>
+        </div>
+        <p class="not rv">Okul güvenliği için ayrıca teslim kapısı ekranı da vardır.</p>
+      </div>
+    </section>
+
+    <!-- Güvenlik -->
+    <section class="bolum" id="guvenlik">
+      <div class="kap">
+        <div class="rv">
+          <p class="etiket">Güvenlik</p>
+          <h2>Çocuk verisi, özenle</h2>
+          <p class="par genis">Öğrenci ve veli bilgileri hassas kişisel veridir. neademy bu verileri korumak üzere tasarlandı.</p>
+        </div>
+        <div class="uc rv">
+          <article><h3>Şifreli saklama</h3><p>T.C. kimlik, telefon ve pasaport numaraları veritabanında şifrelenmiş saklanır.</p></article>
+          <article><h3>Doğrulamalı giriş</h3><p>Giriş telefona gelen tek kullanımlık kodla yapılır; kimlik bilgisi deneme sınırı ve kilitleme ile korunur.</p></article>
+          <article><h3>Rol bazlı yetki</h3><p>Her kullanıcı yalnızca rolünün gerektirdiği veriyi görür; yetkisiz erişim sunucuda engellenir.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Adımlar -->
+    <section class="bolum koyu2">
+      <div class="kap">
+        <div class="rv">
+          <p class="etiket">Nasıl başlanır</p>
+          <h2>Dört adımda kullanıma geçin</h2>
+        </div>
+        <ol class="adimlar rv">
+          <li><span class="no">01</span><h3>Talep bırakın</h3><p>Aşağıdaki formu doldurun, sizi arayalım.</p></li>
+          <li><span class="no">02</span><h3>Görüşelim</h3><p>İhtiyacınızı dinler, okulunuza uygun planı ve teklifi iletiriz.</p></li>
+          <li><span class="no">03</span><h3>Kurulum</h3><p>Okulunuz, sınıflarınız ve kadronuz sisteme tanımlanır.</p></li>
+          <li><span class="no">04</span><h3>Kullanıma geçin</h3><p>Öğretmen, öğrenci ve veli hesapları açılır; herkes uygulamayı indirir.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- SSS -->
+    <section class="bolum" id="sss">
+      <div class="kap">
+        <div class="rv">
+          <p class="etiket">SSS</p>
+          <h2>Merak edilenler</h2>
+        </div>
+        <div class="sss rv">
+          <details><summary>Uygulama ücretli mi?</summary><p>Uygulama öğretmen, öğrenci ve velilere ücretsizdir; uygulama içinde satın alma yoktur. Okul ya da kurum neademy’yi edinir, ödeme okulla yapılır.</p></details>
+          <details><summary>Hangi cihazlarda çalışır?</summary><p>iPhone ve Android için yerel uygulama vardır. Aynı ekranlar tarayıcıdan da açılır, bilgisayarda ayrıca bir şey kurmanız gerekmez.</p></details>
+          <details><summary>Birden fazla okul ya da kampüs yönetilebilir mi?</summary><p>Evet. Platform tek okuldan, birden çok okullu kampüse ve çok kampüslü kuruma kadar yapıyı destekler.</p></details>
+          <details><summary>Hesapları kim açar, nasıl giriş yapılır?</summary><p>Hesapları okul açar. Kullanıcı T.C. kimlik veya pasaport numarası ve telefonuyla giriş yapar, telefona gelen kodu doğrular. Telefonda parmak izi ya da yüz tanıma ile hızlı giriş de açılabilir.</p></details>
+          <details><summary>Hem öğretmen hem veli olan kişi ne yapar?</summary><p>Tek hesapla girer, uygulama içinden rolünü değiştirir. Her rolde yalnızca o rolün ekranlarını görür.</p></details>
+          <details><summary>Çocuk verileri nasıl korunuyor?</summary><p>Kimlik, telefon ve pasaport numaraları şifrelenmiş saklanır, erişim rol bazlı yetkiyle sunucuda denetlenir ve giriş denemeleri sınırlıdır.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Satın alma -->
+    <section class="bolum koyu2 satin" id="satin-al">
+      <div class="kap iki">
+        <div class="rv">
+          <p class="etiket">Satın alma</p>
+          <h2>neademy’yi okulunuza taşıyın</h2>
+          <p class="par">neademy’yi okul ya da kurum olarak edinirsiniz. Velilere ve öğrencilere ücret yansımaz. Talebinizi bırakın, sizi arayıp okulunuza uygun planı birlikte belirleyelim.</p>
+        </div>
+        <form id="talep" class="form rv" novalidate>
           <h3>Satın alma talebi</h3>
           <label for="t-okul">Okul / kurum adı</label>
           <input id="t-okul" name="okul" required maxlength="120" autocomplete="organization">
@@ -196,12 +308,16 @@
 
   <footer class="alt">
     <div class="kap alt-ic">
-      <strong>neademy</strong>
+      <a class="marka" href="/"><span class="logo" aria-hidden="true">n</span>neademy</a>
       <span>Okul yönetim platformu</span>
-      <a href="https://app.neademy.com/">Giriş yap</a>
+      <nav class="alt-menu" aria-label="Alt bağlantılar">
+        <a href="#ozellikler">Özellikler</a>
+        <a href="#sss">SSS</a>
+        <a href="https://app.neademy.com/">Giriş yap</a>
+      </nav>
     </div>
   </footer>
 
-  <script src="/tanitim.js?v=1"></script>
+  <script src="/tanitim.js?v=2"></script>
 </body>
 </html>

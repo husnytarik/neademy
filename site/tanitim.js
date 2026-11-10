@@ -1,4 +1,21 @@
-// Tanıtım sayfası: satın alma talebi formu
+// Tanıtım sitesi: açılışta belirme, üst çubuk gölgesi, satın alma talebi formu
+document.documentElement.classList.add('js');
+
+const ust = document.getElementById('ust');
+const kaydir = () => ust.classList.toggle('kay', window.scrollY > 8);
+kaydir();
+window.addEventListener('scroll', kaydir, { passive: true });
+
+const ogeler = document.querySelectorAll('.rv');
+if ('IntersectionObserver' in window) {
+  const gozcu = new IntersectionObserver(kayitlar => {
+    for (const k of kayitlar) if (k.isIntersecting) { k.target.classList.add('in'); gozcu.unobserve(k.target); }
+  }, { threshold: 0.12 });
+  ogeler.forEach(o => gozcu.observe(o));
+} else {
+  ogeler.forEach(o => o.classList.add('in'));
+}
+
 const form = document.getElementById('talep');
 const mesaj = document.getElementById('t-mesaj');
 
