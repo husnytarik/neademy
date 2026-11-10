@@ -40,7 +40,7 @@ ol, ul { padding: 0; list-style: none; }
 /* Düğmeler */
 .dugme { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 8px; padding: 13px 24px; font: inherit; font-weight: 700; font-size: .95rem; text-decoration: none; cursor: pointer; transition: transform .15s, filter .15s; }
 .dugme:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.dugme.bos { background: transparent; color: var(--text); border-color: var(--line); }
+.dugme.bos { background: transparent; color: var(--text); border-color: rgba(255,255,255,.38); }
 .dugme.bos:hover { border-color: var(--muted); filter: none; }
 .dugme.kucuk { padding: 8px 16px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
 .dugme.genis { width: 100%; margin-top: 20px; }
