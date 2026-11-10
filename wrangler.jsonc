@@ -1,0 +1,8 @@
+{
+  // Tanıtım sitesi (neademy.com): yalnızca site/ klasörü statik olarak yayınlanır
+  "name": "neademy",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./site"
+  }
+}
