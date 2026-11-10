@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0e1726">
   <title>neademy - Okul yönetim platformu</title>
   <meta name="description" content="neademy: yönetim, öğretmen, öğrenci ve veliyi tek yerde buluşturan okul yönetim platformu. iPhone, Android ve web.">
-  <link rel="stylesheet" href="/tanitim.css?v=2">
+  <link rel="stylesheet" href="/tanitim.css?v=4">
 </head>
 <body>
   <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
@@ -59,18 +59,7 @@
           </ul>
         </div>
         <div class="sahne rv">
-          <div class="tel buyuk" role="img" aria-label="Ders programı ekranı örneği">
-            <div class="ek">
-              <div class="ek-ust"><b>Ders programı</b><span>Salı</span></div>
-              <div class="gunler"><i>Pzt</i><i class="sec">Sal</i><i>Çar</i><i>Per</i><i>Cum</i></div>
-              <div class="ders c1"><em>09:00</em><div><b>Matematik</b><small>7-A · Ayşe Öğretmen</small></div></div>
-              <div class="ders c2"><em>09:50</em><div><b>Fen Bilimleri</b><small>7-A · Murat Öğretmen</small></div></div>
-              <div class="ders c3"><em>10:50</em><div><b>Türkçe</b><small>7-A · Selin Öğretmen</small></div></div>
-              <div class="ders c4"><em>11:40</em><div><b>İngilizce</b><small>7-A · Deniz Öğretmen</small></div></div>
-              <div class="ders c5"><em>13:20</em><div><b>Beden Eğitimi</b><small>7-A · Kaan Öğretmen</small></div></div>
-              <div class="alt-cubuk"><i class="a"></i><i></i><i></i><i></i></div>
-            </div>
-          </div>
+          <div class="tel buyuk"><img src="/img/program.webp" width="600" height="1298" alt="neademy ders programı ekranı: günlük ders listesi"></div>
         </div>
       </div>
     </section>
@@ -79,18 +68,7 @@
     <section class="bolum koyu2" id="nedir">
       <div class="kap iki ters">
         <div class="sahne rv">
-          <div class="tel" role="img" aria-label="Yoklama ekranı örneği">
-            <div class="ek">
-              <div class="ek-ust"><b>Yoklama</b><span>Matematik · 7-A</span></div>
-              <div class="konu">Konu: Oran ve orantı</div>
-              <div class="ogr"><span class="av">A</span><b>Ada Yıldız</b><u class="g">Geldi</u></div>
-              <div class="ogr"><span class="av">K</span><b>Kerem Aksoy</b><u class="g">Geldi</u></div>
-              <div class="ogr"><span class="av">E</span><b>Elif Sönmez</b><u class="y">Gelmedi</u></div>
-              <div class="ogr"><span class="av">M</span><b>Mert Kaya</b><u class="g">Geldi</u></div>
-              <div class="ogr"><span class="av">Z</span><b>Zeynep Tan</b><u class="i">İzinli</u></div>
-              <div class="kaydet">Kaydet</div>
-            </div>
-          </div>
+          <div class="tel"><img src="/img/devam.webp" width="600" height="1298" alt="neademy devamsızlık ekranı: devam oranı ve derslere göre dağılım"></div>
         </div>
         <div class="rv">
           <p class="etiket">Sorun</p>
@@ -107,7 +85,13 @@
       <div class="kap rv">
         <p class="etiket">Öne çıkan</p>
         <h2>Her rolün kendi ekranı</h2>
-        <p class="par">Müdürün, öğretmenin, öğrencinin ve velinin ihtiyacı aynı değildir. neademy’de herkes yalnızca kendi işine yarayan ekranları görür. Birden fazla rolü olan biri (örneğin hem öğretmen hem veli) tek hesapla rol değiştirir. Yetkisi olmayan veriye sunucu hiçbir koşulda izin vermez.</p>
+        <p class="par genis">Müdürün, öğretmenin, öğrencinin ve velinin ihtiyacı aynı değildir. neademy’de herkes yalnızca kendi işine yarayan ekranları görür. Birden fazla rolü olan biri (örneğin hem öğretmen hem veli) tek hesapla rol değiştirir. Yetkisi olmayan veriye sunucu hiçbir koşulda izin vermez.</p>
+        <div class="telsira">
+          <figure><div class="tel"><img src="/img/panel-yonetim.webp" width="600" height="1298" alt="neademy yönetim paneli"></div><figcaption>Yönetim</figcaption></figure>
+          <figure><div class="tel"><img src="/img/panel-ogretmen.webp" width="600" height="1298" alt="neademy öğretmen paneli"></div><figcaption>Öğretmen</figcaption></figure>
+          <figure><div class="tel"><img src="/img/panel-ogrenci.webp" width="600" height="1298" alt="neademy öğrenci paneli"></div><figcaption>Öğrenci</figcaption></figure>
+          <figure><div class="tel"><img src="/img/panel-veli.webp" width="600" height="1298" alt="neademy veli paneli"></div><figcaption>Veli</figcaption></figure>
+        </div>
       </div>
     </section>
 
@@ -145,45 +129,18 @@
         </div>
         <div class="telsira rv">
           <figure>
-            <div class="tel" role="img" aria-label="Veli ekranı örneği">
-              <div class="ek">
-                <div class="ek-ust"><b>Çocuğum</b><span>Ada Yıldız · 7-A</span></div>
-                <div class="kutular"><div><strong>0</strong><small>Devamsızlık</small></div><div><strong>85</strong><small>Son sınav</small></div><div><strong>2</strong><small>Ödev</small></div></div>
-                <div class="kartk"><b>Teslim kodu</b>
-                  <svg class="qr" viewBox="0 0 11 11" aria-hidden="true"><path d="M0 0h4v4H0zM7 0h4v4H7zM0 7h4v4H0zM5 1h1v2H5zM5 5h2v1H5zM8 5h1v2H8zM5 8h1v3H5zM7 8h1v1H7zM9 9h2v2H9zM1 1h2v2H1zM8 1h2v2H8zM1 8h2v2H1z" fill-rule="evenodd"/></svg>
-                  <small>Kapıda gösterin, güvenlik doğrulasın</small>
-                </div>
-                <div class="kartk"><b>Etüt onayı bekliyor</b><small>Cuma 15:30 · Matematik</small></div>
-              </div>
-            </div>
-            <figcaption>Veli ve teslim</figcaption>
-          </figure>
+            <div class="tel"><img src="/img/teslim.webp" width="600" height="1298" alt="neademy veli teslim kodu ekranı: QR kod"></div>
+            </figure>
           <figure>
-            <div class="tel" role="img" aria-label="Duyurular ekranı örneği">
-              <div class="ek">
-                <div class="ek-ust"><b>Duyurular</b><span>3 yeni</span></div>
-                <div class="duy"><i class="n1"></i><div><b>Veli toplantısı</b><small>14 Kasım · Tüm veliler</small></div></div>
-                <div class="duy"><i class="n2"></i><div><b>Okul gezisi onayı</b><small>7. sınıflar · Son gün Perşembe</small></div></div>
-                <div class="duy"><i class="n3"></i><div><b>Karne günü</b><small>Tüm öğrenciler</small></div></div>
-                <div class="duy"><i class="n4"></i><div><b>Zümre başkanları toplantısı</b><small>Yönetim notu eklendi</small></div></div>
-              </div>
-            </div>
-            <figcaption>Duyurular ve toplantılar</figcaption>
-          </figure>
+            <div class="tel"><img src="/img/odevler.webp" width="600" height="1298" alt="neademy ödevler ekranı: yapılacak ve onay bekleyen ödevler"></div>
+            </figure>
           <figure>
-            <div class="tel" role="img" aria-label="Sınav sonuçları ekranı örneği">
-              <div class="ek">
-                <div class="ek-ust"><b>Sınav sonuçları</b><span>1. dönem</span></div>
-                <div class="cizgi"><span>Matematik</span><div><i class="w85"></i></div><em>85</em></div>
-                <div class="cizgi"><span>Fen Bil.</span><div><i class="w78"></i></div><em>78</em></div>
-                <div class="cizgi"><span>Türkçe</span><div><i class="w92"></i></div><em>92</em></div>
-                <div class="cizgi"><span>İngilizce</span><div><i class="w70"></i></div><em>70</em></div>
-                <div class="cizgi"><span>Sosyal</span><div><i class="w88"></i></div><em>88</em></div>
-                <div class="kartk"><b>Kazanım raporu</b><small>Zayıf kazanım: Oran orantı</small></div>
-              </div>
-            </div>
-            <figcaption>Sınav ve kazanım</figcaption>
-          </figure>
+            <div class="tel"><img src="/img/notlar.webp" width="600" height="1298" alt="neademy sınav sonuçları ekranı: ortalama puanlar ve kazanımlar"></div>
+            </figure>
+        </div>
+        <div class="webler rv">
+          <figure><div class="tarayici"><span class="nok"><i></i><i></i><i></i></span><img src="/img/web-program.webp" width="1360" height="820" alt="neademy web paneli: haftalık ders programı"></div><figcaption>Web paneli · Haftalık ders programı</figcaption></figure>
+          <figure><div class="tarayici"><span class="nok"><i></i><i></i><i></i></span><img src="/img/web-raporlar.webp" width="1360" height="820" alt="neademy web paneli: yönetim raporları"></div><figcaption>Web paneli · Yönetim raporları</figcaption></figure>
         </div>
         <div class="eylem orta rv">
           <a class="dugme bos" href="https://app.neademy.com/uygulama/">Uygulamanın web sürümünü aç</a>
