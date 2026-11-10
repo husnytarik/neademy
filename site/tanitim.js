@@ -10,7 +10,7 @@ form.addEventListener('submit', async e => {
   const dugme = form.querySelector('button[type=submit]');
   dugme.disabled = true;
   try {
-    const r = await fetch('/api/satin-alma', {
+    const r = await fetch('https://app.neademy.com/api/satin-alma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(veri),
@@ -22,7 +22,7 @@ form.addEventListener('submit', async e => {
     mesaj.textContent = 'Talebiniz alındı. Sizi en kısa sürede arayacağız.';
   } catch (err) {
     mesaj.className = 'mesaj hata';
-    mesaj.textContent = err.message;
+    mesaj.textContent = err instanceof TypeError ? 'Şu an bağlanılamadı. Lütfen biraz sonra tekrar deneyin.' : err.message;
   } finally {
     dugme.disabled = false;
   }

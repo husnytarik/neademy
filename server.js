@@ -283,6 +283,25 @@ function cerezSid(req, sid) {
   return `sid=${sid}; Path=/; HttpOnly; SameSite=Strict${guvenli}; Max-Age=${OTURUM_SURESI / 1000}`;
 }
 
+// Tanıtım sitesinden gelen satın alma talebini kaydeder (herkese açık; yalnızca iletişim bilgisi, ödeme alınmaz)
+async function satinAlma(req, res, ip, cors) {
+  const yanit = (kod, v) => json(res, kod, v, cors);
+  if (hizAsildi(ip)) return yanit(429, { hata: 'Çok fazla deneme. Lütfen biraz bekleyin.' });
+    let g;
+  try { g = await govde(req, 4000); } catch { return yanit(400, { hata: 'Geçersiz istek' }); }
+  const metin = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const okul = metin(g.okul, 120), yetkili = metin(g.yetkili, 80), telefon = metin(g.telefon, 20), eposta = metin(g.eposta, 120);
+  const paket = ['okul', 'kampus', 'kurum'].includes(g.paket) ? g.paket : '';
+  const not = String(g.not ?? '').trim().slice(0, 1000);
+  const ogr = Number.parseInt(g.ogrenciSayisi, 10);
+  if (!okul || !yetkili) return yanit(400, { hata: 'Okul adı ve yetkili adı gerekli' });
+  if (telefon.replace(/\D/g, '').length < 10) return yanit(400, { hata: 'Geçerli bir telefon numarası yazın' });
+  if (eposta && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return yanit(400, { hata: 'E-posta adresi geçersiz' });
+  db.prepare('INSERT INTO satin_alma_talepleri (okul, yetkili, telefon, eposta, ogrenci_sayisi, paket, not_metni, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(okul, yetkili, telefon, eposta, Number.isFinite(ogr) && ogr > 0 && ogr < 1_000_000 ? ogr : null, paket, not, Date.now());
+  return yanit(200, { tamam: true });
+}
+
 async function api(req, res, url) {
   const ip = istemciIp(req);
 
@@ -322,22 +341,16 @@ async function api(req, res, url) {
   }
 
   // Tanıtım sayfasından satın alma talebi (herkese açık; yalnızca iletişim bilgisi alır, ödeme alınmaz)
-  if (req.method === 'POST' && url.pathname === '/api/satin-alma') {
-    if (hizAsildi(ip)) return json(res, 429, { hata: 'Çok fazla deneme. Lütfen biraz bekleyin.' });
-    let g;
-    try { g = await govde(req, 4000); } catch { return json(res, 400, { hata: 'Geçersiz istek' }); }
-    const metin = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
-    const okul = metin(g.okul, 120), yetkili = metin(g.yetkili, 80), telefon = metin(g.telefon, 20), eposta = metin(g.eposta, 120);
-    const paket = ['okul', 'kampus', 'kurum'].includes(g.paket) ? g.paket : '';
-    const not = String(g.not ?? '').trim().slice(0, 1000);
-    const ogr = Number.parseInt(g.ogrenciSayisi, 10);
-    if (!okul || !yetkili) return json(res, 400, { hata: 'Okul adı ve yetkili adı gerekli' });
-    if (telefon.replace(/\D/g, '').length < 10) return json(res, 400, { hata: 'Geçerli bir telefon numarası yazın' });
-    if (eposta && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta)) return json(res, 400, { hata: 'E-posta adresi geçersiz' });
-    db.prepare('INSERT INTO satin_alma_talepleri (okul, yetkili, telefon, eposta, ogrenci_sayisi, paket, not_metni, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(okul, yetkili, telefon, eposta, Number.isFinite(ogr) && ogr > 0 && ogr < 1_000_000 ? ogr : null, paket, not, Date.now());
-    return json(res, 200, { tamam: true });
+  if (url.pathname === '/api/satin-alma') {
+    // Tanıtım sitesi (neademy.com, Cloudflare Pages) başka kökenden gönderir: yalnızca o kökenlere CORS izni
+    const kokenler = ['https://neademy.com', 'https://www.neademy.com'];
+    const k = kokenler.includes(req.headers.origin) ? req.headers.origin : null;
+    const cors = k ? { 'Access-Control-Allow-Origin': k, 'Vary': 'Origin' } : {};
+    if (req.method === 'OPTIONS') { res.writeHead(k ? 204 : 403, { ...cors, 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' }); return res.end(); }
+    if (req.method !== 'POST') return json(res, 405, { hata: 'Yöntem desteklenmiyor' }, cors);
+    return satinAlma(req, res, ip, cors);
   }
+
 
   if (req.method === 'POST' && url.pathname === '/api/cikis') {
     const sid = sidAl(req);
@@ -752,7 +765,7 @@ const turler = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset
 
 function statik(req, res, url) {
   let ad = url.pathname === '/' ? '/index.html' : url.pathname;
-  if (ad === '/tanitim') ad = '/tanitim.html';
+  if (ad === '/tanitim') { res.writeHead(301, { Location: 'https://neademy.com/' }); res.end(); return; }
   if (ad === '/panel') ad = '/panel.html';
   if (ad === '/kullanicilar') ad = '/kullanicilar.html';
   if (ad === '/kisiler') ad = '/kisiler.html';
