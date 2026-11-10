@@ -92,6 +92,23 @@ h3 { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; }
 .nok i { width: 9px; height: 9px; border-radius: 50%; background: #2f3f5a; }
 .tarayici img { display: block; width: 100%; height: auto; aspect-ratio: 1360 / 820; }
 
+/* Açıklayıcı bölümler */
+.liste { margin: 22px 0 0; display: grid; gap: 0; max-width: 60ch; border-top: 1px solid var(--line); }
+.liste > div { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.liste dt { font-weight: 700; font-size: .98rem; }
+.liste dd { margin: 4px 0 0; color: var(--muted); font-size: .94rem; }
+.maddeler { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 40px; }
+.maddeler article { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px 28px 30px; }
+.maddeler h3 { margin-bottom: 10px; }
+.maddeler p { color: var(--muted); font-size: .96rem; }
+.akis { margin: 22px 0 0; padding: 0; list-style: none; counter-reset: ad; max-width: 60ch; }
+.akis li { position: relative; padding: 0 0 18px 46px; color: var(--muted); counter-increment: ad; }
+.akis li::before { content: counter(ad); position: absolute; left: 0; top: 1px; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-family: var(--mono); font-size: .8rem; }
+.akis b { color: var(--text); }
+.sahne.cift { gap: 24px; }
+.sahne.cift .tel { width: 232px; }
+.sahne.cift .tel + .tel { margin-top: 56px; }
+
 /* Özellik ızgarası */
 .ozgrid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 44px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .ozgrid article { padding: 30px 28px 34px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); transition: background .2s; }
@@ -163,6 +180,9 @@ h3 { font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em; }
   .ozgrid article:nth-child(2n) { border-right: 0; }
   .ozgrid article:nth-last-child(-n+2) { border-bottom: 0; }
   .roller { grid-template-columns: 1fr 1fr; }
+  .maddeler { grid-template-columns: 1fr; }
+  .sahne.cift { flex-wrap: wrap; }
+  .sahne.cift .tel + .tel { margin-top: 0; }
   .uc { grid-template-columns: 1fr; }
   .adimlar { grid-template-columns: 1fr 1fr; }
   .adimlar li:nth-child(3) { padding-left: 0; border-left: 0; }
