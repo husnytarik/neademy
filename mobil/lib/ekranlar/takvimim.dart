@@ -311,6 +311,8 @@ class _Hucre extends StatelessWidget {
       for (final t in turler.keys)
         if (gun.ogeler.any((o) => o.tur == t)) t,
     ];
+    // Çok türlü günlerde noktalar küçülür; dar telefonda tek satıra sığar.
+    final nokta = turSirasi.length > 3 ? 6.0 : 8.0;
     final yaziRengi = secili ? Theme.of(context).colorScheme.onPrimary : (bugun ? ana : context.yazi);
     return Semantics(
       button: true,
@@ -338,13 +340,13 @@ class _Hucre extends StatelessWidget {
                   const SizedBox(height: 5),
                   Wrap(
                     alignment: WrapAlignment.center,
-                    spacing: 3,
-                    runSpacing: 3,
+                    spacing: 2.5,
+                    runSpacing: 2.5,
                     children: [
                       for (final t in turSirasi)
                         Container(
-                          width: 8,
-                          height: 8,
+                          width: nokta,
+                          height: nokta,
                           decoration: BoxDecoration(
                             color: turler[t]!.renk,
                             shape: BoxShape.circle,

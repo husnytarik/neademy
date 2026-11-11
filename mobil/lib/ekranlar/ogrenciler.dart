@@ -304,8 +304,8 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
             spacing: 10,
             runSpacing: 6,
             children: [
-              OutlinedButton(onPressed: _duzenle, child: const Text('Düzenle')),
-              OutlinedButton(
+              OutlinedButton(style: kompakt, onPressed: _duzenle, child: const Text('Düzenle')),
+              OutlinedButton(style: kompakt, 
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => KarneEkrani(api: widget.api, ogrenciId: widget.id),
@@ -313,7 +313,7 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
                 ),
                 child: const Text('Dönem karnesi'),
               ),
-              OutlinedButton(onPressed: () => _durum(kayit), child: Text(aktif ? 'Okuldan ayrıldı' : 'Geri al')),
+              OutlinedButton(style: kompakt, onPressed: () => _durum(kayit), child: Text(aktif ? 'Okuldan ayrıldı' : 'Geri al')),
             ],
           ),
         if (_sekme == 'genel') ..._genel(context, rapor, kayit, sinavlar),
@@ -822,7 +822,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                OutlinedButton(onPressed: _fotoSec, child: Text(fotoVar ? 'Fotoğrafı değiştir' : 'Fotoğraf ekle')),
+                OutlinedButton(style: kompakt, onPressed: _fotoSec, child: Text(fotoVar ? 'Fotoğrafı değiştir' : 'Fotoğraf ekle')),
                 Text('Vesikalık ya da yüzün net göründüğü bir fotoğraf.', style: TextStyle(color: context.soluk, fontSize: 12.5)),
               ],
             ),

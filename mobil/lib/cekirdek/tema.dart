@@ -40,6 +40,10 @@ extension TemaRenkleri on BuildContext {
   Color get ana => koyu ? const Color(0xFF8FB0DA) : Renk.ana;
 }
 
+/// Satır içinde ya da Wrap'te duran düğmeler için: tema düğmeleri tam genişliğe uzadığından
+/// bunlara dar (içeriği kadar) genişlik verilir. Web'deki `.kucuk` düğme gibi 40 px yükseklik.
+const kompakt = ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(0, 40)), padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)));
+
 ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
   final bantRengi = bant ?? Renk.bant;
   final koyu = parlaklik == Brightness.dark;
@@ -102,16 +106,17 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(50),
+        minimumSize: const Size.fromHeight(46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(50),
-        side: BorderSide(color: ince),
+        minimumSize: const Size.fromHeight(46),
+        side: BorderSide(color: ana.withValues(alpha: .5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
     // Web'deki ikincil düğme gibi: ince çerçeveli, yuvarlak köşeli
@@ -121,6 +126,7 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         side: BorderSide(color: ana.withValues(alpha: .5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
       ),
     ),
     textTheme: Typography.material2021().black.apply(bodyColor: yazi, displayColor: yazi),

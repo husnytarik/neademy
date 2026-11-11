@@ -576,7 +576,7 @@ class _DersHazirlikEkraniState extends State<_DersHazirlikEkrani> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      FilledButton(onPressed: _hizliUygula, child: const Text('Uygula')),
+                      FilledButton(style: kompakt, onPressed: _hizliUygula, child: const Text('Uygula')),
                     ],
                   ),
                 ],

@@ -214,6 +214,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
                 if (baskan)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
+                    spacing: 8,
                     children: [
                       TextButton(
                         onPressed: () => _karar(
@@ -325,6 +326,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
           if (baskan)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
+              spacing: 8,
               children: [
                 TextButton(onPressed: () => _toplantiFormu(t), child: const Text('Düzenle')),
                 TextButton(
@@ -354,6 +356,7 @@ class _ZumreGovdesiState extends State<_ZumreGovdesi> {
       Align(
         alignment: Alignment.centerRight,
         child: FilledButton(
+          style: kompakt,
           onPressed: () async {
             if (_yazi.text.trim().isEmpty) return;
             final metin = _yazi.text;

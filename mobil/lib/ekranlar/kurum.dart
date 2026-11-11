@@ -4,6 +4,7 @@ import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
+import '../cekirdek/yazdir.dart';
 
 const _sayiAdlari = [
   ('sinif', 'Sınıf'),
@@ -181,7 +182,7 @@ class _LogoAlaniState extends State<_LogoAlani> {
           child: Wrap(
             spacing: 8,
             children: [
-              OutlinedButton(onPressed: _yukle, child: Text(widget.yol == null ? 'Logo ekle' : 'Logoyu değiştir')),
+              OutlinedButton(style: kompakt, onPressed: _yukle, child: Text(widget.yol == null ? 'Logo ekle' : 'Logoyu değiştir')),
               if (widget.yol != null) TextButton(onPressed: _kaldir, child: const Text('Kaldır')),
             ],
           ),
@@ -290,12 +291,60 @@ Widget _zumreler(BuildContext context, Map<String, dynamic> o) {
   );
 }
 
+List<(String, String)> _sayiOzeti(List<Map<String, dynamic>> okullar, {int? kampus}) {
+  final yoklama = _topla(okullar, 'yoklamaToplam');
+  final gelmedi = _topla(okullar, 'gelmedi');
+  return [
+    if (kampus != null) ('Kampüs', '$kampus'),
+    ('Okul', '${okullar.length}'),
+    for (final (k, ad) in _sayiAdlari) (ad, '${_topla(okullar, k)}'),
+    if (yoklama > 0) ('Devamsızlık', '%${(gelmedi * 100 / yoklama).toStringAsFixed(1)}'),
+  ];
+}
+
+List<RaporBolumu> _okulBolumleri(Map<String, dynamic> o, Map<String, dynamic> v) {
+  final gorevler = ((v['gorevler'] as Map?) ?? const {}).cast<String, dynamic>();
+  final liste = o.l('yoneticiler');
+  final sirali = [...liste.where((y) => y.s('gorev') == 'mudur'), ...liste.where((y) => y.s('gorev') != 'mudur')];
+  final z = o.l('zumreler');
+  return [
+    RaporBolumu(baslik: 'Genel durum', ozet: _sayiOzeti([o])),
+    RaporBolumu(
+      baslik: 'Bilgiler',
+      ozet: [
+        for (final s in [('Kurum kodu', o.s('kurumKodu')), ('Telefon', o.s('telefon')), ('E-posta', o.s('eposta')), ('Adres', o.s('adres')), ..._tanitimSatirlari(o, v)])
+          if (s.$2.trim().isNotEmpty) s,
+      ],
+      metin: o.s('aciklama'),
+    ),
+    RaporBolumu(
+      baslik: 'Okul yönetimi',
+      sutunlar: const ['Ad soyad', 'Görev', 'Telefon'],
+      satirlar: [for (final y in sirali) [y.s('ad'), '${gorevler[y.s('gorev')] ?? y.s('gorev')}', y.s('telefon')]],
+      bos: 'Henüz müdür ya da müdür yardımcısı atanmadı.',
+    ),
+    if (z.isNotEmpty)
+      RaporBolumu(
+        baslik: 'Zümreler',
+        sutunlar: const ['Branş', 'Öğretmen', 'Zümre başkanı'],
+        satirlar: [for (final x in z) [x.s('brans'), '${x.n('ogretmen')}', x.s('baskan')]],
+      ),
+    if (o.l('gorevliler').isNotEmpty)
+      RaporBolumu(
+        baslik: 'Görevliler',
+        sutunlar: const ['Ad soyad', 'Görev'],
+        satirlar: [for (final x in o.l('gorevliler')) [x.s('ad'), x.s('gorev')]],
+      ),
+  ];
+}
+
 /// Gezinme kabuğu: veriyi sunucudan alır, değişince `yenile` ile tazelenir.
 class _Sayfa extends StatefulWidget {
-  const _Sayfa({required this.api, required this.baslik, required this.cizim});
+  const _Sayfa({required this.api, required this.baslik, required this.cizim, this.eylemler});
 
   final Api api;
   final String baslik;
+  final List<Widget> Function(BuildContext context, Map<String, dynamic> v)? eylemler;
   final List<Widget> Function(BuildContext context, Map<String, dynamic> v, VoidCallback yenile) cizim;
 
   @override
@@ -310,6 +359,7 @@ class _SayfaState extends State<_Sayfa> {
     key: ValueKey(_n),
     baslik: widget.baslik,
     getir: () => widget.api.get('/api/yonetim/kurum'),
+    eylemler: widget.eylemler == null ? null : (context, v) => widget.eylemler!(context, v as Map<String, dynamic>),
     cizim: (context, v) => widget.cizim(context, v as Map<String, dynamic>, () => setState(() => _n++)),
   );
 }
@@ -328,6 +378,42 @@ class KampuslerEkrani extends StatelessWidget {
   Widget build(BuildContext context) => _Sayfa(
     api: api,
     baslik: 'Kampüs ve okullar',
+    eylemler: (context, v) => [
+      YazdirDugmesi(
+        onPressed: () {
+          final k = (v['kurum'] as Map).cast<String, dynamic>();
+          final okullar = _tumOkullar(v);
+          final kampusler = v.l('kampusler');
+          final kurucu = v.l('kurucular').map((c) => c.s('ad')).join(', ');
+          raporYazdir(
+            context,
+            api,
+            kurum: k.s('ad'),
+            baslik: 'Kurum föyü',
+            alt: '${kampusler.length} kampüs · ${okullar.length} okul${kurucu.isEmpty ? '' : ' · Kurucu: $kurucu'}',
+            bolumler: [
+              RaporBolumu(baslik: 'Genel durum', ozet: _sayiOzeti(okullar, kampus: kampusler.length)),
+              RaporBolumu(
+                baslik: 'Kampüs ve okul yönetimi',
+                sutunlar: const ['Kampüs', 'Okul', 'Müdür', 'Öğrenci', 'Öğretmen'],
+                satirlar: [
+                  for (final c in kampusler)
+                    for (final o in c.l('okullar'))
+                      [
+                        _sade(c.s('ad')),
+                        o.s('ad'),
+                        o.l('yoneticiler').where((y) => y.s('gorev') == 'mudur').map((y) => y.s('ad')).join(', '),
+                        '${o.n('ogrenci')}',
+                        '${o.n('ogretmen')}',
+                      ],
+                ],
+                bos: 'Henüz kampüs eklenmedi.',
+              ),
+            ],
+          );
+        },
+      ),
+    ],
     cizim: (context, v, yenile) {
       final k = (v['kurum'] as Map).cast<String, dynamic>();
       final okullar = _tumOkullar(v);
@@ -370,6 +456,15 @@ class _OkulOzeti extends StatelessWidget {
   Widget build(BuildContext context) => _Sayfa(
     api: api,
     baslik: 'Okul',
+    eylemler: (context, v) {
+      final o = _tumOkullar(v).where((x) => x.n('id') == okulId).firstOrNull;
+      if (o == null) return const [];
+      return [
+        YazdirDugmesi(
+          onPressed: () => raporYazdir(context, api, baslik: o.s('ad'), alt: o.s('tur'), bolumler: _okulBolumleri(o, v)),
+        ),
+      ];
+    },
     cizim: (context, v, yenile) {
       final o = _tumOkullar(v).where((x) => x.n('id') == okulId).firstOrNull;
       if (o == null) return const [BosNot('Okul bulunamadı.')];

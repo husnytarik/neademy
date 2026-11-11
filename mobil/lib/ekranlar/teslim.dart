@@ -422,7 +422,7 @@ class _TeslimYetkileriEkraniState extends State<TeslimYetkileriEkrani> {
                   ]),
                 ),
               Wrap(spacing: 8, children: [
-                OutlinedButton.icon(onPressed: () => _ekle(o), icon: const Icon(Icons.person_add_alt_outlined), label: const Text('Kişi ekle')),
+                OutlinedButton.icon(style: kompakt, onPressed: () => _ekle(o), icon: const Icon(Icons.person_add_alt_outlined), label: const Text('Kişi ekle')),
                 TextButton.icon(onPressed: () => _gecmis(o), icon: const Icon(Icons.history), label: const Text('Teslim kayıtları')),
               ]),
             ],
@@ -630,7 +630,7 @@ class _TeslimKapiEkraniState extends State<TeslimKapiEkrani> {
             ),
           ),
           const SizedBox(width: 8),
-          FilledButton(onPressed: () => _oku(_kodGir.text), child: const Text('Tamam')),
+          FilledButton(style: kompakt, onPressed: () => _oku(_kodGir.text), child: const Text('Tamam')),
         ]),
         const Baslik('Bugünkü teslimler', ust: 22),
         if (_bugun.isEmpty) const BosNot('Henüz teslim yapılmadı.'),

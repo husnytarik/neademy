@@ -4,6 +4,7 @@ import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
+import '../cekirdek/yazdir.dart';
 
 const _rolAdi = {'yonetim': 'Yönetim', 'ogretmen': 'Öğretmen', 'ogrenci': 'Öğrenci', 'veli': 'Veli'};
 const _gorevAdi = {'mudur': 'Müdür', 'mudur_yrd': 'Müdür yardımcısı'};
@@ -53,6 +54,7 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
   Widget build(BuildContext context) => VeriSayfasi(
     key: ValueKey(_n),
     baslik: 'Kişiler',
+    eylemler: (context, raw) => _sekme == 'rol' ? const [] : [YazdirDugmesi(onPressed: () => _yazdir(context, raw as Map<String, dynamic>))],
     getir: () => _getir(api),
     cizim: (context, raw) {
       final v = raw as Map<String, dynamic>;
@@ -119,6 +121,38 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
       ];
     },
   );
+
+  /// Web'deki personel / öğretmen listesi çıktısı: seçili okul ve sekmeye göre numaralı tablo.
+  void _yazdir(BuildContext context, Map<String, dynamic> v) {
+    final roller = v.l('roller');
+    final rol = _sekme == 'ogretmen' ? 'ogretmen' : 'yonetim';
+    final subeler = v.l('subeler');
+    final kampusler = v.l('kampusler');
+    final okulAdi = _okul == 0 ? 'Tüm okullar' : [for (final s in subeler) if (s.n('id') == _okul) _okulEtiket(s, kampusler)].firstOrNull ?? 'Tüm okullar';
+    final satirlar = <List<String>>[];
+    for (final u in v.l('kullanicilar')) {
+      final uyeler = u.l('uyelikler').where((m) => m.s('rol') == rol && m.s('durum') == 'aktif' && (_okul == 0 || m.n('subeId') == _okul)).toList();
+      if (uyeler.isEmpty) continue;
+      final okullar = {for (final m in uyeler) if (m.s('sube').isNotEmpty) m.s('sube')}.join(', ');
+      var gorev = _gorevler(u, roller);
+      if (gorev.isEmpty && rol == 'ogretmen') gorev = 'Öğretmen';
+      satirlar.add([u.s('ad'), gorev, okullar]);
+    }
+    satirlar.sort((a, b) => a[0].toLowerCase().compareTo(b[0].toLowerCase()));
+    raporYazdir(
+      context,
+      api,
+      baslik: rol == 'ogretmen' ? 'Öğretmen listesi' : 'Yönetim personeli listesi',
+      alt: '$okulAdi · ${satirlar.length} kişi',
+      bolumler: [
+        RaporBolumu(
+          sutunlar: const ['No', 'Ad soyad', 'Görev', 'Okul'],
+          satirlar: [for (var i = 0; i < satirlar.length; i++) ['${i + 1}', ...satirlar[i]]],
+          bos: 'Bu seçimde kayıtlı kişi yok.',
+        ),
+      ],
+    );
+  }
 
   String _gorevler(Map<String, dynamic> u, List<Map<String, dynamic>> roller) {
     final liste = <String>[];
@@ -295,7 +329,7 @@ class _KisiDuzenState extends State<_KisiDuzen> {
               child: Wrap(
                 spacing: 8,
                 children: [
-                  OutlinedButton(onPressed: _fotoYukle, child: Text(foto.isEmpty ? 'Fotoğraf ekle' : 'Fotoğrafı değiştir')),
+                  OutlinedButton(style: kompakt, onPressed: _fotoYukle, child: Text(foto.isEmpty ? 'Fotoğraf ekle' : 'Fotoğrafı değiştir')),
                   if (foto.isNotEmpty)
                     TextButton(onPressed: () => _yap('/api/foto-sil?id=${widget.kisiId}', {}, basari: 'Fotoğraf kaldırıldı.'), child: const Text('Kaldır')),
                 ],

@@ -115,7 +115,8 @@ class _BaskanToplantiEkraniState extends State<BaskanToplantiEkrani> {
               child: Text('Karar henüz yazılmadı.', style: TextStyle(color: context.soluk, fontSize: 13)),
             ),
           Wrap(
-            spacing: 4,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               if (t['basladi'] == true) TextButton(onPressed: () => _karar(t), child: Text(t.s('karar').isEmpty ? 'Toplantıyı bitir' : 'Kararı düzenle')),
               if (t['duzenleyebilir'] == true) TextButton(onPressed: () => _form(veri, t), child: const Text('Düzenle')),

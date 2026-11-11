@@ -253,16 +253,16 @@ class _OdevDetayEkraniState extends State<OdevDetayEkrani> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    FilledButton(
+                    FilledButton(style: kompakt, 
                       onPressed: _isliyor ? null : () => _isaretle('yapildi', bilgi: 'Öğretmenin onayına gönderildi'),
                       child: Text(kod == 'yapildi' ? 'Yaptım ✓' : 'Yaptım'),
                     ),
-                    OutlinedButton(
+                    OutlinedButton(style: kompakt, 
                       onPressed: _isliyor ? null : () => _isaretle('yapilamadi', bilgi: 'Kaydedildi'),
                       child: const Text('Yapamadım'),
                     ),
                     if (kod == 'yapildi' || kod == 'yapilamadi')
-                      OutlinedButton(
+                      OutlinedButton(style: kompakt, 
                         onPressed: _isliyor ? null : () => _isaretle('verildi', bilgi: 'İşaret kaldırıldı'),
                         child: const Text('Geri al'),
                       ),
@@ -318,8 +318,8 @@ class _OdevDetayEkraniState extends State<OdevDetayEkrani> {
             runSpacing: 8,
             children: [
               if (_ekler.length < 3)
-                OutlinedButton.icon(onPressed: _isliyor ? null : _soruFotoEkle, icon: const Icon(Icons.photo_outlined), label: const Text('Fotoğraf')),
-              FilledButton(onPressed: _isliyor ? null : _soruGonder, child: const Text('Soruyu gönder')),
+                OutlinedButton.icon(style: kompakt, onPressed: _isliyor ? null : _soruFotoEkle, icon: const Icon(Icons.photo_outlined), label: const Text('Fotoğraf')),
+              FilledButton(style: kompakt, onPressed: _isliyor ? null : _soruGonder, child: const Text('Soruyu gönder')),
             ],
           ),
         ],

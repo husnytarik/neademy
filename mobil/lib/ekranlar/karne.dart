@@ -4,6 +4,7 @@ import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/takvim_model.dart';
 import '../cekirdek/tema.dart';
+import '../cekirdek/yazdir.dart';
 
 const _kirmizi = Color(0xFFD64545);
 const _yesil = Color(0xFF2E9E5B);
@@ -55,6 +56,11 @@ class _KarneEkraniState extends State<KarneEkrani> {
   Widget build(BuildContext context) => VeriSayfasi(
     key: ValueKey(_donem),
     baslik: 'Dönem karnesi',
+    eylemler: (context, veri) {
+      final v = veri as Map<String, dynamic>;
+      if (v.l('ogrenciler').isEmpty) return const [];
+      return [YazdirDugmesi(onPressed: () => _yazdir(context, v))];
+    },
     getir: () => widget.api.get('/api/karne?id=${widget.ogrenciId}${_donem == null ? '' : '&donemId=$_donem'}'),
     cizim: (context, veri) {
       final v = veri as Map<String, dynamic>;
@@ -68,6 +74,107 @@ class _KarneEkraniState extends State<KarneEkrani> {
       ];
     },
   );
+
+  /// Web'deki karne çıktısı: öğrenci bilgisi, özet, dersler, sınavlar, ödev, etüt ve gözlemler.
+  void _yazdir(BuildContext context, Map<String, dynamic> v) {
+    final k = v.l('ogrenciler').first;
+    final donem = v.m('donem');
+    final o = k.m('ogrenci');
+    final g = k.m('genel');
+    final sinav = k.m('sinav');
+    final odev = k.m('odev');
+    final ot = odev.m('toplam');
+    final etut = k.m('etut');
+    final eo = etut.m('ozet');
+    final gelisim = k.m('gelisim');
+    raporYazdir(
+      context,
+      widget.api,
+      baslik: 'Dönem karnesi',
+      alt: '${o.s('ad')} · ${[o.s('sinif'), if (o.s('okulNo').isNotEmpty) 'No ${o.s('okulNo')}'].where((e) => e.isNotEmpty).join(' · ')} · ${donem.s('ad')} (${kisaTarih(donem.s('baslangic'))} – ${kisaTarih(donem.s('bitis'))})',
+      bolumler: [
+        RaporBolumu(
+          baslik: 'Öğrenci',
+          ozet: [
+            ('Ad soyad', o.s('ad')),
+            ('Sınıf', o.s('sinif')),
+            if (o.s('mentor').isNotEmpty) (o.s('mentorEtiket').isEmpty ? 'Sınıf öğretmeni' : o.s('mentorEtiket'), o.s('mentor')),
+            if (o.s('veli').isNotEmpty) ('Veli', o.s('veli')),
+          ],
+        ),
+        RaporBolumu(
+          baslik: 'Dönem özeti',
+          ozet: [
+            ('Yazılı ortalaması', _say(g['ortalama'])),
+            ('Deneme ortalaması', _say(g['denemeOrtalama'])),
+            ('Devamsızlık', '${g.n('devamsiz')}'),
+            ('Geç', '${g.n('gec')}'),
+            ('İzinli', '${g.n('izinli')}'),
+            ('Ödev', _yuzde(g['odevYuzde'])),
+            ('Etüt', '${g.n('etut')}'),
+          ],
+        ),
+        RaporBolumu(
+          baslik: 'Dersler',
+          sutunlar: const ['Ders', 'Öğretmen', 'Not', 'Yazılılar', 'Devamsızlık'],
+          satirlar: [
+            for (final d in k.l('dersler'))
+              [
+                d.s('ders'),
+                d.s('ogretmen'),
+                d['not'] == null ? '–' : _say(d['not']),
+                d.l('yazililar').map((y) => '${y.s('ad')}: ${_say(y['puan'])}').join(', '),
+                d.m('devam').n('toplam') > 0 ? '${d.m('devam').n('gelmedi')} gelmedi / ${d.m('devam').n('toplam')} saat' : '–',
+              ],
+          ],
+          bos: 'Bu sınıfa ders atanmamış.',
+        ),
+        RaporBolumu(
+          baslik: 'Sınavlar',
+          sutunlar: const ['Sınav', 'Tarih', 'Ortalama', 'Sınıf sırası'],
+          satirlar: [
+            for (final d in sinav.l('denemeler'))
+              [
+                d.s('ad'),
+                kisaTarih(d.s('tarih')),
+                _say(d['ortalama']),
+                d.m('siralama').m('sinif').n('sira') > 0 ? '${d.m('siralama').m('sinif').n('sira')}/${d.m('siralama').m('sinif').n('sayi')}' : '–',
+              ],
+          ],
+          bos: 'Bu dönemde yayınlanmış deneme yok.',
+        ),
+        if (sinav.l('tekrar').isNotEmpty)
+          RaporBolumu(
+            baslik: 'Tekrar edilmesi gereken konular',
+            sutunlar: const ['Kazanım', 'Ders', 'Başarı'],
+            satirlar: [for (final t in sinav.l('tekrar')) [t.s('kazanim'), t.s('ders'), _yuzde(t['oran'])]],
+          ),
+        RaporBolumu(
+          baslik: 'Ödevler',
+          metin: ot.n('verilen') == 0
+              ? 'Bu dönemde son tarihi gelen ödev yok.'
+              : '${ot.n('yapildi')}/${ot.n('verilen')} ödev yapıldı (${_yuzde(ot['yuzde'])}). ${ot.n('yapilmadi')} yapılmadı, ${ot.n('duzeltme')} düzeltmede, ${ot.n('isaretsiz')} işaretsiz.',
+          sutunlar: const ['Ders', 'Yapılan / verilen', 'Oran'],
+          satirlar: [for (final d in odev.l('dersler')) [d.s('ders'), '${d.n('yapildi')}/${d.n('verilen')}', _yuzde(d['yuzde'])]],
+        ),
+        RaporBolumu(
+          baslik: 'Etütler',
+          metin: eo.n('toplam') == 0
+              ? 'Bu dönemde etüt yok.'
+              : '${eo.n('toplam')} etüt: ${eo.n('geldi')} geldi, ${eo.n('gelmedi')} gelmedi, ${eo.n('izinli')} izinli, ${eo.n('bekliyor')} bekliyor.',
+        ),
+        RaporBolumu(
+          baslik: 'Öğretmen gözlemleri',
+          sutunlar: const ['Konu', 'Yazan', 'Görüş'],
+          satirlar: [
+            for (final x in gelisim.l('gozlemler')) [x.s('baslik'), [x.s('ogretmen'), x.s('ders')].where((e) => e.isNotEmpty).join(' · '), x.s('metin')],
+            for (final x in gelisim.l('gorusmeler')) ['${x.s('tur')} görüşmesi · ${kisaTarih(x.s('tarih'))}', x.s('yazan'), x.s('notu')],
+          ],
+          bos: 'Bu dönem için gözlem girilmemiş.',
+        ),
+      ],
+    );
+  }
 
   List<Widget> _ogrenci(BuildContext context, Map<String, dynamic> k) {
     final o = k.m('ogrenci');

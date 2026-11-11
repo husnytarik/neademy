@@ -364,7 +364,7 @@ class _OgretmenEtut extends StatelessWidget {
             Wrap(
               spacing: 8,
               children: [
-                if (e.s('tarih').compareTo(bugun) <= 0) OutlinedButton(onPressed: yoklama, child: const Text('Yoklama al')),
+                if (e.s('tarih').compareTo(bugun) <= 0) OutlinedButton(style: kompakt, onPressed: yoklama, child: const Text('Yoklama al')),
                 TextButton(
                   onPressed: iptal,
                   style: TextButton.styleFrom(foregroundColor: _kirmizi),

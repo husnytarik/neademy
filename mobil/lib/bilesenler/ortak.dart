@@ -6,9 +6,12 @@ import '../cekirdek/tema.dart';
 /// Sunucudan tek istekle veri çeken, yükleme/hata/yenileme durumlarını yöneten sayfa iskeleti.
 /// [getir] değişince sayfayı yeniden yüklemek için çağıran taraf `key` verir.
 class VeriSayfasi extends StatefulWidget {
-  const VeriSayfasi({super.key, required this.baslik, required this.getir, required this.cizim});
+  const VeriSayfasi({super.key, required this.baslik, required this.getir, required this.cizim, this.eylemler});
 
   final String baslik;
+
+  /// Uygulama çubuğundaki eylemler (ör. yazdır); veri yüklenince çizilir.
+  final List<Widget> Function(BuildContext context, dynamic veri)? eylemler;
   final Future<dynamic> Function() getir;
 
   /// Listeye girecek parçaları üretir.
@@ -83,7 +86,7 @@ class _VeriSayfasiState extends State<VeriSayfasi> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: Text(widget.baslik)),
+      appBar: AppBar(title: Text(widget.baslik), actions: _veri == null || widget.eylemler == null ? null : widget.eylemler!(context, _veri)),
       body: govde,
     );
   }
@@ -144,21 +147,23 @@ class Sekmeler extends StatelessWidget {
               onTap: () => degisti(deger),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: secili == deger ? context.kart : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: secili == deger ? [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 6, offset: const Offset(0, 1))] : null,
                 ),
-                child: Text(
-                  ad,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: secili == deger ? FontWeight.w700 : FontWeight.w500,
-                    color: secili == deger ? context.yazi : context.soluk,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    ad,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: secili == deger ? FontWeight.w700 : FontWeight.w500,
+                      color: secili == deger ? context.yazi : context.soluk,
+                    ),
                   ),
                 ),
               ),

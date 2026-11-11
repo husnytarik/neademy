@@ -409,8 +409,8 @@ class _SinifProgramiState extends State<_SinifProgrami> {
           Wrap(
             spacing: 8,
             children: [
-              FilledButton.tonal(onPressed: _sinif == null ? null : _otomatik, child: const Text('Otomatik yerleştir')),
-              OutlinedButton(onPressed: _hucreler.isEmpty ? null : _temizle, child: const Text('Programı temizle')),
+              FilledButton.tonal(style: kompakt, onPressed: _sinif == null ? null : _otomatik, child: const Text('Otomatik yerleştir')),
+              OutlinedButton(style: kompakt, onPressed: _hucreler.isEmpty ? null : _temizle, child: const Text('Programı temizle')),
             ],
           ),
         ],
@@ -675,6 +675,8 @@ class _GorevSekmesiState extends State<_GorevSekmesi> {
           ),
           Wrap(
             alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               TextButton(onPressed: () => setState(() => _duzenle = !_duzenle), child: Text(_duzenle ? 'Bitti' : 'Düzenle')),
               TextButton(onPressed: () => _form(), child: const Text('+ Nöbet / görev')),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/tema.dart';
+import '../cekirdek/yazdir.dart';
 
 /// Raporlar (yönetim): okul ya da tüm kurum için devam, eksik ders, ödev ve kulüp özetleri.
 class RaporEkrani extends StatefulWidget {
@@ -21,6 +22,7 @@ class _RaporEkraniState extends State<RaporEkrani> {
   Widget build(BuildContext context) => VeriSayfasi(
     key: ValueKey(_okul),
     baslik: 'Raporlar',
+    eylemler: (context, raw) => [YazdirDugmesi(onPressed: () => _yazdir(context, raw as Map<String, dynamic>))],
     getir: () async => await widget.api.get('/api/rapor/ozet${_okul.isEmpty ? '' : '?okul=$_okul'}'),
     cizim: (context, raw) {
       final v = raw as Map<String, dynamic>;
@@ -85,6 +87,70 @@ class _RaporEkraniState extends State<RaporEkrani> {
       ];
     },
   );
+
+  void _yazdir(BuildContext context, Map<String, dynamic> v) {
+    final ozet = v.m('ozet');
+    final devam = v.m('devam');
+    final odev = v.m('odev');
+    final eksik = v.m('eksikDersler');
+    final kulupler = v.l('kulupler');
+    final okulSecili = v['okul'] != null;
+    String okulAdi = 'Tüm okullar';
+    for (final o in v.l('okullar')) {
+      if ('${o.n('id')}' == _okul) okulAdi = o.s('ad');
+    }
+    raporYazdir(
+      context,
+      widget.api,
+      baslik: 'Okul raporu',
+      alt: okulAdi,
+      bolumler: [
+        RaporBolumu(
+          baslik: 'Genel durum',
+          ozet: [
+            ('Öğrenci', '${ozet.n('ogrenci')}'),
+            ('Öğretmen', '${ozet.n('ogretmen')}'),
+            ('Sınıf', '${ozet.n('sinif')}'),
+            ('Devam oranı', '%${devam.n('yuzde')}'),
+            ('Ödev tamamlama', '%${odev.n('yuzde')}'),
+            ('Eksik ders (son 14 gün)', '${eksik.n('toplam')}'),
+          ],
+        ),
+        RaporBolumu(
+          baslik: 'Devamsızlığı en yüksek sınıflar',
+          sutunlar: const ['Sınıf', 'Devamsızlık'],
+          satirlar: [for (final s in devam.l('siniflar')) [s.s('ad'), '%${s.n('oran')}']],
+          bos: 'Henüz yoklama yok.',
+        ),
+        RaporBolumu(
+          baslik: 'En çok devamsızlık yapan öğrenciler',
+          sutunlar: const ['Öğrenci', 'Sınıf', 'Gelmediği ders'],
+          satirlar: [for (final s in v.l('devamsizlar')) [s.s('ad'), s.s('sinif'), '${s.n('gelmedi')}']],
+          bos: 'Devamsızlık kaydı yok.',
+        ),
+        RaporBolumu(
+          baslik: 'Dersi tamamlamayan öğretmenler (son 14 gün)',
+          sutunlar: const ['Öğretmen', 'Tamamlanmayan ders'],
+          satirlar: [for (final s in eksik.l('ogretmenler')) [s.s('ad'), '${s.n('sayi')}']],
+          bos: 'Eksik ders yok.',
+        ),
+        RaporBolumu(
+          baslik: 'Ödev tamamlaması en düşük sınıflar',
+          sutunlar: const ['Sınıf', 'Tamamlama'],
+          satirlar: [for (final s in odev.l('siniflar')) [s.s('ad'), '%${s.n('oran')}']],
+          bos: 'Ödev yok.',
+        ),
+        RaporBolumu(
+          baslik: 'Kulüp doluluğu',
+          sutunlar: okulSecili ? const ['Kulüp', 'Üye / kontenjan'] : const ['Kulüp', 'Okul', 'Üye / kontenjan'],
+          satirlar: [
+            for (final k in kulupler) [k.s('ad'), if (!okulSecili) k.s('okul'), '${k.n('uye')}/${k.n('kontenjan')}'],
+          ],
+          bos: 'Kulüp yok.',
+        ),
+      ],
+    );
+  }
 }
 
 class _Sayac extends StatelessWidget {
