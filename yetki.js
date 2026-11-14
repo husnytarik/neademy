@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { anlik, islem, yonetimUyeligiAc, yetimYonetimiKapat } from './uyelik.js';
 
 // Yönetim rolleri ve yetkileri. Yönetim oturumunda ne yapılabileceğini kişinin rolleri belirler:
 //  - Kurum yönetimi (memberships.gorev = 'kurum') her şeyi yapar; bu sanal roldür.
@@ -190,35 +191,52 @@ export async function yetkiApi({ req, res, url, o, json, govde, denetle }) {
     const r = db.prepare('SELECT * FROM roller WHERE id = ?').get(Number(b.id));
     if (!r) return hata(404, 'Rol bulunamadı');
     if (r.sistem) return hata(403, 'Hazır roller silinemez');
-    db.prepare('DELETE FROM kullanici_roller WHERE rol_id = ?').run(r.id);
-    db.prepare('DELETE FROM roller WHERE id = ?').run(r.id);
-    denetle(o.user_id, 'rol-sil', { rolId: r.id, ad: r.ad });
+    // Rolü silinen kişilerde başka nedeni (müdür görevi, başka rol) kalmayan okul yönetimi üyelikleri açık kalmasın
+    const etkilenen = db.prepare('SELECT user_id FROM kullanici_roller WHERE rol_id = ?').all(r.id).map(x => x.user_id);
+    let kapanan = 0;
+    islem(() => {
+      db.prepare('DELETE FROM kullanici_roller WHERE rol_id = ?').run(r.id);
+      db.prepare('DELETE FROM roller WHERE id = ?').run(r.id);
+      for (const u of etkilenen) kapanan += yetimYonetimiKapat(u);
+    });
+    denetle(o.user_id, 'rol-sil', { rolId: r.id, ad: r.ad, kisiSayisi: etkilenen.length, kapananUyelik: kapanan });
     json(res, 200, { tamam: true });
     return true;
   }
 
-  // Kişiye rol ver / rolü al. Rol vermek için kişinin aktif bir yönetim üyeliği olmalı; yoksa seçilen okulda açılır.
+  // Kişiye rol ver / rolü al. Rol küreseldir ama yönetim üyeliği olan okulda geçerlidir: verirken okul açıkça seçilir
+  // (kişinin başka okulda üyeliği olsa bile seçilen okulda yönetim üyeliği açılır); almada başka nedeni kalmayan üyelik kapanır.
   const r = db.prepare('SELECT * FROM roller WHERE id = ?').get(Number(b.rolId));
   if (!r) return hata(404, 'Rol bulunamadı');
   if (r.sistem && ['kurum-yonetimi', 'mudur', 'mudur_yrd'].includes(r.kod)) return hata(400, 'Bu rol Okul kurulumu ekranından verilir');
   if (r.kod === 'zumre') return hata(400, 'Zümre başkanlığı kişinin dosyasından, branşıyla birlikte verilir');
   const kisi = db.prepare('SELECT id FROM users WHERE id = ?').get(Number(b.userId));
   if (!kisi) return hata(404, 'Kullanıcı bulunamadı');
+  const once = anlik(kisi.id);
   if (!b.ver) {
-    db.prepare('DELETE FROM kullanici_roller WHERE user_id = ? AND rol_id = ?').run(kisi.id, r.id);
-    denetle(o.user_id, 'kullanici-rol-al', { userId: kisi.id, rolId: r.id });
+    islem(() => {
+      db.prepare('DELETE FROM kullanici_roller WHERE user_id = ? AND rol_id = ?').run(kisi.id, r.id);
+      yetimYonetimiKapat(kisi.id);
+    });
+    denetle(o.user_id, 'kullanici-rol-al', { userId: kisi.id, rolId: r.id, rol: r.ad, once, sonra: anlik(kisi.id) });
     json(res, 200, { tamam: true });
     return true;
   }
-  const uyelik = db.prepare("SELECT id FROM memberships WHERE user_id = ? AND role = 'yonetim' AND status = 'aktif'").get(kisi.id);
-  if (!uyelik && r.kod !== 'kurucu') {
-    const sube = db.prepare('SELECT id FROM branches WHERE id = ?').get(Number(b.subeId));
-    if (!sube) return hata(400, 'Önce okul seçin');
-    db.prepare("INSERT OR IGNORE INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,'yonetim','okul')").run(kisi.id, sube.id);
-    db.prepare("UPDATE memberships SET status = 'aktif' WHERE user_id = ? AND branch_id = ? AND role = 'yonetim'").run(kisi.id, sube.id);
+  let subeId = null;
+  if (r.kod !== 'kurucu') {
+    if (b.subeId !== undefined && b.subeId !== null && b.subeId !== '') {
+      const sube = db.prepare('SELECT id FROM branches WHERE id = ?').get(Number(b.subeId));
+      if (!sube) return hata(400, 'Okul seçin');
+      subeId = sube.id;
+    } else if (!db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND role = 'yonetim' AND status = 'aktif'").get(kisi.id)) {
+      return hata(400, 'Önce okul seçin');
+    }
   }
-  db.prepare('INSERT OR IGNORE INTO kullanici_roller (user_id, rol_id) VALUES (?,?)').run(kisi.id, r.id);
-  denetle(o.user_id, 'kullanici-rol-ver', { userId: kisi.id, rolId: r.id });
+  islem(() => {
+    if (subeId) yonetimUyeligiAc(kisi.id, subeId);
+    db.prepare('INSERT OR IGNORE INTO kullanici_roller (user_id, rol_id) VALUES (?,?)').run(kisi.id, r.id);
+  });
+  denetle(o.user_id, 'kullanici-rol-ver', { userId: kisi.id, rolId: r.id, rol: r.ad, subeId, once, sonra: anlik(kisi.id) });
   json(res, 200, { tamam: true });
   return true;
 }

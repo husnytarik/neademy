@@ -61,15 +61,7 @@ function goster(bolum) {
 }
 
 function kisiyiYaz(k, ogr) {
-  $('kim').textContent = k.ad;
-  $('yakinlik').textContent = k.yakinlik === 'Veli' ? '' : k.yakinlik;
-  const liste = $('ogrenciler');
-  liste.replaceChildren();
-  for (const o of ogr) {
-    const li = el('li');
-    li.append(el('strong', o.ad), el('span', [o.sinif, o.okul].filter(Boolean).join(' · '), 'alt'));
-    liste.append(li);
-  }
+  $('ogrenciler').replaceChildren(teslimCiftYap(ogr, k));
 }
 
 async function kodYenile() {
@@ -112,7 +104,7 @@ async function sorgula() {
 
   const adlar = t.ogrenciler.map(o => o.ad).join(', ');
   if (t.durum === 'bekliyor') {
-    $('karar-ogrenci').replaceChildren(...t.ogrenciler.map(o => el('li', `${o.ad}${o.sinif ? ' · ' + o.sinif : ''}`)));
+    $('karar-ogrenci').replaceChildren(...t.ogrenciler.map(o => { const li = el('li'); li.append(avatarYap(o.ad, o.foto, 'tk-avatar'), el('span', `${o.ad}${o.sinif ? ' · ' + o.sinif : ''}`)); return li; }));
     $('onay').dataset.talep = t.id;
     goster('b-karar');
   } else {

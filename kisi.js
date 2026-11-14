@@ -4,6 +4,7 @@ import { YAKINLIK } from './ogrenci.js';
 import { bransVarsayilanlari, zumreRolunuEsitle, zumreBaskaniAyarla } from './zumrem.js';
 import { KULUP_DERSI } from './ders-programi.js';
 import { sinifOgretmeniAdi } from './kademe.js';
+import { KullaniciHatasi, islem, anlik, anlikAyni, anlikGeriYukle, mudurGoreviKaldir, yonetimUyeligiAc } from './uyelik.js';
 
 // Kişiler (personel): bir kişi tek hesaptır; yönetim ve öğretmen onun üyelikleridir.
 // Ekleme, kimlik/telefon düzeltme, görev ve ayrılma işlemleri buradan yürür (yalnızca kurum yönetimi; sunucu kapısı yolu denetler).
@@ -15,13 +16,7 @@ const telNormalize = t => String(t || '').replace(/\D/g, '').slice(-10);
 const bos = v => v === null || v === undefined || v === '';
 const maske = (s, bas, son) => s ? s.slice(0, bas) + '•'.repeat(Math.max(s.length - bas - son, 0)) + s.slice(-son) : '';
 const PERSONEL = "('yonetim','ogretmen')";
-const YOL = /^\/api\/yonetim\/kullanici-(detay|secenek|kontrol|kimlik|yeni|mudur|veli|dersler|brans|zumre|ayril|geri|sil)$/;
-
-class KullaniciHatasi extends Error {}
-function islem(fn) {
-  db.exec('BEGIN');
-  try { const s = fn(); db.exec('COMMIT'); return s; } catch (e) { db.exec('ROLLBACK'); throw e; }
-}
+const YOL = /^\/api\/yonetim\/kullanici-(detay|secenek|kontrol|denetim|kimlik|yeni|mudur|veli|dersler|brans|zumre|ayril|geri|geri-al|sil|okul-tasi|uyelik-sil)$/;
 
 // Kimlik biçimi: 11 haneli T.C. ya da pasaport; hata varsa metin döner
 function kimlikCoz(ham) {
@@ -36,11 +31,7 @@ const adCoz = ham => {
 };
 
 // Yönetim üyeliği: yoksa açılır, pasifse yeniden etkinleştirilir. Kurum yönetimi üyeliğine dokunulmaz.
-function yonetimUyeligi(userId, subeId) {
-  const m = db.prepare("SELECT id, status FROM memberships WHERE user_id = ? AND branch_id = ? AND role = 'yonetim'").get(userId, subeId);
-  if (!m) db.prepare("INSERT INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,'yonetim','okul')").run(userId, subeId);
-  else if (m.status !== 'aktif') db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(m.id);
-}
+const yonetimUyeligi = yonetimUyeligiAc;
 function ogretmenUyeligi(userId, subeId) {
   const m = db.prepare("SELECT id, status FROM memberships WHERE user_id = ? AND branch_id = ? AND role = 'ogretmen'").get(userId, subeId);
   if (m) { if (m.status !== 'aktif') db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(m.id); return m.id; }
@@ -70,6 +61,49 @@ const gecerliDersler = v => {
   return ids.every(d => Number.isInteger(d) && db.prepare('SELECT 1 FROM courses WHERE id = ?').get(d)) ? ids : null;
 };
 
+// Hiç hareketi olmayan yanlış kişi kaydı silinebilir; öğrenci, veli ya da kurum yönetimi kaydı olanlar silinmez
+const kisiSilinemez = id => db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND (role NOT IN ('yonetim','ogretmen') OR gorev = 'kurum')").get(id)
+  ? 'Bu kişinin öğrenci, veli ya da kurum yönetimi kaydı var; silinemez' : null;
+// Geçmiş kaydı varsa yabancı anahtar engeller ve fırlatır; çağıran işlem bloğu geri alır
+function kisiSilYaz(id) {
+  const uyeler = db.prepare('SELECT id FROM memberships WHERE user_id = ?').all(id).map(m => m.id);
+  for (const u of uyeler) {
+    db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(u);
+    db.prepare('DELETE FROM teacher_courses WHERE teacher_membership_id = ?').run(u);
+    db.prepare('DELETE FROM memberships WHERE id = ?').run(u);
+  }
+  db.prepare('DELETE FROM okul_yoneticileri WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM kullanici_roller WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM kullanici_foto WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM profil_bilgi WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM otps WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+}
+
+// Geçmişte gösterilen ve geri alınabilen işlemler (kayıtlarında önce/sonra anlık görüntüsü ya da eski ad vardır)
+const GERI_ALINIR = new Set(['kullanici-yeni', 'kullanici-ayril', 'kullanici-geri', 'kullanici-okul-tasi', 'kullanici-rol-ver', 'kullanici-rol-al',
+  'okul-yonetici-ekle', 'okul-yonetici-kaldir', 'kullanici-kimlik']);
+const GECMIS_ISLEMLERI = [...GERI_ALINIR, 'kullanici-uyelik-sil', 'kullanici-geri-al'];
+
+function gecmisMetni(islem, d, okul) {
+  const ad = id => okul.get(Number(id)) || 'okul';
+  const liste = ids => (ids || []).map(ad).join(', ');
+  switch (islem) {
+    case 'kullanici-yeni': return `Kişi eklendi · ${liste(d.subeIds || [d.subeId])}${d.roller?.length ? ' · ' + d.roller.join(', ') : ''}${d.mevcutHesap ? ' (mevcut hesaba görev eklendi)' : ''}`;
+    case 'kullanici-ayril': return d.subeId ? `${ad(d.subeId)} okulundan ayrıldı` : 'Okuldan ayrıldı (tüm okullar)';
+    case 'kullanici-geri': return d.subeId ? `${ad(d.subeId)} okulunda göreve geri alındı` : 'Göreve geri alındı';
+    case 'kullanici-okul-tasi': return `Okulu değiştirildi: ${ad(d.kaynak)} → ${ad(d.hedef)}`;
+    case 'kullanici-rol-ver': return `Rol verildi${d.rol ? ': ' + d.rol : ''}${d.subeId ? ' · ' + ad(d.subeId) : ''}`;
+    case 'kullanici-rol-al': return `Rol alındı${d.rol ? ': ' + d.rol : ''}`;
+    case 'okul-yonetici-ekle': return `${ad(d.okulId)}: ${GOREVLER[d.gorev] || 'yönetici'} görevi verildi`;
+    case 'okul-yonetici-kaldir': return `${ad(d.okulId)}: müdür / yardımcı görevi kaldırıldı`;
+    case 'kullanici-kimlik': return `Bilgiler düzeltildi (${[d.ad && 'ad', d.kimlik && 'kimlik', d.telefon && 'telefon'].filter(Boolean).join(', ') || 'değişiklik yok'})`;
+    case 'kullanici-uyelik-sil': return `${ad(d.subeId)} okulundaki yanlış üyelik silindi`;
+    case 'kullanici-geri-al': return 'Önceki işlem geri alındı';
+    default: return islem;
+  }
+}
+
 function detay(id, aktorId) {
   const u = db.prepare(`SELECT u.id, u.tc_no, u.passport_no, u.phone, u.full_name, u.created_at, ${FOTO_SQL} AS foto FROM users u WHERE u.id = ?`).get(id);
   if (!u) return null;
@@ -82,7 +116,10 @@ function detay(id, aktorId) {
     id: u.id, ad: u.full_name, foto: u.foto, kendisi: u.id === aktorId,
     kimlikTuru: u.tc_no ? 'T.C.' : 'Pasaport', kimlik: maske(u.tc_no || u.passport_no, 3, 2), telefon: maske(u.phone, 3, 2),
     kayit: u.created_at,
-    uyelikler: personelUyeleri.map(m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.sube, bransId: m.brans_id, baskan: !!m.zumre_baskani })),
+    uyelikler: personelUyeleri.map(m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.sube, bransId: m.brans_id, baskan: !!m.zumre_baskani,
+      // Okul değiştirme / ayrılma onayında gösterilir: bu üyelikte kaç ders ataması ve sınıf öğretmenliği var
+      atama: m.role === 'ogretmen' ? db.prepare('SELECT COUNT(*) AS n FROM assignments WHERE teacher_membership_id = ?').get(m.id).n : 0,
+      sinif: m.role === 'ogretmen' ? db.prepare('SELECT COUNT(*) AS n FROM classes WHERE homeroom_membership_id = ?').get(m.id).n : 0 })),
     diger: uyelikler.filter(m => m.role === 'ogrenci' || m.role === 'veli').map(m => ({ id: m.id, rol: m.role, durum: m.status, sube: m.sube })),
     veliOgrenciler: db.prepare(`SELECT sm.id, su.full_name AS ad, b.name AS sube, c.name AS sinif, COALESCE(ab.yakinlik, '') AS yakinlik, pm.branch_id AS subeId
       FROM memberships pm JOIN guardians g ON g.parent_membership_id = pm.id JOIN memberships sm ON sm.id = g.student_membership_id
@@ -112,7 +149,7 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
       json(res, 200, {
         okullar: db.prepare('SELECT id, name AS ad FROM branches ORDER BY id').all(),
         dersler: db.prepare("SELECT id, name AS ad FROM courses WHERE name != 'Kulüp' ORDER BY name").all(),
-        roller: db.prepare("SELECT id, kod, ad, aciklama FROM roller WHERE kod IS NULL OR kod NOT IN ('kurum-yonetimi','mudur','mudur_yrd') ORDER BY sistem DESC, id").all(),
+        roller: db.prepare("SELECT id, kod, ad, aciklama FROM roller WHERE kod IS NULL OR kod NOT IN ('kurum-yonetimi','mudur','mudur_yrd','zumre') ORDER BY sistem DESC, id").all(),
         gorevler: GOREVLER,
       });
       return true;
@@ -131,6 +168,23 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
       json(res, 200, { var: true, id: u.id, ad: u.full_name, uyelikler: uyeler });
       return true;
     }
+    if (ad === 'denetim') {
+      // Kişinin geçmişi: kim, ne zaman, ne yaptı; geri alınabilenler işaretlenir
+      const id = tamSayi(url.searchParams.get('id'), 1, 1e9);
+      if (!id) return hata(404, 'Kişi bulunamadı');
+      const okul = new Map(db.prepare('SELECT id, name FROM branches').all().map(x => [x.id, x.name]));
+      const alinan = new Set(db.prepare("SELECT json_extract(detail, '$.hedef') AS h FROM audit_log WHERE action = 'kullanici-geri-al' AND json_extract(detail, '$.userId') = ?").all(id).map(x => x.h));
+      const satirlar = db.prepare(`SELECT a.id, a.at, a.action, a.detail, u.full_name AS aktor FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
+        WHERE a.action IN (${GECMIS_ISLEMLERI.map(() => '?').join(',')}) AND json_extract(a.detail, '$.userId') = ? ORDER BY a.id DESC LIMIT 60`).all(...GECMIS_ISLEMLERI, id);
+      json(res, 200, { gecmis: satirlar.map(x => {
+        const d = JSON.parse(x.detail);
+        const geriAlindi = alinan.has(x.id);
+        const kimlikAdi = x.action === 'kullanici-kimlik' ? !!d.ad && !d.kimlik && !d.telefon && !!d.eskiAd : !!d.once || x.action === 'kullanici-yeni';
+        return { id: x.id, zaman: x.at, aktor: x.aktor || '', islem: x.action, ozet: gecmisMetni(x.action, d, okul),
+          geriAlinabilir: GERI_ALINIR.has(x.action) && !geriAlindi && kimlikAdi, geriAlindi };
+      }) });
+      return true;
+    }
     return false;
   }
   if (req.method !== 'POST') return false;
@@ -143,37 +197,44 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
     const adi = adCoz(b.ad);
     const k = kimlikCoz(b.kimlik);
     const tel = telNormalize(b.telefon);
-    const subeId = Number(b.subeId);
+    // Okul(lar) açıkça seçilir; varsayılan yoktur. Eski istemciler tek "subeId" gönderebilir.
+    const subeIds = [...new Set((Array.isArray(b.subeIds) ? b.subeIds : bos(b.subeId) ? [] : [b.subeId]).map(Number))];
     if (!adi) return hata(400, 'Ad ve soyadı birlikte yazın');
     if (k.hata) return hata(400, k.hata);
     if (!/^\d{10}$/.test(tel)) return hata(400, 'Telefon 10 haneli olmalı');
-    if (!subeVar(subeId)) return hata(400, 'Okul seçin');
-    if (!b.ogretmen && !b.yonetim) return hata(400, 'En az bir görev seçin (öğretmen ya da yönetim)');
+    if (!subeIds.length || !subeIds.every(subeVar)) return hata(400, 'Okul seçin');
+    // Ek görevler (rol): artık yönetim kutusundan bağımsız; eski "rolId" de kabul edilir
+    const rolIdleri = [...new Set((Array.isArray(b.rolIds) ? b.rolIds : !bos(b.rolId) ? [b.rolId] : []).map(Number))];
+    const roller = rolIdleri.map(id => db.prepare('SELECT id, kod, ad FROM roller WHERE id = ?').get(id));
+    if (roller.some(r => !r || ['kurum-yonetimi', 'mudur', 'mudur_yrd', 'zumre'].includes(r.kod))) return hata(400, 'Geçersiz rol');
+    const yonetim = !!b.yonetim || roller.some(r => r.kod !== 'kurucu');
+    if (!b.ogretmen && !yonetim && !roller.length) return hata(400, 'En az bir görev seçin (öğretmen, yönetim ya da ek görev)');
     const dersIds = b.ogretmen ? gecerliDersler(b.dersIds ?? []) : [];
     if (!dersIds) return hata(400, 'Geçersiz ders seçimi');
-    const rol = b.yonetim && !bos(b.rolId) ? db.prepare("SELECT id, kod FROM roller WHERE id = ?").get(Number(b.rolId)) : null;
-    if (b.yonetim && !bos(b.rolId) && (!rol || ['kurum-yonetimi', 'mudur', 'mudur_yrd', 'zumre'].includes(rol.kod))) return hata(400, 'Geçersiz rol');
     const mudur = b.yonetim && b.mudurGorev ? String(b.mudurGorev) : '';
+    if (mudur && subeIds.length !== 1) return hata(400, 'Müdür görevi tek bir okul için verilir');
+    // Rol yalnızca yönetim üyeliği olan kişide anlamlıdır; kurucu hiçbir yetki vermediği için üyelik gerektirmez
+    const yonetimOkullari = yonetim || roller.length ? subeIds : [];
 
     let mevcut = false;
     let hataMetni = null;
-    let userId;
+    let userId, once = null, sonra = null;
     try { userId = islem(() => {
       const var_ = db.prepare('SELECT id, phone FROM users WHERE tc_no = gz(?) OR passport_no = gz(?)').get(k.kimlik, k.kimlik);
       if (var_ && var_.phone !== tel) { hataMetni = 'Bu kimlik numarası başka bir telefonla kayıtlı'; return null; }
       mevcut = !!var_;
+      if (var_) once = anlik(var_.id);
       const id = var_?.id ?? Number(db.prepare('INSERT INTO users (tc_no, passport_no, phone, full_name, created_at) VALUES (?,?,?,?,?)')
         .run(k.tcMi ? k.kimlik : null, k.tcMi ? null : k.kimlik, tel, adi, Date.now()).lastInsertRowid);
-      if (b.ogretmen) { const uid = ogretmenUyeligi(id, subeId); if (dersIds.length) dersleriYaz(uid, dersIds); }
-      if (b.yonetim) {
-        yonetimUyeligi(id, subeId);
-        if (rol) db.prepare('INSERT OR IGNORE INTO kullanici_roller (user_id, rol_id) VALUES (?,?)').run(id, rol.id);
-        if (mudur) mudurGorevi(id, subeId, mudur);
-      }
+      if (b.ogretmen) for (const s of subeIds) { const uid = ogretmenUyeligi(id, s); if (dersIds.length) dersleriYaz(uid, dersIds); }
+      for (const s of yonetimOkullari) yonetimUyeligi(id, s);
+      for (const r of roller) db.prepare('INSERT OR IGNORE INTO kullanici_roller (user_id, rol_id) VALUES (?,?)').run(id, r.id);
+      if (mudur) mudurGorevi(id, subeIds[0], mudur);
+      sonra = anlik(id);
       return id;
     }); } catch (e) { if (e instanceof KullaniciHatasi) return hata(409, e.message); throw e; }
     if (hataMetni && !userId) return hata(409, hataMetni);
-    denetle(o.user_id, 'kullanici-yeni', { userId, subeId, ogretmen: !!b.ogretmen, yonetim: !!b.yonetim, mevcutHesap: mevcut });
+    denetle(o.user_id, 'kullanici-yeni', { userId, subeIds, ogretmen: !!b.ogretmen, yonetim, roller: roller.map(r => r.ad), mevcutHesap: mevcut, once, sonra });
     return ok(201, { id: userId, mevcut });
   }
 
@@ -199,7 +260,7 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
       if (k) db.prepare('UPDATE users SET tc_no = ?, passport_no = ? WHERE id = ?').run(k.tcMi ? k.kimlik : null, k.tcMi ? null : k.kimlik, kisi.id);
       if (telGirildi) db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(tel, kisi.id);
     });
-    denetle(o.user_id, 'kullanici-kimlik', { userId: kisi.id, ad: adi !== kisi.full_name, kimlik: !!k, telefon: telGirildi && tel !== kisi.phone });
+    denetle(o.user_id, 'kullanici-kimlik', { userId: kisi.id, ad: adi !== kisi.full_name, eskiAd: kisi.full_name, yeniAd: adi, kimlik: !!k, telefon: telGirildi && tel !== kisi.phone });
     return ok();
   }
 
@@ -238,19 +299,14 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
   if (ad === 'mudur') {
     const subeId = Number(b.okulId);
     if (!subeVar(subeId)) return hata(404, 'Okul bulunamadı');
+    const once = anlik(kisi.id);
     if (!bos(b.gorev) && b.gorev !== '') {
       try { islem(() => mudurGorevi(kisi.id, subeId, b.gorev)); } catch (e) { if (e instanceof KullaniciHatasi) return hata(409, e.message); throw e; }
-      denetle(o.user_id, 'okul-yonetici-ekle', { okulId: subeId, userId: kisi.id, gorev: b.gorev });
+      denetle(o.user_id, 'okul-yonetici-ekle', { okulId: subeId, userId: kisi.id, gorev: b.gorev, once, sonra: anlik(kisi.id) });
       return ok();
     }
-    islem(() => {
-      db.prepare('DELETE FROM okul_yoneticileri WHERE branch_id = ? AND user_id = ?').run(subeId, kisi.id);
-      // Başka okul görevi ve ek rolü kalmadıysa okul kapsamlı yönetim girişi kapanır
-      if (!db.prepare('SELECT 1 FROM okul_yoneticileri WHERE user_id = ?').get(kisi.id) && !db.prepare('SELECT 1 FROM kullanici_roller WHERE user_id = ?').get(kisi.id)) {
-        db.prepare("UPDATE memberships SET status = 'pasif' WHERE user_id = ? AND role = 'yonetim' AND gorev = 'okul'").run(kisi.id);
-      }
-    });
-    denetle(o.user_id, 'okul-yonetici-kaldir', { okulId: subeId, userId: kisi.id });
+    islem(() => mudurGoreviKaldir(kisi.id, subeId));
+    denetle(o.user_id, 'okul-yonetici-kaldir', { okulId: subeId, userId: kisi.id, once, sonra: anlik(kisi.id) });
     return ok();
   }
 
@@ -307,9 +363,10 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
     const hedef = db.prepare(`SELECT id, role, gorev, status, branch_id FROM memberships WHERE user_id = ? AND role IN ${PERSONEL}
       ${subeFiltre !== null ? 'AND branch_id = ' + subeFiltre : ''}`).all(kisi.id);
     if (!hedef.length) return hata(404, 'Personel görevi bulunamadı');
+    const once = anlik(kisi.id);
     if (ad === 'geri') {
       islem(() => { for (const m of hedef) db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(m.id); });
-      denetle(o.user_id, 'kullanici-geri', { userId: kisi.id, subeId: subeFiltre });
+      denetle(o.user_id, 'kullanici-geri', { userId: kisi.id, subeId: subeFiltre, once, sonra: anlik(kisi.id) });
       return ok();
     }
     if (kisi.id === o.user_id) return hata(400, 'Kendi hesabınızı kapatamazsınız');
@@ -333,36 +390,126 @@ export async function kisiApi({ req, res, url, o, json, govde, denetle }) {
       const subeler = [...new Set(hedef.map(m => m.branch_id))];
       for (const s of subeler) db.prepare('DELETE FROM okul_yoneticileri WHERE branch_id = ? AND user_id = ?').run(s, kisi.id);
     });
-    denetle(o.user_id, 'kullanici-ayril', { userId: kisi.id, subeId: subeFiltre, ...ozet });
+    denetle(o.user_id, 'kullanici-ayril', { userId: kisi.id, subeId: subeFiltre, ...ozet, once, sonra: anlik(kisi.id) });
     return ok(200, ozet);
   }
 
   // Hiç hareketi olmayan yanlış kayıt: bağlı kaydı olanlar silinemez (yabancı anahtar engeller), "ayrıldı" işaretlenir
   if (ad === 'sil') {
     if (kisi.id === o.user_id) return hata(400, 'Kendi hesabınızı silemezsiniz');
-    if (db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND (role NOT IN ('yonetim','ogretmen') OR gorev = 'kurum')").get(kisi.id)) {
-      return hata(409, 'Bu kişinin öğrenci, veli ya da kurum yönetimi kaydı var; silinemez');
-    }
+    const engel = kisiSilinemez(kisi.id);
+    if (engel) return hata(409, engel);
     try {
-      islem(() => {
-        const uyeler = db.prepare('SELECT id FROM memberships WHERE user_id = ?').all(kisi.id).map(m => m.id);
-        for (const id of uyeler) {
-          db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(id);
-          db.prepare('DELETE FROM teacher_courses WHERE teacher_membership_id = ?').run(id);
-          db.prepare('DELETE FROM memberships WHERE id = ?').run(id);
-        }
-        db.prepare('DELETE FROM okul_yoneticileri WHERE user_id = ?').run(kisi.id);
-        db.prepare('DELETE FROM kullanici_roller WHERE user_id = ?').run(kisi.id);
-        db.prepare('DELETE FROM kullanici_foto WHERE user_id = ?').run(kisi.id);
-        db.prepare('DELETE FROM profil_bilgi WHERE user_id = ?').run(kisi.id);
-        db.prepare('DELETE FROM otps WHERE user_id = ?').run(kisi.id);
-        db.prepare('DELETE FROM users WHERE id = ?').run(kisi.id);
-      });
+      islem(() => kisiSilYaz(kisi.id));
     } catch {
       return hata(409, 'Kişinin geçmiş kayıtları var (ders, devamsızlık vb.); silmek yerine "Okuldan ayrıldı" olarak işaretleyin');
     }
     denetle(o.user_id, 'kullanici-sil', { userId: kisi.id });
     return ok();
+  }
+
+  // Okulunu değiştir: yanlış okula yazılan personeli doğru okula taşır. Roller kişide kalır (küresel); okula özgü olan
+  // ders ataması ve sınıf öğretmenliği boşa alınır (sayısı döner), branş ve verilebilen dersler hedefe kopyalanır, müdür görevi taşınır.
+  if (ad === 'okul-tasi') {
+    const kaynak = Number(b.kaynakSubeId), hedef = Number(b.hedefSubeId);
+    if (!subeVar(kaynak) || !subeVar(hedef)) return hata(400, 'Okul seçin');
+    if (kaynak === hedef) return hata(400, 'Yeni okul, mevcut okulla aynı olamaz');
+    const uyeler = db.prepare(`SELECT id, role, gorev, status, brans_id FROM memberships WHERE user_id = ? AND branch_id = ? AND role IN ${PERSONEL}`).all(kisi.id, kaynak);
+    if (!uyeler.length) return hata(404, 'Kişinin bu okulda personel görevi yok');
+    if (uyeler.some(m => m.gorev === 'kurum')) return hata(409, 'Kurum yönetiminin tek bir okulu yoktur; okulu değiştirilemez');
+    const tasinan = uyeler.filter(m => m.status === 'aktif');
+    if (!tasinan.length) return hata(409, 'Bu okuldaki görevi pasif; önce "Göreve geri al" yapın');
+    const once = anlik(kisi.id);
+    const ozet = { boslananDers: 0, sinifOgretmenligi: 0, mudur: null };
+    try {
+      islem(() => {
+        for (const m of tasinan) {
+          const t = db.prepare('SELECT id, status, brans_id FROM memberships WHERE user_id = ? AND branch_id = ? AND role = ?').get(kisi.id, hedef, m.role);
+          let tid = t?.id;
+          if (!t) tid = Number(db.prepare("INSERT INTO memberships (user_id, branch_id, role, gorev, brans_id) VALUES (?,?,?,'okul',?)").run(kisi.id, hedef, m.role, m.brans_id).lastInsertRowid);
+          else {
+            if (t.status !== 'aktif') db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(t.id);
+            if (!t.brans_id && m.brans_id) db.prepare('UPDATE memberships SET brans_id = ? WHERE id = ?').run(m.brans_id, t.id);
+          }
+          if (m.role === 'ogretmen') {
+            db.prepare('INSERT INTO teacher_courses (teacher_membership_id, course_id) SELECT ?, course_id FROM teacher_courses WHERE teacher_membership_id = ? AND course_id NOT IN (SELECT course_id FROM teacher_courses WHERE teacher_membership_id = ?)').run(tid, m.id, tid);
+            ozet.boslananDers += Number(db.prepare('UPDATE assignments SET teacher_membership_id = NULL WHERE teacher_membership_id = ?').run(m.id).changes);
+            ozet.sinifOgretmenligi += Number(db.prepare('UPDATE classes SET homeroom_membership_id = NULL WHERE homeroom_membership_id = ?').run(m.id).changes);
+          }
+          db.prepare("UPDATE memberships SET status = 'pasif', zumre_baskani = 0 WHERE id = ?").run(m.id);
+          db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(m.id);
+        }
+        const gorev = db.prepare('SELECT gorev FROM okul_yoneticileri WHERE branch_id = ? AND user_id = ?').get(kaynak, kisi.id);
+        if (gorev) {
+          mudurGorevi(kisi.id, hedef, gorev.gorev);
+          db.prepare('DELETE FROM okul_yoneticileri WHERE branch_id = ? AND user_id = ?').run(kaynak, kisi.id);
+          ozet.mudur = gorev.gorev;
+        }
+        zumreRolunuEsitle();
+      });
+    } catch (e) { if (e instanceof KullaniciHatasi) return hata(409, e.message); throw e; }
+    denetle(o.user_id, 'kullanici-okul-tasi', { userId: kisi.id, kaynak, hedef, ...ozet, once, sonra: anlik(kisi.id) });
+    return ok(200, ozet);
+  }
+
+  // Hiç hareketi olmayan yanlış üyeliği tamamen siler; geçmiş kaydı varsa silinmez
+  if (ad === 'uyelik-sil') {
+    const m = db.prepare(`SELECT id, role, gorev, branch_id FROM memberships WHERE id = ? AND user_id = ? AND role IN ${PERSONEL}`).get(tamSayi(b.uyelikId, 1, 1e9) ?? 0, kisi.id);
+    if (!m) return hata(404, 'Üyelik bulunamadı');
+    if (m.gorev === 'kurum') return hata(409, 'Kurum yönetimi üyeliği silinemez');
+    if (m.role === 'yonetim' && db.prepare('SELECT 1 FROM okul_yoneticileri WHERE user_id = ? AND branch_id = ?').get(kisi.id, m.branch_id)) return hata(409, 'Önce müdür görevini kaldırın ya da okulunu değiştirin');
+    if (!db.prepare('SELECT 1 FROM memberships WHERE user_id = ? AND id != ?').get(kisi.id, m.id)) return hata(409, 'Bu kişinin tek üyeliği; yanlış kayıtsa kişiyi silin');
+    if (m.role === 'yonetim' && db.prepare('SELECT 1 FROM kullanici_roller WHERE user_id = ?').get(kisi.id)
+      && !db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND role = 'yonetim' AND status = 'aktif' AND id != ?").get(kisi.id, m.id)) {
+      return hata(409, 'Rolü bu okula bağlı; üyeliği silmek yerine "Okulunu değiştir" ile doğru okula taşıyın');
+    }
+    try {
+      islem(() => {
+        db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(m.id);
+        db.prepare('DELETE FROM teacher_courses WHERE teacher_membership_id = ?').run(m.id);
+        db.prepare('DELETE FROM memberships WHERE id = ?').run(m.id);
+      });
+    } catch {
+      return hata(409, 'Bu üyeliğin geçmiş kayıtları var (ders, atama vb.); silmek yerine "Okulunu değiştir" ya da "Okuldan ayrıldı" kullanın');
+    }
+    denetle(o.user_id, 'kullanici-uyelik-sil', { userId: kisi.id, subeId: m.branch_id, rol: m.role });
+    return ok();
+  }
+
+  // Geri alma: kayıtlı "önce" anlık görüntüsüne döner; işlemden sonra kişide başka değişiklik olduysa reddedilir
+  if (ad === 'geri-al') {
+    const d = db.prepare('SELECT id, action, detail FROM audit_log WHERE id = ?').get(tamSayi(b.denetimId, 1, 1e12) ?? 0);
+    let det = null;
+    try { det = d && JSON.parse(d.detail); } catch { /* bozuk kayıt */ }
+    if (!d || !det || det.userId !== kisi.id || !GERI_ALINIR.has(d.action)) return hata(404, 'Geri alınabilir kayıt bulunamadı');
+    if (db.prepare("SELECT 1 FROM audit_log WHERE action = 'kullanici-geri-al' AND json_extract(detail, '$.hedef') = ?").get(d.id)) return hata(409, 'Bu işlem zaten geri alınmış');
+    const sonuc = {};
+    try {
+      islem(() => {
+        if (d.action === 'kullanici-kimlik') {
+          if (!det.ad || det.kimlik || det.telefon || !det.eskiAd) throw new KullaniciHatasi('Kimlik ve telefon düzeltmeleri geri alınamaz; yeniden düzeltin');
+          if (db.prepare('SELECT full_name FROM users WHERE id = ?').get(kisi.id).full_name !== det.yeniAd) throw new KullaniciHatasi('Ad bu işlemden sonra yeniden değiştirilmiş; geri alınamaz');
+          db.prepare('UPDATE users SET full_name = ? WHERE id = ?').run(det.eskiAd, kisi.id);
+          return;
+        }
+        if (!det.sonra || !anlikAyni(anlik(kisi.id), det.sonra)) throw new KullaniciHatasi('Bu işlemden sonra kişide başka değişiklik yapılmış; önce en yeni işlemden başlayarak geri alın');
+        if (d.action === 'kullanici-yeni' && !det.once) {
+          // Hesap bu işlemle açılmıştı: hareket görmediyse tamamen kaldırılır
+          const h = kisiSilinemez(kisi.id);
+          if (h) throw new KullaniciHatasi(h);
+          try { kisiSilYaz(kisi.id); } catch { throw new KullaniciHatasi('Kişinin geçmiş kayıtları var; geri alınamaz'); }
+          sonuc.silindi = true;
+          return;
+        }
+        if (!det.once) throw new KullaniciHatasi('Bu işlem geri alınamaz');
+        Object.assign(sonuc, anlikGeriYukle(kisi.id, det.once));
+      });
+    } catch (e) {
+      if (e instanceof KullaniciHatasi) return hata(409, e.message);
+      return hata(409, 'Geri alınamadı: durum bu işlemden sonra değişmiş');
+    }
+    denetle(o.user_id, 'kullanici-geri-al', { userId: kisi.id, hedef: d.id, islem: d.action, ...sonuc });
+    return ok(200, sonuc);
   }
   return false;
 }

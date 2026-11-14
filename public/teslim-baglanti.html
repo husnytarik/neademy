@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>neademy - Teslim kodu</title>
-  <link rel="stylesheet" href="/style.css?v=103">
+  <link rel="stylesheet" href="/style.css?v=133">
   <script src="/renk.js?v=10"></script>
-  <script src="/tema.js?v=1"></script>
+  <script src="/tema.js?v=2"></script>
 </head>
 <body>
   <header class="bant alt-bant">
@@ -17,12 +17,11 @@
     <p id="mesaj" class="mesaj" role="status" aria-live="polite"></p>
 
     <section id="b-qr" class="tk-bolum">
-      <div class="tk-kim"><strong id="kim"></strong><span id="yakinlik" class="alt"></span></div>
       <canvas id="qr" class="tk-qr" width="264" height="264" aria-label="Teslim QR kodu"></canvas>
       <div class="tk-sayac" aria-hidden="true"><div id="sayac-dolgu"></div></div>
       <p class="tk-kod" id="kod"></p>
-      <p class="alt tk-not">Bu kodu kapıdaki güvenliğe gösterin. Kod birkaç saniyede bir kendiliğinden yenilenir; ekran görüntüsü işe yaramaz. Bu sayfayı kimseyle paylaşmayın.</p>
-      <ul id="ogrenciler" class="tk-liste"></ul>
+      <p class="alt tk-not">Bu kodu kapıdaki güvenliğe gösterin. Kod birkaç saniyede bir kendiliğinden yenilenir. Bu sayfayı kimseyle paylaşmayın.</p>
+      <div id="ogrenciler" class="tk-ogrenciler"></div>
     </section>
 
     <section id="b-karar" class="tk-bolum gizli">
@@ -44,6 +43,7 @@
     </section>
   </main>
   <script src="/vendor/qrcode.js"></script>
-  <script src="/teslim-kodu.js?v=10"></script>
+  <script src="/avatar.js?v=14"></script>
+  <script src="/teslim-kodu.js?v=13"></script>
 </body>
 </html>

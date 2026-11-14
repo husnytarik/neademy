@@ -67,7 +67,7 @@ class _NeademyUygulamasiState extends State<NeademyUygulamasi> with WidgetsBindi
       debugShowCheckedModeBanner: false,
       theme: temaOlustur(Brightness.light, bant: bant),
       darkTheme: temaOlustur(Brightness.dark, bant: bant),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       builder: (context, child) =>
           GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => FocusManager.instance.primaryFocus?.unfocus(), child: child),
       locale: const Locale('tr', 'TR'),

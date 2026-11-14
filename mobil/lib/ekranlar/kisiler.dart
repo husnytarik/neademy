@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../bilesenler/ortak.dart';
 import '../cekirdek/api.dart';
-import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
 import '../cekirdek/yazdir.dart';
+import 'kisi_dosyasi.dart';
 
-const _rolAdi = {'yonetim': 'Yönetim', 'ogretmen': 'Öğretmen', 'ogrenci': 'Öğrenci', 'veli': 'Veli'};
 const _gorevAdi = {'mudur': 'Müdür', 'mudur_yrd': 'Müdür yardımcısı'};
 
 Future<Map<String, dynamic>> _getir(Api api) async {
-  final k = await api.get('/api/yonetim/kullanicilar') as Map<String, dynamic>;
+  final k = await api.get('/api/yonetim/kullanicilar?tur=personel') as Map<String, dynamic>;
   final r = await api.get('/api/yonetim/roller') as Map<String, dynamic>;
   final s = await api.get('/api/yonetim/subeler') as Map<String, dynamic>;
-  return {'kullanicilar': k.l('kullanicilar'), 'roller': r.l('roller'), 'katalog': r.l('katalog'), 'subeler': s.l('subeler'), 'kampusler': s.l('kampusler')};
+  final sec = await api.get('/api/yonetim/kullanici-secenek') as Map<String, dynamic>;
+  return {
+    'kullanicilar': k.l('kullanicilar'),
+    'roller': r.l('roller'),
+    'katalog': r.l('katalog'),
+    'subeler': s.l('subeler'),
+    'kampusler': s.l('kampusler'),
+    'sec': sec,
+  };
 }
 
 String _okulEtiket(Map<String, dynamic> s, List<Map<String, dynamic>> kampusler) {
@@ -22,11 +29,44 @@ String _okulEtiket(Map<String, dynamic> s, List<Map<String, dynamic>> kampusler)
   return k == null ? s.s('ad') : '${s.s('ad')} · ${k.s('ad')}';
 }
 
-bool _atanabilir(Map<String, dynamic> r) => r['okulAtar'] != true && r['kilitli'] != true && r.s('kod') != 'zumre';
-
 Set<int> _idler(dynamic l) => {for (final x in (l as List? ?? const [])) (x as num).toInt()};
 
-/// Kişiler: yönetim kadrosu, öğretmenler ve roller (düzenleme kipinde ad, rol, üyelik ve yetki değişir).
+bool _personelUyelik(Map<String, dynamic> m) => m.s('rol') == 'yonetim' || m.s('rol') == 'ogretmen';
+
+bool _calisiyor(Map<String, dynamic> u) => u.l('uyelikler').any((m) => _personelUyelik(m) && m.s('durum') == 'aktif');
+
+/// Kişinin görev unvanları (web kisiler.js gorevler()): kurum yönetimi, müdür görevleri, ek roller, branş.
+List<String> _gorevler(Map<String, dynamic> u, Map<String, dynamic> sec) {
+  final roller = sec.l('roller');
+  final dersler = sec.l('dersler');
+  final liste = <String>[];
+  final uyeler = u.l('uyelikler');
+  if (uyeler.any((m) => m.s('rol') == 'yonetim' && m.s('gorev') == 'kurum' && m.s('durum') == 'aktif')) liste.add('Kurum yönetimi');
+  for (final g in u.l('okulGorevleri')) {
+    liste.add(_gorevAdi[g.s('gorev')] ?? g.s('gorev'));
+  }
+  for (final id in _idler(u['roller'])) {
+    final r = roller.where((x) => x.n('id') == id).firstOrNull;
+    if (r != null && r.s('kod') != 'zumre') liste.add(r.s('ad'));
+  }
+  final ogretmenler = uyeler.where((m) => m.s('rol') == 'ogretmen' && m.s('durum') == 'aktif').toList();
+  if (ogretmenler.isNotEmpty) {
+    final branslar = {
+      for (final m in ogretmenler)
+        if (dersler.where((d) => d.n('id') == m.n('bransId')).firstOrNull?.s('ad') case final String ad when ad.isNotEmpty) ad,
+    };
+    liste.add(branslar.isEmpty ? 'Öğretmen' : '${branslar.join(' / ')} öğretmeni');
+    if (ogretmenler.any((m) => m['baskan'] == true)) liste.add('Zümre başkanı');
+  }
+  return liste.toSet().toList();
+}
+
+List<String> _okullari(Map<String, dynamic> u) => {
+  for (final m in u.l('uyelikler'))
+    if (_personelUyelik(m) && m.s('durum') == 'aktif' && m.s('sube').isNotEmpty) m.s('sube'),
+}.toList();
+
+/// Kişiler: personel listesi (süzgeç, arama), kişi dosyası, yeni kişi ve roller.
 class KisilerEkrani extends StatefulWidget {
   const KisilerEkrani({super.key, required this.api});
 
@@ -37,7 +77,9 @@ class KisilerEkrani extends StatefulWidget {
 }
 
 class _KisilerEkraniState extends State<KisilerEkrani> {
-  String _sekme = 'kadro';
+  String _sekme = 'personel';
+  String _gorev = 'tum';
+  String _durum = 'aktif';
   bool _duzenle = false;
   int _okul = 0;
   String _ara = '';
@@ -45,9 +87,38 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
 
   Api get api => widget.api;
 
-  Future<void> _git(Widget sayfa) async {
-    await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => sayfa));
+  Future<T?> _git<T>(Widget sayfa) async {
+    final r = await Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => sayfa));
     if (mounted) setState(() => _n++);
+    return r;
+  }
+
+  Future<void> _yeniKisi(Map<String, dynamic> v) async {
+    final r = await _git<Map<String, dynamic>>(
+      _YeniKisi(api: api, subeler: v.l('subeler'), kampusler: v.l('kampusler'), sec: v['sec'] as Map<String, dynamic>),
+    );
+    if (r == null || !mounted) return;
+    await _git<bool>(KisiDosyasi(api: api, kisiId: r.n('id'), yeni: r['mevcut'] != true, mevcut: r['mevcut'] == true));
+  }
+
+  List<Map<String, dynamic>> _suz(Map<String, dynamic> v) {
+    final q = _ara.trim().toLowerCase();
+    return [
+      for (final u in v.l('kullanicilar'))
+        if (_uygun(u, q)) u,
+    ];
+  }
+
+  bool _uygun(Map<String, dynamic> u, String q) {
+    final m = u.l('uyelikler').where((x) => _personelUyelik(x) && (_okul == 0 || x.n('subeId') == _okul)).toList();
+    if (m.isEmpty) return false;
+    final aktif = m.any((x) => x.s('durum') == 'aktif');
+    if (_durum == 'aktif' && !aktif) return false;
+    if (_durum == 'pasif' && aktif) return false;
+    if (_gorev == 'ogretmen' && !m.any((x) => x.s('rol') == 'ogretmen')) return false;
+    if (_gorev == 'yonetim' && !m.any((x) => x.s('rol') == 'yonetim')) return false;
+    if (_gorev == 'mudur' && u.l('okulGorevleri').isEmpty) return false;
+    return q.isEmpty || u.s('ad').toLowerCase().contains(q);
   }
 
   @override
@@ -61,15 +132,11 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
       final roller = v.l('roller');
       final subeler = v.l('subeler');
       final kampusler = v.l('kampusler');
-      final rol = _sekme == 'ogretmen' ? 'ogretmen' : 'yonetim';
-      final q = _ara.trim().toLowerCase();
-      final kisiler = [
-        for (final u in v.l('kullanicilar'))
-          if (u.l('uyelikler').any((m) => m.s('rol') == rol && (_okul == 0 || m.n('subeId') == _okul)) && (q.isEmpty || u.s('ad').toLowerCase().contains(q))) u,
-      ];
+      final sec = v['sec'] as Map<String, dynamic>;
+      final kisiler = _suz(v);
       return [
         Sekmeler(
-          secenekler: const [('kadro', 'Yönetim'), ('ogretmen', 'Öğretmenler'), ('rol', 'Roller')],
+          secenekler: const [('personel', 'Personel'), ('rol', 'Roller')],
           secili: _sekme,
           degisti: (d) => setState(() {
             _sekme = d;
@@ -82,17 +149,27 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
             Expanded(
               child: Text(_sekme == 'rol' ? '${roller.length} rol' : '${kisiler.length} kişi', style: TextStyle(color: context.soluk)),
             ),
-            if (_duzenle && _sekme != 'ogretmen')
-              TextButton(
-                onPressed: () => _git(
-                  _sekme == 'rol' ? _RolFormu(api: api, katalog: v.l('katalog')) : _YeniKisi(api: api, subeler: subeler, kampusler: kampusler, roller: roller),
-                ),
-                child: Text(_sekme == 'rol' ? '+ Yeni rol' : '+ Yeni kişi'),
-              ),
-            TextButton(onPressed: () => setState(() => _duzenle = !_duzenle), child: Text(_duzenle ? 'Bitti' : 'Düzenle')),
+            if (_sekme == 'personel')
+              TextButton(onPressed: () => _yeniKisi(v), child: const Text('+ Yeni kişi'))
+            else ...[
+              if (_duzenle) TextButton(onPressed: () => _git<bool>(_RolFormu(api: api, katalog: v.l('katalog'))), child: const Text('+ Yeni rol')),
+              TextButton(onPressed: () => setState(() => _duzenle = !_duzenle), child: Text(_duzenle ? 'Bitti' : 'Düzenle')),
+            ],
           ],
         ),
-        if (_sekme != 'rol') ...[
+        if (_sekme == 'personel') ...[
+          SuzgecCipleri(
+            secenekler: const [('tum', 'Tüm görevler'), ('ogretmen', 'Öğretmenler'), ('yonetim', 'Yönetim'), ('mudur', 'Müdür ve yardımcıları')],
+            secili: _gorev,
+            degisti: (d) => setState(() => _gorev = d),
+          ),
+          const SizedBox(height: 6),
+          SuzgecCipleri(
+            secenekler: const [('aktif', 'Çalışanlar'), ('pasif', 'Ayrılanlar'), ('hepsi', 'Hepsi')],
+            secili: _durum,
+            degisti: (d) => setState(() => _durum = d),
+          ),
+          const SizedBox(height: 10),
           DropdownButtonFormField<int>(
             initialValue: _okul,
             isExpanded: true,
@@ -114,7 +191,7 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
           ),
           const SizedBox(height: 6),
           if (kisiler.isEmpty) const BosNot('Bu seçimde kayıtlı kişi yok.'),
-          for (final u in kisiler) _kisiSatiri(context, u, roller, rol),
+          for (final u in kisiler) _kisiSatiri(context, u, sec),
         ] else ...[
           for (final r in roller) _rolSatiri(context, r, v),
         ],
@@ -122,27 +199,19 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
     },
   );
 
-  /// Web'deki personel / öğretmen listesi çıktısı: seçili okul ve sekmeye göre numaralı tablo.
+  /// Web'deki personel listesi çıktısı: seçili süzgece göre numaralı tablo.
   void _yazdir(BuildContext context, Map<String, dynamic> v) {
-    final roller = v.l('roller');
-    final rol = _sekme == 'ogretmen' ? 'ogretmen' : 'yonetim';
+    final sec = v['sec'] as Map<String, dynamic>;
     final subeler = v.l('subeler');
     final kampusler = v.l('kampusler');
     final okulAdi = _okul == 0 ? 'Tüm okullar' : [for (final s in subeler) if (s.n('id') == _okul) _okulEtiket(s, kampusler)].firstOrNull ?? 'Tüm okullar';
-    final satirlar = <List<String>>[];
-    for (final u in v.l('kullanicilar')) {
-      final uyeler = u.l('uyelikler').where((m) => m.s('rol') == rol && m.s('durum') == 'aktif' && (_okul == 0 || m.n('subeId') == _okul)).toList();
-      if (uyeler.isEmpty) continue;
-      final okullar = {for (final m in uyeler) if (m.s('sube').isNotEmpty) m.s('sube')}.join(', ');
-      var gorev = _gorevler(u, roller);
-      if (gorev.isEmpty && rol == 'ogretmen') gorev = 'Öğretmen';
-      satirlar.add([u.s('ad'), gorev, okullar]);
-    }
-    satirlar.sort((a, b) => a[0].toLowerCase().compareTo(b[0].toLowerCase()));
+    final satirlar = [
+      for (final u in _suz(v)) [u.s('ad'), _gorevler(u, sec).join(', '), _okullari(u).join(', ')],
+    ]..sort((a, b) => a[0].toLowerCase().compareTo(b[0].toLowerCase()));
     raporYazdir(
       context,
       api,
-      baslik: rol == 'ogretmen' ? 'Öğretmen listesi' : 'Yönetim personeli listesi',
+      baslik: 'Personel listesi',
       alt: '$okulAdi · ${satirlar.length} kişi',
       bolumler: [
         RaporBolumu(
@@ -154,69 +223,30 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
     );
   }
 
-  String _gorevler(Map<String, dynamic> u, List<Map<String, dynamic>> roller) {
-    final liste = <String>[];
-    if (u.l('uyelikler').any((m) => m.s('rol') == 'yonetim' && m.s('gorev') == 'kurum' && m.s('durum') == 'aktif')) liste.add('Kurum yönetimi');
-    for (final g in u.l('okulGorevleri')) {
-      liste.add('${_gorevAdi[g.s('gorev')] ?? g.s('gorev')} · ${g.s('okul')}');
-    }
-    final ids = _idler(u['roller']);
-    final ek = [
-      for (final r in roller)
-        if (ids.contains(r.n('id'))) r.s('ad'),
-    ];
-    if (ek.isNotEmpty) liste.add(ek.join(', '));
-    return liste.join(' · ');
-  }
-
-  Widget _kisiSatiri(BuildContext context, Map<String, dynamic> u, List<Map<String, dynamic>> roller, String rol) {
-    final uyeler = u.l('uyelikler').where((m) => m.s('rol') == rol).toList();
-    final pasif = uyeler.every((m) => m.s('durum') == 'pasif');
-    final okullar = {
-      for (final m in uyeler)
-        if (m.s('durum') == 'aktif' && m.s('sube').isNotEmpty) m.s('sube'),
-    }.join(', ');
-    final gorev = _sekme == 'kadro' ? _gorevler(u, roller) : '';
-    final ek = [
-      for (final r in roller)
-        if (_idler(u['roller']).contains(r.n('id'))) r.s('ad'),
-    ].join(', ');
-    final alt = [
-      if (_sekme == 'kadro') (gorev.isNotEmpty ? gorev : okullar) else okullar,
-      if (_sekme != 'kadro' && ek.isNotEmpty) ek,
-      if (pasif) 'Pasif',
-      u.s('telefon'),
-    ].where((e) => e.isNotEmpty).join(' · ');
-    final uyari = _sekme == 'kadro' && !pasif && gorev.isEmpty;
-    return KartKutu(
-      onTap: _duzenle ? () => _git(_KisiDuzen(api: api, kisiId: u.n('id'), rol: rol)) : null,
-      child: Row(
-        children: [
-          KisiAvatari(ad: u.s('ad'), foto: u.s('foto'), api: api),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(u.s('ad'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      if (uyari)
-                        TextSpan(
-                          text: 'Rol atanmamış · ',
-                          style: TextStyle(color: Colors.red.shade600),
-                        ),
-                      TextSpan(text: alt),
-                    ],
-                  ),
-                  style: TextStyle(color: context.soluk, fontSize: 12.5),
-                ),
-              ],
+  Widget _kisiSatiri(BuildContext context, Map<String, dynamic> u, Map<String, dynamic> sec) {
+    final g = _gorevler(u, sec);
+    final calisiyor = _calisiyor(u);
+    final alt = [g.isEmpty ? 'Görev atanmamış' : g.join(', '), _okullari(u).join(', '), if (!calisiyor) 'Ayrıldı'].where((e) => e.isNotEmpty).join(' · ');
+    return Opacity(
+      opacity: calisiyor ? 1 : 0.6,
+      child: KartKutu(
+        onTap: () => _git<bool>(KisiDosyasi(api: api, kisiId: u.n('id'))),
+        child: Row(
+          children: [
+            KisiAvatari(ad: u.s('ad'), foto: u.s('foto'), api: api),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(u.s('ad'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  Text(alt, style: TextStyle(color: calisiyor && g.isEmpty ? Colors.red.shade600 : context.soluk, fontSize: 12.5)),
+                ],
+              ),
             ),
-          ),
-          if (_duzenle) Icon(Icons.chevron_right, color: context.soluk),
-        ],
+            Icon(Icons.chevron_right, color: context.soluk),
+          ],
+        ),
       ),
     );
   }
@@ -224,7 +254,7 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
   Widget _rolSatiri(BuildContext context, Map<String, dynamic> r, Map<String, dynamic> v) {
     final kisi = r['okulAtar'] == true ? '${r.n('kisi')} kişi · Okul kurulumunda atanır' : '${r.n('kisi')} kişi';
     return KartKutu(
-      onTap: () => _git(_RolFormu(api: api, katalog: v.l('katalog'), rol: r, duzenle: _duzenle)),
+      onTap: () => _git<bool>(_RolFormu(api: api, katalog: v.l('katalog'), rol: r, duzenle: _duzenle)),
       child: Row(
         children: [
           Expanded(
@@ -246,190 +276,14 @@ class _KisilerEkraniState extends State<KisilerEkrani> {
   }
 }
 
-/// Bir kişinin düzenleme sayfası: ad, yönetim rolleri, üyelikler.
-class _KisiDuzen extends StatefulWidget {
-  const _KisiDuzen({required this.api, required this.kisiId, required this.rol});
-
-  final Api api;
-  final int kisiId;
-  final String rol;
-
-  @override
-  State<_KisiDuzen> createState() => _KisiDuzenState();
-}
-
-class _KisiDuzenState extends State<_KisiDuzen> {
-  int _n = 0;
-  TextEditingController? _ad;
-  String _yeniRol = '';
-  int _yeniSube = 0;
-  bool _ekle = false;
-
-  @override
-  void dispose() {
-    _ad?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fotoYukle() async {
-    try {
-      final bayt = await galeridenFotoSec();
-      if (bayt == null) return;
-      await widget.api.postBayt('/api/foto?id=${widget.kisiId}', bayt);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fotoğraf güncellendi.')));
-      setState(() => _n++);
-    } catch (e) {
-      if (mounted) hataGoster(context, e);
-    }
-  }
-
-  Future<void> _yap(String yol, Map<String, dynamic> govde, {String? basari}) async {
-    try {
-      await widget.api.post(yol, govde);
-      if (!mounted) return;
-      if (basari != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(basari)));
-      setState(() => _n++);
-    } catch (e) {
-      if (mounted) hataGoster(context, e);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => VeriSayfasi(
-    key: ValueKey(_n),
-    baslik: 'Kişi',
-    getir: () => _getir(widget.api),
-    cizim: (context, raw) {
-      final v = raw as Map<String, dynamic>;
-      final u = v.l('kullanicilar').where((x) => x.n('id') == widget.kisiId).firstOrNull;
-      if (u == null) return const [BosNot('Kişi bulunamadı.')];
-      final roller = v.l('roller');
-      final subeler = v.l('subeler');
-      final kampusler = v.l('kampusler');
-      _ad ??= TextEditingController(text: u.s('ad'));
-      _yeniRol = _yeniRol.isEmpty ? widget.rol : _yeniRol;
-      if (_yeniSube == 0 && subeler.isNotEmpty) _yeniSube = subeler.first.n('id');
-      final verilen = _idler(u['roller']);
-      final uyelikler = u.l('uyelikler');
-      final kaynak =
-          uyelikler.where((m) => m.s('rol') == 'yonetim' && m.s('durum') == 'aktif').firstOrNull ?? uyelikler.where((m) => m.s('durum') == 'aktif').firstOrNull;
-      final foto = u.s('foto');
-      return [
-        Row(
-          children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: context.icZemin,
-              foregroundImage: foto.isEmpty ? null : NetworkImage('${Api.taban}$foto', headers: widget.api.kimlik),
-              child: Text(u.s('ad').isEmpty ? '?' : u.s('ad').characters.first.toUpperCase(), style: serif.copyWith(fontSize: 24)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  OutlinedButton(style: kompakt, onPressed: _fotoYukle, child: Text(foto.isEmpty ? 'Fotoğraf ekle' : 'Fotoğrafı değiştir')),
-                  if (foto.isNotEmpty)
-                    TextButton(onPressed: () => _yap('/api/foto-sil?id=${widget.kisiId}', {}, basari: 'Fotoğraf kaldırıldı.'), child: const Text('Kaldır')),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const Baslik('Ad soyad'),
-        TextField(
-          controller: _ad,
-          maxLength: 80,
-          decoration: const InputDecoration(hintText: 'Ad soyad'),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () => _yap('/api/yonetim/kullanici-ad', {'userId': u.n('id'), 'ad': _ad!.text}, basari: 'Ad güncellendi.'),
-            child: const Text('Adı kaydet'),
-          ),
-        ),
-        const Baslik('Yönetim rolleri'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            if (uyelikler.any((m) => m.s('rol') == 'yonetim' && m.s('gorev') == 'kurum' && m.s('durum') == 'aktif')) const Cip('Kurum yönetimi'),
-            for (final g in u.l('okulGorevleri')) Cip('${_gorevAdi[g.s('gorev')] ?? g.s('gorev')} · ${g.s('okul')}'),
-            for (final r in roller.where(_atanabilir))
-              FilterChip(
-                label: Text(r.s('ad')),
-                selected: verilen.contains(r.n('id')),
-                onSelected: (sec) => _yap('/api/yonetim/kullanici-rol', {'userId': u.n('id'), 'rolId': r.n('id'), 'ver': sec, 'subeId': kaynak?.n('subeId')}),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text('Müdür ve müdür yardımcısı görevleri Okul kurulumunda verilir.', style: TextStyle(color: context.soluk, fontSize: 12.5)),
-        const Baslik('Üyelikler'),
-        for (final m in uyelikler)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text('${_rolAdi[m.s('rol')] ?? m.s('rol')} · ${m.s('sube').isEmpty ? '-' : m.s('sube')}${m.s('durum') == 'pasif' ? ' · pasif' : ''}'),
-            trailing: TextButton(
-              onPressed: () async {
-                final pasif = m.s('durum') == 'pasif';
-                if (!pasif && !await onayIste(context, '${u.s('ad')}: bu üyelik pasifleştirilsin mi? Bu profille giriş yapamaz.', evet: 'Pasifleştir')) return;
-                await _yap('/api/yonetim/uyelik-durum', {'uyelikId': m.n('id'), 'durum': pasif ? 'aktif' : 'pasif'});
-              },
-              child: Text(m.s('durum') == 'pasif' ? 'Aktifleştir' : 'Pasifleştir'),
-            ),
-          ),
-        if (!_ekle)
-          TextButton(onPressed: () => setState(() => _ekle = true), child: const Text('+ Üyelik ekle'))
-        else ...[
-          DropdownButtonFormField<int>(
-            initialValue: _yeniSube,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Okul'),
-            items: [
-              for (final s in subeler)
-                DropdownMenuItem(
-                  value: s.n('id'),
-                  child: Text(_okulEtiket(s, kampusler), overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: (x) => setState(() => _yeniSube = x ?? _yeniSube),
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            initialValue: _yeniRol,
-            decoration: const InputDecoration(labelText: 'Rol'),
-            items: const [
-              DropdownMenuItem(value: 'yonetim', child: Text('Yönetim')),
-              DropdownMenuItem(value: 'ogretmen', child: Text('Öğretmen')),
-            ],
-            onChanged: (x) => setState(() => _yeniRol = x ?? _yeniRol),
-          ),
-          const SizedBox(height: 10),
-          FilledButton(
-            onPressed: () async {
-              await _yap('/api/yonetim/uyelik-ekle', {'userId': u.n('id'), 'subeId': _yeniSube, 'rol': _yeniRol}, basari: 'Üyelik eklendi.');
-              if (mounted) setState(() => _ekle = false);
-            },
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            child: const Text('Üyelik ekle'),
-          ),
-        ],
-      ];
-    },
-  );
-}
-
+/// Yeni kişi: okul(lar) açıkça seçilir (sessiz varsayılan yok), görevler bağımsızdır, eklemeden önce özet onayı istenir.
 class _YeniKisi extends StatefulWidget {
-  const _YeniKisi({required this.api, required this.subeler, required this.kampusler, required this.roller});
+  const _YeniKisi({required this.api, required this.subeler, required this.kampusler, required this.sec});
 
   final Api api;
   final List<Map<String, dynamic>> subeler;
   final List<Map<String, dynamic>> kampusler;
-  final List<Map<String, dynamic>> roller;
+  final Map<String, dynamic> sec;
 
   @override
   State<_YeniKisi> createState() => _YeniKisiState();
@@ -439,9 +293,15 @@ class _YeniKisiState extends State<_YeniKisi> {
   final _ad = TextEditingController();
   final _kimlik = TextEditingController();
   final _tel = TextEditingController();
-  late int _okul = widget.subeler.isEmpty ? 0 : widget.subeler.first.n('id');
-  int? _rol;
-  bool _mesgul = false;
+  late final Set<int> _okullar = {if (widget.subeler.length == 1) widget.subeler.first.n('id')};
+  final Set<int> _dersler = {};
+  final Set<int> _roller = {};
+  bool _ogretmen = false, _yonetim = false, _mesgul = false;
+  String _mudur = '';
+  String _kimlikUyari = '';
+  String _sonKontrol = '';
+
+  List<Map<String, dynamic>> get _rolListesi => [for (final r in widget.sec.l('roller')) if (r.s('kod') != 'zumre') r];
 
   @override
   void dispose() {
@@ -451,18 +311,52 @@ class _YeniKisiState extends State<_YeniKisi> {
     super.dispose();
   }
 
+  /// Kimlik zaten kayıtlıysa yeni hesap açılmaz; görev mevcut hesaba eklenir. Kişi önceden bilgilendirilir.
+  Future<void> _kontrol() async {
+    final k = _kimlik.text.trim();
+    if (k.length < 5 || k == _sonKontrol) return;
+    _sonKontrol = k;
+    try {
+      final r = await widget.api.get('/api/yonetim/kullanici-kontrol?kimlik=${Uri.encodeQueryComponent(k)}') as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() => _kimlikUyari = r['var'] == true ? 'Bu kimlik zaten kayıtlı: ${r.s('ad')}. Yeni hesap açılmaz; seçtiğiniz görevler bu hesaba eklenir.' : '');
+    } catch (_) {
+      if (mounted) setState(() => _kimlikUyari = '');
+    }
+  }
+
+  String _okulAd(int id) => [for (final s in widget.subeler) if (s.n('id') == id) _okulEtiket(s, widget.kampusler)].firstOrNull ?? '';
+
   Future<void> _ekle() async {
+    final ad = _ad.text.trim();
+    if (ad.isEmpty) return _uyar('Ad soyad yazın.');
+    if (_kimlik.text.trim().isEmpty) return _uyar('T.C. / pasaport no yazın.');
+    if (_okullar.isEmpty) return _uyar('Okul seçin: kişi hangi okulda çalışacak?');
+    if (!_ogretmen && !_yonetim && _roller.isEmpty) return _uyar('En az bir görev seçin: öğretmen, yönetim ya da ek görev.');
+    final mudur = _yonetim && _okullar.length == 1 ? _mudur : '';
+    final okullar = _okullar.map(_okulAd).join(', ');
+    final gorevler = [
+      if (_yonetim) 'Yönetim',
+      if (mudur.isNotEmpty) _gorevAdi[mudur] ?? mudur,
+      if (_ogretmen) 'Öğretmen',
+      for (final r in _rolListesi) if (_roller.contains(r.n('id'))) r.s('ad'),
+    ];
+    final soru = '$ad şöyle eklenecek:\n\n• Okul: $okullar\n• Görev: ${gorevler.join(', ')}\n\nDoğru mu? Yanlış çıkarsa kişi dosyasından düzeltebilir ya da geri alabilirsiniz.';
+    if (!await onayIste(context, soru, evet: 'Doğru, ekle')) return;
     setState(() => _mesgul = true);
     try {
-      await widget.api.post('/api/yonetim/kullanici-ekle', {
-        'ad': _ad.text,
-        'kimlik': _kimlik.text,
-        'telefon': _tel.text,
-        'subeId': _okul,
-        'rol': 'yonetim',
-        'rolId': _rol,
-      });
-      if (mounted) Navigator.pop(context, true);
+      final r = await widget.api.post('/api/yonetim/kullanici-yeni', {
+        'ad': ad,
+        'kimlik': _kimlik.text.trim(),
+        'telefon': _tel.text.trim(),
+        'subeIds': _okullar.toList(),
+        'ogretmen': _ogretmen,
+        'dersIds': _ogretmen ? _dersler.toList() : <int>[],
+        'yonetim': _yonetim,
+        'rolIds': _roller.toList(),
+        'mudurGorev': mudur,
+      }) as Map<String, dynamic>;
+      if (mounted) Navigator.pop(context, r);
     } catch (e) {
       if (mounted) {
         setState(() => _mesgul = false);
@@ -471,60 +365,125 @@ class _YeniKisiState extends State<_YeniKisi> {
     }
   }
 
+  void _uyar(String metin) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(metin)));
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Yeni yönetici')),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        TextField(
-          controller: _ad,
-          maxLength: 80,
-          decoration: const InputDecoration(labelText: 'Ad soyad'),
-        ),
-        TextField(
-          controller: _kimlik,
-          maxLength: 20,
-          decoration: const InputDecoration(labelText: 'T.C. / pasaport no'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _tel,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Telefon', hintText: '5XX XXX XX XX'),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          initialValue: _okul == 0 ? null : _okul,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Okul'),
-          items: [
-            for (final s in widget.subeler)
-              DropdownMenuItem(
-                value: s.n('id'),
-                child: Text(_okulEtiket(s, widget.kampusler), overflow: TextOverflow.ellipsis),
-              ),
+  Widget build(BuildContext context) {
+    final dersler = widget.sec.l('dersler');
+    final gorevler = widget.sec.m('gorevler');
+    return Scaffold(
+      appBar: AppBar(title: const Text('Yeni kişi')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        children: [
+          TextField(
+            controller: _ad,
+            maxLength: 80,
+            decoration: const InputDecoration(labelText: 'Ad soyad'),
+          ),
+          Focus(
+            onFocusChange: (odakta) {
+              if (!odakta) _kontrol();
+            },
+            child: TextField(
+              controller: _kimlik,
+              maxLength: 20,
+              decoration: const InputDecoration(labelText: 'T.C. / pasaport no'),
+            ),
+          ),
+          if (_kimlikUyari.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(_kimlikUyari, style: TextStyle(color: Colors.orange.shade800, fontSize: 12.5)),
+            ),
+          TextField(
+            controller: _tel,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Telefon', hintText: '5XX XXX XX XX'),
+          ),
+          const Baslik('Okul'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final s in widget.subeler)
+                FilterChip(
+                  label: Text(_okulEtiket(s, widget.kampusler)),
+                  selected: _okullar.contains(s.n('id')),
+                  onSelected: (x) => setState(() => x ? _okullar.add(s.n('id')) : _okullar.remove(s.n('id'))),
+                ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('Kişinin çalışacağı okulu seçin (birden çok olabilir).', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+          ),
+          const Baslik('Görev'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Öğretmen', style: TextStyle(fontWeight: FontWeight.w600)),
+            value: _ogretmen,
+            onChanged: (x) => setState(() => _ogretmen = x),
+          ),
+          if (_ogretmen) ...[
+            Text('Verdiği dersler', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final d in dersler)
+                  FilterChip(
+                    label: Text(d.s('ad')),
+                    selected: _dersler.contains(d.n('id')),
+                    onSelected: (x) => setState(() => x ? _dersler.add(d.n('id')) : _dersler.remove(d.n('id'))),
+                  ),
+              ],
+            ),
           ],
-          onChanged: (x) => setState(() => _okul = x ?? _okul),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          initialValue: _rol,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Rol'),
-          hint: const Text('Rol seçin'),
-          items: [for (final r in widget.roller.where(_atanabilir)) DropdownMenuItem(value: r.n('id'), child: Text(r.s('ad')))],
-          onChanged: (x) => setState(() => _rol = x),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _mesgul ? null : _ekle,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-          child: Text(_mesgul ? 'Ekleniyor…' : 'Kişiyi ekle'),
-        ),
-      ],
-    ),
-  );
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Yönetim', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Yönetim paneline girer.'),
+            value: _yonetim,
+            onChanged: (x) => setState(() => _yonetim = x),
+          ),
+          if (_yonetim && _okullar.length == 1)
+            DropdownButtonFormField<String>(
+              initialValue: _mudur,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Müdürlük görevi'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Müdürlük görevi yok')),
+                for (final e in gorevler.entries) DropdownMenuItem(value: e.key, child: Text('${e.value}')),
+              ],
+              onChanged: (x) => setState(() => _mudur = x ?? ''),
+            ),
+          const Baslik('Ek görev (Güvenlik, Rehber vb.)'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final r in _rolListesi)
+                FilterChip(
+                  label: Text(r.s('ad')),
+                  selected: _roller.contains(r.n('id')),
+                  onSelected: (x) => setState(() => x ? _roller.add(r.n('id')) : _roller.remove(r.n('id'))),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: _mesgul ? null : _ekle,
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            child: Text(_mesgul ? 'Ekleniyor…' : 'Kişiyi ekle'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Rol sayfası: yeni rol oluşturur; var olan rolün yetkilerini gösterir, düzenleme kipinde değiştirir.

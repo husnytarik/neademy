@@ -84,8 +84,8 @@ function ogrencilerDe(tur, id) {
 
 function ozneBilgi(tur, id) {
   if (tur === 'veli') {
-    const u = db.prepare('SELECT full_name AS ad FROM users WHERE id = ?').get(id);
-    return u && { ad: u.ad, yakinlik: 'Veli' };
+    const u = db.prepare(`SELECT u.full_name AS ad, ${FOTO_SQL} AS foto FROM users u WHERE u.id = ?`).get(id);
+    return u && { ad: u.ad, yakinlik: 'Veli', foto: u.foto };
   }
   return db.prepare('SELECT ad, yakinlik FROM teslim_yetkilileri WHERE id = ?').get(id);
 }
@@ -120,7 +120,7 @@ function ozneIslem(tur, id, req, yol, b, { json, res, denetle }) {
       try { db.prepare('INSERT INTO teslim_kodlari (ozne_tur, ozne_id, kod, bitis) VALUES (?,?,?,?)').run(tur, id, kod, Date.now() + KOD_OMRU); break; }
       catch (e) { if (!String(e.message).includes('UNIQUE')) throw e; }
     }
-    json(res, 200, { kod, omur: KOD_OMRU / 1000, kisi, ogrenciler: ogr.map(o => ({ ad: o.ad, sinif: o.sinif, okul: o.okul })) });
+    json(res, 200, { kod, omur: KOD_OMRU / 1000, kisi, ogrenciler: ogr.map(o => ({ ad: o.ad, sinif: o.sinif, okul: o.okul, foto: o.foto })) });
     return true;
   }
 
@@ -129,7 +129,7 @@ function ozneIslem(tur, id, req, yol, b, { json, res, denetle }) {
     const t = db.prepare(`SELECT * FROM teslim_talepleri WHERE ozne_tur = ? AND ozne_id = ? AND durum <> 'secim' AND durum <> 'iptal'
       AND (durum = 'bekliyor' OR karar > ?) ORDER BY id DESC LIMIT 1`).get(tur, id, Date.now() - 60_000);
     if (!t) return json(res, 200, { talep: null }), true;
-    const liste = db.prepare(`SELECT u.full_name AS ad, c.name AS sinif FROM teslim_talep_ogrenci t JOIN memberships m ON m.id = t.student_membership_id
+    const liste = db.prepare(`SELECT u.full_name AS ad, ${FOTO_SQL} AS foto, c.name AS sinif FROM teslim_talep_ogrenci t JOIN memberships m ON m.id = t.student_membership_id
       JOIN users u ON u.id = m.user_id LEFT JOIN class_students cs ON cs.student_membership_id = m.id LEFT JOIN classes c ON c.id = cs.class_id
       WHERE t.talep_id = ? AND t.secili = 1 ORDER BY u.full_name`).all(t.id);
     json(res, 200, { talep: { id: t.id, durum: t.durum, ogrenciler: liste } });

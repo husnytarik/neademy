@@ -248,12 +248,18 @@ class _OgrenciDosyaEkraniState extends State<OgrenciDosyaEkrani> {
   }
 
   Future<void> _duzenle() async {
-    await Navigator.of(context).push<bool>(
+    final r = await Navigator.of(context).push<Object>(
       MaterialPageRoute(
         builder: (_) => OgrenciFormu(api: widget.api, id: widget.id),
       ),
     );
-    if (mounted) setState(() => _n++);
+    if (!mounted) return;
+    // Başka okula nakil edildiyse öğrenci yeni kayıt numarasıyla açılır
+    if (r is int && r != widget.id) {
+      await Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => OgrenciDosyaEkrani(api: widget.api, id: r)));
+      return;
+    }
+    setState(() => _n++);
   }
 
   Future<void> _durum(Map<String, dynamic> kayit) async {
@@ -543,6 +549,9 @@ class _VeliSatir {
   bool get kayitli => uyelikId != null;
   bool get bos => !kayitli && [ad, telefon, kimlik, eposta].every((c) => c.text.trim().isEmpty);
 
+  /// Kayıtlı velinin yanlış yazılmış ad / telefon / kimliği düzeltilebilir (boş kimlik = değişmez).
+  Map<String, dynamic> duzeltme() => {'ad': ad.text, 'telefon': telefon.text, 'kimlik': kimlik.text};
+
   void kapat() {
     for (final c in [ad, kimlik, telefon, eposta, meslek]) {
       c.dispose();
@@ -596,6 +605,8 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
   int? _sinif;
   int _userId = 0;
   String _mevcutFoto = '';
+  int _nakilHedef = 0;
+  int? _nakilSinif;
   Uint8List? _foto;
   String _cinsiyetD = '', _kan = '', _kayitTuru = 'yeni', _yemekD = '', _yakinlik = '';
 
@@ -631,7 +642,8 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       final subeler = d.l('subeler');
       _userId = o.n('userId');
       _mevcutFoto = o.s('foto');
-      _sube = _duzenleme ? o.n('subeId') : (subeler.isEmpty ? 0 : subeler.first.n('id'));
+      // Birden çok okul varsa okul açıkça seçilir (sessizce ilk okula düşmez)
+      _sube = _duzenleme ? o.n('subeId') : (subeler.length == 1 ? subeler.first.n('id') : 0);
       _sinif = _duzenleme && o['sinifId'] != null ? o.n('sinifId') : null;
       _k('ad', o.s('ad'));
       _k('telefon', o.s('telefon'));
@@ -684,6 +696,10 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       _uyar(context, 'Ad soyad, kimlik numarası ve telefon gerekli.');
       return;
     }
+    if (_sube == 0) {
+      _uyar(context, 'Okul seçin: öğrenci hangi okula kaydedilecek?');
+      return;
+    }
     if (_yemekD.isEmpty) {
       _uyar(context, 'Yemek tercihini seçin: yemek alacak ya da almayacak.');
       return;
@@ -717,8 +733,8 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
         'yemek': _yemekD,
         'yakinYakinlik': _yakinlik,
       };
+      govde['kimlik'] = _t('kimlik'); // düzenlemede boş = değişmez
       if (!_duzenleme) {
-        govde['kimlik'] = _t('kimlik');
         govde['aile'] = [for (final v in _veliler.where((v) => !v.bos)) v.veri()];
         govde['ozelDurumlar'] = [
           for (final o in _ozeller.where((o) => o.baslik.text.trim().isNotEmpty)) {'tur': o.tur, 'baslik': o.baslik.text, 'aciklama': o.aciklama.text},
@@ -728,7 +744,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       if (_duzenleme) {
         for (final v in _veliler.where((v) => !v.bos)) {
           if (v.kayitli) {
-            await api.post('/api/ogrenci/veli-guncelle', {'ogrenciId': widget.id, 'veliUyelikId': v.uyelikId, 'yakinlik': v.yakinlik, 'meslek': v.meslek.text});
+            await api.post('/api/ogrenci/veli-guncelle', {'ogrenciId': widget.id, 'veliUyelikId': v.uyelikId, 'yakinlik': v.yakinlik, 'meslek': v.meslek.text, ...v.duzeltme()});
           } else {
             await api.post('/api/ogrenci/veli-ekle', {'ogrenciId': widget.id, ...v.veri()});
           }
@@ -789,6 +805,84 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
       }
     }
     setState(() => _ozeller.remove(o));
+  }
+
+  /// Yanlış okula kaydedilen öğrenciyi doğru okula taşır; not / devamsızlık geçmişi eski okulda kalır.
+  Future<void> _nakil() async {
+    if (_nakilHedef == 0) {
+      _uyar(context, 'Yeni okulu seçin.');
+      return;
+    }
+    final subeler = _d!.l('subeler');
+    String okul(int id) => subeler.where((s) => s.n('id') == id).firstOrNull?.s('ad') ?? '';
+    final soru =
+        '${_t('ad')}: ${okul(_sube).isEmpty ? 'mevcut okul' : okul(_sube)} → ${okul(_nakilHedef)} okuluna nakil edilsin mi?\n\n'
+        '• Kayıt, aile ve özel durum bilgileri yeni okula da yazılır.\n'
+        '• Eski okuldaki not, devamsızlık ve ödev geçmişi eski okulda kalır.\n'
+        '• Sınıf seçmezseniz boş kalır.\n\n'
+        'Kaydedilmemiş değişiklikler kaybolur.';
+    if (!await onayIste(context, soru, evet: 'Nakil et')) return;
+    setState(() => _mesgul = true);
+    try {
+      final r = await widget.api.post('/api/ogrenci/nakil', {'ogrenciId': widget.id, 'hedefSubeId': _nakilHedef, 'sinifId': _nakilSinif}) as Map<String, dynamic>?;
+      if (mounted) Navigator.pop(context, r?.n('id') ?? true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _mesgul = false);
+        hataGoster(context, e);
+      }
+    }
+  }
+
+  Widget _nakilBolumu(List<Map<String, dynamic>> subeler, List<Map<String, dynamic>> siniflar) {
+    final hedefSiniflar = [
+      for (final s in siniflar)
+        if (s.n('subeId') == _nakilHedef) s,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Baslik('Okul değişikliği (nakil)', ust: 12),
+        Text('Öğrenci yanlış okula kaydedildiyse ya da başka okula geçtiyse buradan taşıyın.', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int>(
+          initialValue: _nakilHedef == 0 ? null : _nakilHedef,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Yeni okul'),
+          hint: const Text('Yeni okulu seçin'),
+          items: [
+            for (final s in subeler)
+              if (s.n('id') != _sube)
+                DropdownMenuItem(
+                  value: s.n('id'),
+                  child: Text(s.s('ad'), overflow: TextOverflow.ellipsis),
+                ),
+          ],
+          onChanged: (x) => setState(() {
+            _nakilHedef = x ?? 0;
+            _nakilSinif = null;
+          }),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int?>(
+          key: ValueKey('nakil-sinif-$_nakilHedef'),
+          initialValue: _nakilSinif,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Yeni sınıf'),
+          items: [
+            const DropdownMenuItem<int?>(value: null, child: Text('Sınıfsız (sonra atanır)')),
+            for (final s in hedefSiniflar)
+              DropdownMenuItem<int?>(
+                value: s.n('id'),
+                child: Text('${s.s('kademe')} · ${s.s('ad')}', overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (x) => setState(() => _nakilSinif = x),
+        ),
+        const SizedBox(height: 6),
+        OutlinedButton(onPressed: _mesgul ? null : _nakil, child: const Text('Başka okula nakil et')),
+      ],
+    );
   }
 
   Future<void> _fotoSec() async {
@@ -899,7 +993,10 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
           const Baslik('Öğrenci', ust: 4),
           _fotoBolumu(),
           _alan('Ad soyad *', 'ad', uzunluk: 80),
-          if (!_duzenleme) _alan('T.C. / pasaport no *', 'kimlik', uzunluk: 20) else _alan(d.m('ogrenci').s('kimlikTuru'), 'kimlikGoster'),
+          if (!_duzenleme)
+            _alan('T.C. / pasaport no *', 'kimlik', uzunluk: 20)
+          else
+            _alan('${d.m('ogrenci').s('kimlikTuru')} (yanlışsa düzeltin)', 'kimlik', uzunluk: 20, ipucu: '${d.m('ogrenci').s('kimlik')} (değişmeyecekse boş bırakın)'),
           _alan('Öğrenci / yakın telefonu *', 'telefon', tip: TextInputType.phone, uzunluk: 20, ipucu: '5XX XXX XX XX'),
           _alan('Okul no (boşsa otomatik)', 'okulNo', tip: TextInputType.number, uzunluk: 10),
           Padding(
@@ -908,6 +1005,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
               initialValue: _sube == 0 ? null : _sube,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Okul *'),
+              hint: const Text('Okul seçin'),
               items: [
                 for (final s in subeler)
                   DropdownMenuItem(
@@ -1035,7 +1133,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
                     items: [for (final e in yakinlar.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
                     onChanged: (x) => setState(() => v.yakinlik = x ?? ''),
                   ),
-                  if (!v.kayitli) ...[
+                  ...[
                     const SizedBox(height: 10),
                     TextField(
                       controller: v.ad,
@@ -1047,7 +1145,11 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
                       controller: v.kimlik,
                       keyboardType: TextInputType.number,
                       maxLength: 20,
-                      decoration: const InputDecoration(labelText: 'T.C. / pasaport no', counterText: ''),
+                      decoration: InputDecoration(
+                        labelText: v.kayitli ? 'T.C. / pasaport no (yanlışsa düzeltin)' : 'T.C. / pasaport no',
+                        hintText: v.kayitli ? 'Değişmeyecekse boş bırakın' : null,
+                        counterText: '',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -1056,13 +1158,15 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
                       maxLength: 20,
                       decoration: const InputDecoration(labelText: 'Telefon', hintText: '5XX XXX XX XX', counterText: ''),
                     ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: v.eposta,
-                      keyboardType: TextInputType.emailAddress,
-                      maxLength: 120,
-                      decoration: const InputDecoration(labelText: 'E-posta', counterText: ''),
-                    ),
+                    if (!v.kayitli) ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: v.eposta,
+                        keyboardType: TextInputType.emailAddress,
+                        maxLength: 120,
+                        decoration: const InputDecoration(labelText: 'E-posta', counterText: ''),
+                      ),
+                    ],
                   ],
                   const SizedBox(height: 10),
                   TextField(
@@ -1080,6 +1184,7 @@ class _OgrenciFormuState extends State<OgrenciFormu> {
             },
             child: const Text('+ Veli / yakın ekle'),
           ),
+          if (_duzenleme && subeler.length > 1) _nakilBolumu(subeler, d.l('siniflar')),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _mesgul ? null : _kaydet,

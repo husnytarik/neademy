@@ -1,4 +1,4 @@
-import { db, FOTO_SQL, tcGecerliMi } from './db.js';
+import { db, FOTO_SQL, tcGecerliMi, sonrakiOkulNo } from './db.js';
 import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { islem, kisiKaydet } from './kurulum.js';
 import { yetkiVar } from './yetki.js';
@@ -87,6 +87,26 @@ export function ogrenciErisimi(o, id) {
   if (o.role !== 'ogretmen') return null;
   return db.prepare(temel + ` AND (c.homeroom_membership_id = ? OR EXISTS (SELECT 1 FROM assignments a WHERE a.class_id = c.id AND a.teacher_membership_id = ?))`)
     .get(id, o.membership_id, o.membership_id) || null;
+}
+
+// Kimlik düzeltmesi: boşsa değişmez; geçerliyse başka kişide kayıtlı olmamalı. { tc, pasaport } ya da null döner
+function kimlikDuzelt(ham, userId, etiket) {
+  const kimlik = String(ham ?? '').trim().toUpperCase();
+  if (!kimlik) return null;
+  const tcMi = /^\d{11}$/.test(kimlik);
+  if (tcMi ? !tcGecerliMi(kimlik) : !/^[A-Z0-9]{5,20}$/.test(kimlik)) throw new Hata(400, `${etiket} kimlik / pasaport numarası geçersiz`);
+  const baska = db.prepare('SELECT full_name FROM users WHERE (tc_no = gz(?) OR passport_no = gz(?)) AND id != ?').get(kimlik, kimlik, userId);
+  if (baska) throw new Hata(409, `${etiket}: bu kimlik numarası başka bir kişide kayıtlı (${baska.full_name})`);
+  return { tc: tcMi ? kimlik : null, pasaport: tcMi ? null : kimlik };
+}
+// Hesap başka üyelikte de kullanılıyorsa (örn. aynı kişi başka okulda veli) telefon değişimi onları da etkiler
+function telefonDegisir(userId, uyelikId, tel) {
+  const mevcut = db.prepare('SELECT phone FROM users WHERE id = ?').get(userId)?.phone;
+  if (mevcut === tel) return false;
+  if (db.prepare('SELECT 1 FROM memberships WHERE user_id = ? AND id != ?').get(userId, uyelikId)) {
+    throw new Hata(409, 'Bu hesap başka bir kayıtta da kullanılıyor; telefon burada değiştirilemez');
+  }
+  return true;
 }
 
 function veliBagla(ogr, v, aktor, denetle) {
@@ -292,8 +312,11 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
         if (okulNo && db.prepare("SELECT 1 FROM memberships WHERE branch_id = ? AND role = 'ogrenci' AND okul_no = ? AND id != ?").get(e.subeId, okulNo, id)) {
           return hata(409, 'Bu okul numarası okulda başka bir öğrencide kayıtlı');
         }
+        const yeniKimlik = kimlikDuzelt(b.kimlik, e.userId, 'Öğrenci');
+        const telDegisti = telefonDegisir(e.userId, id, tel);
         islem(() => {
           db.prepare('UPDATE users SET full_name = ?, phone = ? WHERE id = ?').run(ad, tel, e.userId);
+          if (yeniKimlik) db.prepare('UPDATE users SET tc_no = ?, passport_no = ? WHERE id = ?').run(yeniKimlik.tc, yeniKimlik.pasaport, e.userId);
           if (okulNo) db.prepare('UPDATE memberships SET okul_no = ? WHERE id = ?').run(okulNo, id);
           if (sinifId) db.prepare(`INSERT INTO class_students (class_id, student_membership_id) VALUES (?,?)
             ON CONFLICT (student_membership_id) DO UPDATE SET class_id = excluded.class_id`).run(sinifId, id);
@@ -301,7 +324,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
           kayitYaz(id, kayit);
           profilYaz(e.userId, iletisim);
         });
-        denetle(o.user_id, 'ogrenci-guncelle', { uyelikId: id });
+        denetle(o.user_id, 'ogrenci-guncelle', { uyelikId: id, kimlik: !!yeniKimlik, telefon: telDegisti });
         return json(res, 200, { tamam: true, id }), true;
       }
 
@@ -338,10 +361,54 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
         if (ayril) {
           db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(e.id);
           db.prepare('DELETE FROM class_students WHERE student_membership_id = ?').run(e.id);
+        } else {
+          const son = db.prepare("SELECT json_extract(detail, '$.sinifId') AS s FROM audit_log WHERE action = 'ogrenci-ayril' AND json_extract(detail, '$.ogrId') = ? ORDER BY id DESC LIMIT 1").get(e.id);
+          const sinif = son?.s ? db.prepare('SELECT id FROM classes WHERE id = ? AND branch_id = ?').get(son.s, e.subeId) : null;
+          if (sinif && !db.prepare('SELECT 1 FROM class_students WHERE student_membership_id = ?').get(e.id)) {
+            db.prepare('INSERT INTO class_students (class_id, student_membership_id) VALUES (?,?)').run(sinif.id, e.id);
+          }
         }
       });
       denetle(o.user_id, ayril ? 'ogrenci-ayril' : 'ogrenci-geri', { ogrId: e.id, sinifId: e.sinifId || null });
       return json(res, 200, { tamam: true }), true;
+    }
+    if (yol === '/api/ogrenci/nakil') {
+      const hedef = tamSayi(b.hedefSubeId);
+      if (!hedef || !db.prepare('SELECT 1 FROM branches WHERE id = ?').get(hedef)) return hata(400, 'Okul seçin');
+      if (hedef === e.subeId) return hata(400, 'Yeni okul, mevcut okulla aynı olamaz');
+      const kaynak = db.prepare('SELECT status, okul_no AS okulNo FROM memberships WHERE id = ?').get(e.id);
+      if (kaynak.status !== 'aktif') return hata(409, 'Öğrenci okuldan ayrılmış; önce geri alın');
+      const sinifId = b.sinifId ? tamSayi(b.sinifId) : null;
+      if (b.sinifId && (!sinifId || !db.prepare('SELECT 1 FROM classes WHERE id = ? AND branch_id = ?').get(sinifId, hedef))) return hata(400, 'Sınıf, seçilen okula ait değil');
+      const eski = db.prepare("SELECT id, status FROM memberships WHERE user_id = ? AND branch_id = ? AND role = 'ogrenci'").get(e.userId, hedef);
+      if (eski && eski.status === 'aktif') return hata(409, 'Öğrenci seçilen okulda zaten kayıtlı');
+      const sonuc = islem(() => {
+        const sinifSayisi = Number(db.prepare('SELECT COUNT(*) AS n FROM class_students WHERE student_membership_id = ?').get(e.id).n);
+        const no = kaynak.okulNo && !db.prepare("SELECT 1 FROM memberships WHERE branch_id = ? AND role = 'ogrenci' AND okul_no = ?").get(hedef, kaynak.okulNo) ? kaynak.okulNo : sonrakiOkulNo(hedef);
+        let yeniId = eski?.id;
+        if (eski) db.prepare("UPDATE memberships SET status = 'aktif', okul_no = ? WHERE id = ?").run(no, eski.id);
+        else yeniId = Number(db.prepare("INSERT INTO memberships (user_id, branch_id, role, okul_no) VALUES (?,?, 'ogrenci', ?)").run(e.userId, hedef, no).lastInsertRowid);
+        // Kayıt bilgileri, özel durumlar ve aile bağları yeni üyeliğe de yazılır; geçmiş (devam, not, ödev) eski üyelikte kalır
+        const kayit = db.prepare('SELECT * FROM ogrenci_kayit WHERE student_membership_id = ?').get(e.id);
+        if (kayit) kayitYaz(yeniId, kayit);
+        for (const d of db.prepare('SELECT tur, baslik, aciklama, created_at FROM ogrenci_ozel_durum WHERE student_membership_id = ?').all(e.id)) {
+          db.prepare('INSERT INTO ogrenci_ozel_durum (student_membership_id, tur, baslik, aciklama, created_at) VALUES (?,?,?,?,?)').run(yeniId, d.tur, d.baslik, d.aciklama, d.created_at);
+        }
+        for (const g of db.prepare("SELECT g.parent_membership_id AS p, pm.user_id AS u, COALESCE(ab.yakinlik, '') AS yakinlik, COALESCE(ab.meslek, '') AS meslek FROM guardians g JOIN memberships pm ON pm.id = g.parent_membership_id LEFT JOIN aile_bilgi ab ON ab.student_membership_id = g.student_membership_id AND ab.parent_membership_id = g.parent_membership_id WHERE g.student_membership_id = ?").all(e.id)) {
+          let pv = db.prepare("SELECT id, status FROM memberships WHERE user_id = ? AND branch_id = ? AND role = 'veli'").get(g.u, hedef);
+          const pid = pv?.id ?? Number(db.prepare("INSERT INTO memberships (user_id, branch_id, role) VALUES (?,?, 'veli')").run(g.u, hedef).lastInsertRowid);
+          if (pv && pv.status !== 'aktif') db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(pid);
+          db.prepare('INSERT OR IGNORE INTO guardians (parent_membership_id, student_membership_id) VALUES (?,?)').run(pid, yeniId);
+          db.prepare('INSERT OR REPLACE INTO aile_bilgi (student_membership_id, parent_membership_id, yakinlik, meslek) VALUES (?,?,?,?)').run(yeniId, pid, g.yakinlik, g.meslek);
+        }
+        db.prepare("UPDATE memberships SET status = 'pasif' WHERE id = ?").run(e.id);
+        db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(e.id);
+        db.prepare('DELETE FROM class_students WHERE student_membership_id = ?').run(e.id);
+        if (sinifId) db.prepare('INSERT INTO class_students (class_id, student_membership_id) VALUES (?,?)').run(sinifId, yeniId);
+        return { id: yeniId, okulNo: no, sinifBosaldi: sinifSayisi > 0 && !sinifId };
+      });
+      denetle(o.user_id, 'ogrenci-nakil', { ogrId: e.id, yeniId: sonuc.id, kaynak: e.subeId, hedef, sinifId: e.sinifId || null });
+      return json(res, 200, { tamam: true, ...sonuc }), true;
     }
     if (yol === '/api/ogrenci/veli-ekle') {
       const mevcut = db.prepare('SELECT COUNT(*) AS n FROM guardians WHERE student_membership_id = ?').get(e.id).n;
@@ -354,8 +421,20 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       if (!veliId || !db.prepare('SELECT 1 FROM guardians WHERE parent_membership_id = ? AND student_membership_id = ?').get(veliId, e.id)) return hata(404, 'Veli bulunamadı');
       const yakinlik = metin(b.yakinlik, 30);
       if (yakinlik && !YAKINLIK.includes(yakinlik)) return hata(400, 'Yakınlık listeden seçilmeli');
-      db.prepare('INSERT OR REPLACE INTO aile_bilgi (student_membership_id, parent_membership_id, yakinlik, meslek) VALUES (?,?,?,?)').run(e.id, veliId, yakinlik, metin(b.meslek, 60));
-      denetle(o.user_id, 'veli-guncelle', { veliId, ogrId: e.id });
+      const veliKisi = db.prepare('SELECT user_id AS userId FROM memberships WHERE id = ?').get(veliId);
+      const etiket = yakinlik || 'Veli';
+      const yeniAd = String(b.ad ?? '').replace(/\s+/g, ' ').trim();
+      if (yeniAd && (yeniAd.length < 3 || yeniAd.length > 80)) return hata(400, `${etiket} adı soyadı geçersiz`);
+      const yeniTel = String(b.telefon ?? '').trim() ? telAl(b.telefon, `${etiket} telefonu`, true) : null;
+      const yeniKimlik = kimlikDuzelt(b.kimlik, veliKisi.userId, etiket);
+      const telDegisti = yeniTel ? telefonDegisir(veliKisi.userId, veliId, yeniTel) : false;
+      islem(() => {
+        db.prepare('INSERT OR REPLACE INTO aile_bilgi (student_membership_id, parent_membership_id, yakinlik, meslek) VALUES (?,?,?,?)').run(e.id, veliId, yakinlik, metin(b.meslek, 60));
+        if (yeniAd) db.prepare('UPDATE users SET full_name = ? WHERE id = ?').run(yeniAd, veliKisi.userId);
+        if (telDegisti) db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(yeniTel, veliKisi.userId);
+        if (yeniKimlik) db.prepare('UPDATE users SET tc_no = ?, passport_no = ? WHERE id = ?').run(yeniKimlik.tc, yeniKimlik.pasaport, veliKisi.userId);
+      });
+      denetle(o.user_id, 'veli-guncelle', { veliId, ogrId: e.id, ad: !!yeniAd, telefon: telDegisti, kimlik: !!yeniKimlik });
       return json(res, 200, { tamam: true }), true;
     }
     if (yol === '/api/ogrenci/veli-cikar') {

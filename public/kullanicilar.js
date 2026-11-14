@@ -145,9 +145,11 @@ function rolBolumu(u) {
     c.setAttribute('aria-pressed', String(var_));
     c.addEventListener('click', async () => {
       // Öğretmene rol verilince yönetim üyeliği, öğretmenin okulunda otomatik açılır
-      const kaynak = u.uyelikler.find(m => m.rol === 'yonetim' && m.durum === 'aktif') || u.uyelikler.find(m => m.durum === 'aktif');
+      const okullar = [...new Map(u.uyelikler.filter(m => m.durum === 'aktif' && m.subeId && m.gorev !== 'kurum').map(m => [m.subeId, m.sube])).entries()];
+      if (!var_ && okullar.length !== 1) { location.href = '/kisi?id=' + u.id; return; } // belirsiz okul: kişi dosyasında açıkça seçilir
+      if (!var_ && !confirm(`${u.ad}: ${r.ad} görevi ${okullar[0][1]} okulunda verilsin mi? Kişi bu okulda yönetim paneline girebilir.`)) return;
       c.disabled = true;
-      sonuc(await api('/api/yonetim/kullanici-rol', { userId: u.id, rolId: r.id, ver: !var_, subeId: kaynak?.subeId }));
+      sonuc(await api('/api/yonetim/kullanici-rol', { userId: u.id, rolId: r.id, ver: !var_, subeId: var_ ? undefined : okullar[0][0] }));
     });
     cipler.append(c);
   }
@@ -171,7 +173,8 @@ function uyelikBolumu(u) {
   const form = el('form', undefined, 'kad-ekle gizli');
   const sSube = document.createElement('select');
   const sRol = document.createElement('select');
-  secenekler(sSube, subeler, s => s.id, okulEtiket);
+  sSube.required = true;
+  secenekler(sSube, subeler, s => s.id, okulEtiket, 'Okul seçin');
   secenekler(sRol, ['yonetim', 'ogretmen'], r => r, r => ROL_ADI[r]);
   sRol.value = sekmeRolu();
   sSube.setAttribute('aria-label', 'Okul');
@@ -181,6 +184,7 @@ function uyelikBolumu(u) {
   form.append(sSube, sRol, ekle);
   form.addEventListener('submit', async e => {
     e.preventDefault();
+    if (!sSube.value) return mesaj('Okul seçin', 'hata');
     sonuc(await api('/api/yonetim/uyelik-ekle', { userId: u.id, subeId: sSube.value, rol: sRol.value }), 'Üyelik eklendi.');
   });
   const ac = kadLink('+ Üyelik ekle', () => { form.classList.toggle('gizli'); ac.classList.add('gizli'); });
@@ -287,7 +291,8 @@ function yeniKisiFormu() {
   const kimlik = Object.assign(document.createElement('input'), { required: true, maxLength: 20 });
   const tel = Object.assign(document.createElement('input'), { type: 'tel', required: true, maxLength: 20, placeholder: '5XX XXX XX XX' });
   const okul = document.createElement('select');
-  secenekler(okul, subeler, x => x.id, okulEtiket);
+  okul.required = true;
+  secenekler(okul, subeler, x => x.id, okulEtiket, 'Okul seçin');
   const rol = document.createElement('select');
   rol.required = true;
   secenekler(rol, roller.filter(atanabilir), r => r.id, r => r.ad, 'Rol seçin');
@@ -300,6 +305,7 @@ function yeniKisiFormu() {
   form.append(dugme);
   form.addEventListener('submit', async e => {
     e.preventDefault();
+    if (!okul.value) return mesaj('Okul seçin: kişi hangi okulda çalışacak?', 'hata');
     const r = await api('/api/yonetim/kullanici-ekle', { ad: ad.value, kimlik: kimlik.value, telefon: tel.value, subeId: okul.value, rol: 'yonetim', rolId: rol.value });
     if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
     yeniAcik = false;

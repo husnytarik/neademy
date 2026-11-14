@@ -33,11 +33,17 @@ export async function raporApi({ req, res, url, o, json }) {
   const toplam = siniflar.reduce((t, s) => t + s.toplam, 0), gelmedi = siniflar.reduce((t, s) => t + s.gelmedi, 0);
   const devam = { yuzde: toplam ? 100 - yuzde(gelmedi, toplam) : 100, gelmedi, toplam, siniflar: siniflar.sort((a, b) => b.oran - a.oran).slice(0, 6) };
 
+  // Önce öğrenci başına sayım (CROSS JOIN ile sıra sabit: yoklama -> kayıt), sonra yalnız en çok devamsızlık yapan birkaç kişi için ad/sınıf.
+  // Eski tek sorguda SQLite her öğrenci için yoklama tablosunu yeniden dizinliyordu (büyük kurumda ~30 sn).
   const devamsizlar = db.prepare(`
-    SELECT u.full_name AS ad, c.name AS sinif, COUNT(*) AS gelmedi
-    FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id AND y.cancelled = 0 AND y.completed_at IS NOT NULL
-    JOIN memberships m ON m.id = k.student_membership_id JOIN users u ON u.id = m.user_id JOIN classes c ON c.id = y.class_id
-    WHERE k.status = 'gelmedi'${f('c.branch_id')} GROUP BY m.id ORDER BY gelmedi DESC, u.full_name LIMIT 6`).all().map(sayi);
+    WITH t AS (
+      SELECT k.student_membership_id AS sid, COUNT(*) AS gelmedi, MIN(y.class_id) AS cid
+      FROM yoklama y CROSS JOIN classes c ON c.id = y.class_id CROSS JOIN yoklama_kayit k ON k.yoklama_id = y.id AND k.status = 'gelmedi'
+      WHERE y.cancelled = 0 AND y.completed_at IS NOT NULL${f('c.branch_id')}
+      GROUP BY k.student_membership_id ORDER BY gelmedi DESC LIMIT 40)
+    SELECT u.full_name AS ad, c.name AS sinif, t.gelmedi AS gelmedi
+    FROM t JOIN memberships m ON m.id = t.sid JOIN users u ON u.id = m.user_id JOIN classes c ON c.id = t.cid
+    ORDER BY t.gelmedi DESC, u.full_name LIMIT 6`).all().map(sayi);
 
   // Eksik dersler: son 14 günde ders programında olup yoklaması tamamlanmayan (iptal edilmemiş) dersler, öğretmen başına
   const program = db.prepare(`

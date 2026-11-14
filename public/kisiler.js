@@ -124,21 +124,42 @@ function secimKutusu(metin, degisti) {
   return { l, c };
 }
 
+// Çoklu seçim çipleri: seçilenler Set'te tutulur
+function cipGrubu(liste, secili, degisti) {
+  const kap = el('div', undefined, 'kad-ciplar');
+  for (const x of liste) {
+    const c = el('button', x.ad, 'kad-cip');
+    c.type = 'button';
+    c.setAttribute('aria-pressed', String(secili.has(x.id)));
+    c.addEventListener('click', () => {
+      if (secili.has(x.id)) secili.delete(x.id); else secili.add(x.id);
+      c.setAttribute('aria-pressed', String(secili.has(x.id)));
+      degisti?.();
+    });
+    kap.append(c);
+  }
+  return kap;
+}
+
 function yeniKisiFormu() {
   const k = $('yeni-alan');
   k.replaceChildren(el('h4', 'Yeni kişi', 'kad-etiket'));
   const ad = Object.assign(document.createElement('input'), { required: true, maxLength: 80, autocomplete: 'off' });
   const kimlik = Object.assign(document.createElement('input'), { required: true, maxLength: 20, autocomplete: 'off' });
   const tel = Object.assign(document.createElement('input'), { type: 'tel', required: true, maxLength: 20, placeholder: '5XX XXX XX XX' });
-  const okul = document.createElement('select');
-  secenekler(okul, subeler, x => x.id, okulEtiket);
   const bilgi = el('p', '', 'alt kz-kontrol');
 
   const form = el('form');
   const girdiler = el('div', undefined, 'form-satir');
   girdiler.append(girdiAlan('Ad soyad', ad), girdiAlan('T.C. / pasaport no', kimlik), girdiAlan('Telefon', tel));
-  if (subeler.length > 1) girdiler.append(girdiAlan('Okul', okul));
   form.append(girdiler);
+
+  // Okul: her zaman açıkça seçilir (tek okullu kurumda o okul hazır gelir); birden çok okul seçilebilir
+  const okulSecili = new Set(subeler.length === 1 ? [subeler[0].id] : []);
+  const okulKutu = el('div', undefined, 'kz-alt');
+  okulKutu.append(el('h4', 'Okul (en az bir okul seçin)', 'kad-etiket'));
+  okulKutu.append(cipGrubu(subeler.map(s => ({ id: s.id, ad: okulEtiket(s) })), okulSecili, () => { mudurGuncelle(); onayKapat(); }));
+  form.append(okulKutu);
 
   // Aynı kimlik zaten kayıtlıysa kişiyi tekrar açmak yerine dosyasına yönlendir
   kimlik.addEventListener('change', async () => {
@@ -149,59 +170,90 @@ function yeniKisiFormu() {
     if (!r.ok || !r.veri.var) return;
     const a = el('a', r.veri.ad, 'kur-baglanti');
     a.href = '/kisi?id=' + r.veri.id;
-    bilgi.append('Bu kimlik zaten kayıtlı: ', a, '. Yeni görev vermek için kişinin dosyasını açın; yine de eklerseniz aynı telefonu yazmanız gerekir.');
+    bilgi.append('Bu kimlik zaten kayıtlı: ', a, '. Yeni görev vermek için kişinin dosyasını açın; yine de eklerseniz aynı telefonu yazmanız gerekir ve görev o hesaba eklenir.');
   });
 
   const gorevKutu = el('div', undefined, 'kz-gorev');
-  const ogr = secimKutusu('Öğretmen', () => { dersKutu.classList.toggle('gizli', !ogr.c.checked); });
-  const yon = secimKutusu('Yönetim', () => { yonKutu.classList.toggle('gizli', !yon.c.checked); });
+  const ogr = secimKutusu('Öğretmen', () => { dersKutu.classList.toggle('gizli', !ogr.c.checked); onayKapat(); });
+  const yon = secimKutusu('Yönetim', () => { yonKutu.classList.toggle('gizli', !yon.c.checked); mudurGuncelle(); onayKapat(); });
   gorevKutu.append(el('h4', 'Görevi', 'kad-etiket'));
 
   const dersKutu = el('div', undefined, 'kz-alt gizli');
   dersKutu.append(el('h4', 'Verdiği dersler', 'kad-etiket'));
   const dersSecili = new Set();
-  const dersler = el('div', undefined, 'kad-ciplar');
-  for (const d of secenek.dersler) {
-    const c = el('button', d.ad, 'kad-cip');
-    c.type = 'button';
-    c.setAttribute('aria-pressed', 'false');
-    c.addEventListener('click', () => {
-      if (dersSecili.has(d.id)) dersSecili.delete(d.id); else dersSecili.add(d.id);
-      c.setAttribute('aria-pressed', String(dersSecili.has(d.id)));
-    });
-    dersler.append(c);
-  }
-  dersKutu.append(dersler);
+  dersKutu.append(cipGrubu(secenek.dersler, dersSecili));
 
+  // Müdürlük yalnızca tek okul seçiliyken verilebilir
   const yonKutu = el('div', undefined, 'kz-alt gizli');
-  const rol = document.createElement('select');
-  secenekler(rol, secenek.roller, r => r.id, r => r.ad, 'Rol (isteğe bağlı)');
   const mudur = document.createElement('select');
   secenekler(mudur, Object.entries(secenek.gorevler), g => g[0], g => g[1], 'Müdürlük görevi yok');
-  const yonSatir = el('div', undefined, 'form-satir');
-  yonSatir.append(girdiAlan('Rol', rol), girdiAlan('Müdürlük', mudur));
-  yonKutu.append(yonSatir);
+  const mudurAlan = girdiAlan('Müdürlük', mudur);
+  const mudurNot = el('p', 'Müdürlük görevi tek okul seçiliyken verilebilir.', 'alt');
+  yonKutu.append(mudurAlan, mudurNot);
+  function mudurGuncelle() {
+    const tek = okulSecili.size === 1;
+    mudurAlan.classList.toggle('gizli', !tek);
+    mudurNot.classList.toggle('gizli', tek);
+    if (!tek) mudur.value = '';
+  }
+  mudurGuncelle();
 
-  gorevKutu.append(ogr.l, dersKutu, yon.l, yonKutu);
+  // Ek görevler (Güvenlik, Rehber vb.) Yönetim kutusundan bağımsızdır; rol, ilgili okulda yönetim girişi açar
+  const rolSecili = new Set();
+  const rolKutu = el('div', undefined, 'kz-alt');
+  rolKutu.append(el('h4', 'Ek görev (isteğe bağlı: Güvenlik, Rehber vb.)', 'kad-etiket'));
+  rolKutu.append(cipGrubu(secenek.roller, rolSecili, onayKapat));
+  rolKutu.append(el('p', 'Ek görev, seçilen okulda kişiye yönetim paneli girişi açar.', 'alt'));
+
+  gorevKutu.append(ogr.l, dersKutu, yon.l, yonKutu, rolKutu);
   form.append(bilgi, gorevKutu);
+
+  // Gönderimden önce özet: yanlış okul / görev eklemeyi baştan önler
+  const onay = el('div', undefined, 'kz-alt gizli');
   const dugme = el('div');
   const gonder = el('button', 'Kişiyi ekle', 'birincil');
   gonder.type = 'submit';
   dugme.append(gonder);
-  form.append(dugme);
+  form.append(onay, dugme);
+  let onayBekliyor = false;
+  function onayKapat() {
+    if (!onayBekliyor) return;
+    onayBekliyor = false;
+    onay.classList.add('gizli');
+    gonder.textContent = 'Kişiyi ekle';
+  }
+  function ozetMetni() {
+    const okullar = subeler.filter(s => okulSecili.has(s.id)).map(s => s.ad).join(', ');
+    const gorevler = [];
+    if (ogr.c.checked) gorevler.push('Öğretmen');
+    if (yon.c.checked) gorevler.push(mudur.value ? secenek.gorevler[mudur.value] : 'Yönetim');
+    for (const r of secenek.roller) if (rolSecili.has(r.id)) gorevler.push(r.ad);
+    return `${ad.value.trim()} — ${okullar} okulunda: ${gorevler.join(', ')}`;
+  }
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!ogr.c.checked && !yon.c.checked) return mesaj('En az bir görev seçin: öğretmen ya da yönetim', 'hata');
+    if (!okulSecili.size) return mesaj('Okul seçin: kişi hangi okulda çalışacak?', 'hata');
+    if (!ogr.c.checked && !yon.c.checked && !rolSecili.size) return mesaj('En az bir görev seçin: öğretmen, yönetim ya da ek görev', 'hata');
+    if (!onayBekliyor) {
+      onayBekliyor = true;
+      mesaj('');
+      onay.replaceChildren(el('h4', 'Şöyle eklenecek — doğru mu?', 'kad-etiket'), el('p', ozetMetni()),
+        el('p', 'Yanlışsa kişi dosyasından okulunu değiştirebilir ya da işlemi geri alabilirsiniz.', 'alt'));
+      onay.classList.remove('gizli');
+      gonder.textContent = 'Doğru, ekle';
+      return;
+    }
     gonder.disabled = true;
     const r = await api('/api/yonetim/kullanici-yeni', {
-      ad: ad.value, kimlik: kimlik.value, telefon: tel.value, subeId: Number(okul.value) || subeler[0]?.id,
+      ad: ad.value, kimlik: kimlik.value, telefon: tel.value, subeIds: [...okulSecili],
       ogretmen: ogr.c.checked, dersIds: [...dersSecili],
-      yonetim: yon.c.checked, rolId: rol.value ? Number(rol.value) : null, mudurGorev: mudur.value,
+      yonetim: yon.c.checked, rolIds: [...rolSecili], mudurGorev: mudur.value,
     });
     gonder.disabled = false;
-    if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
+    if (!r.ok) { onayKapat(); return mesaj(r.veri.hata || 'Hata', 'hata'); }
     location.href = '/kisi?id=' + r.veri.id + (r.veri.mevcut ? '&mevcut=1' : '&yeni=1');
   });
+  for (const g of [ad, kimlik, tel, mudur]) g.addEventListener('input', onayKapat);
   k.append(form);
   ad.focus();
 }

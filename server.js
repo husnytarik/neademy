@@ -12,7 +12,8 @@ import { gorevApi } from './gorev.js';
 import { kurulumApi, okulLogoApi } from './kurulum.js';
 import { ayarlar as okulAyarlari } from './okul-ayar.js';
 import { etutApi } from './etut.js';
-import { zumremApi } from './zumrem.js';
+import { zumremApi, zumreRolunuEsitle } from './zumrem.js';
+import { anlik } from './uyelik.js';
 import { duyuruApi } from './duyuru.js';
 import { teslimApi, teslimBaglantiApi } from './teslim.js';
 import { raporApi } from './rapor.js';
@@ -167,8 +168,15 @@ function hizAsildi(ip) {
 }
 
 function json(res, kod, veri, basliklar = {}) {
+  const govde = JSON.stringify(veri);
+  // Büyük yanıtlar (kullanıcı listesi gibi) ev bağlantısının yükleme hızında yavaşlıyordu; gzip kabul edilen istemcilerde sıkıştırılır
+  if (govde.length > 8192 && /gzip/.test(res.req?.headers['accept-encoding'] || '')) {
+    const sik = gzipSync(govde, { level: 4 });
+    res.writeHead(kod, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding', ...basliklar });
+    return res.end(sik);
+  }
   res.writeHead(kod, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...basliklar });
-  res.end(JSON.stringify(veri));
+  res.end(govde);
 }
 
 function govde(req, sinir = 10_000) {
@@ -383,6 +391,37 @@ async function api(req, res, url) {
     return json(res, 200, { tamam: true, coklu: uyelikler.length > 1 }, {
       'Set-Cookie': cerezSid(req, sid),
     });
+  }
+
+  // Kapasite/deneme amaçlı tek tıkla giriş: yalnızca HIZLI_GIRIS_ANAHTAR ortam değişkeni tanımlıysa ve
+  // istekte aynı anahtar varsa çalışır. Anahtar kaldırılıp sunucu yeniden başlatılınca uçlar kapanır.
+  if (url.pathname === '/api/hizli/liste' || url.pathname === '/api/hizli/giris') {
+    const anahtar = process.env.HIZLI_GIRIS_ANAHTAR || '';
+    const anahtarDogru = k => anahtar.length >= 16 && typeof k === 'string' && crypto.timingSafeEqual(Buffer.from(sha(k)), Buffer.from(sha(anahtar)));
+    if (!anahtar) return json(res, 404, { hata: 'Bulunamadı' });
+    let liste;
+    try { liste = JSON.parse(fs.readFileSync(path.join(ortam.veriKlasoru, 'hizli-giris.json'), 'utf8')); } catch { return json(res, 404, { hata: 'Bulunamadı' }); }
+    if (req.method === 'GET' && url.pathname === '/api/hizli/liste') {
+      if (!anahtarDogru(url.searchParams.get('k'))) return json(res, hizAsildi(ip) ? 429 : 404, { hata: 'Bulunamadı' });
+      return json(res, 200, { gruplar: liste.gruplar.map(g => ({ ad: g.ad, kisiler: g.kisiler.map(k => ({ id: `${k.user_id}-${k.membership_id}`, etiket: k.etiket, alt: k.alt })) })) });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/hizli/giris') {
+      const b = await govde(req);
+      if (!anahtarDogru(b.k)) return json(res, hizAsildi(ip) ? 429 : 404, { hata: 'Bulunamadı' });
+      const kisi = liste.gruplar.flatMap(g => g.kisiler).find(k => `${k.user_id}-${k.membership_id}` === b.id);
+      if (!kisi) return json(res, 404, { hata: 'Kişi bulunamadı' });
+      const uye = db.prepare("SELECT id FROM memberships WHERE id = ? AND user_id = ? AND status = 'aktif'").get(kisi.membership_id, kisi.user_id);
+      if (!uye) return json(res, 404, { hata: 'Üyelik bulunamadı' });
+      const sid = crypto.randomBytes(32).toString('hex');
+      if (b.mobil === true) {
+        const cihaz = String(b.cihaz || '').replace(/[^\p{L}\p{N} ._()-]/gu, '').slice(0, 60) || 'Telefon';
+        db.prepare('INSERT INTO sessions (id, user_id, membership_id, expires_at, mobil, cihaz, son_kullanim) VALUES (?,?,?,?,1,?,?)')
+          .run(sha(sid), kisi.user_id, uye.id, Date.now() + MOBIL_OTURUM_SURESI, cihaz, Date.now());
+        return json(res, 200, { tamam: true, token: sid });
+      }
+      db.prepare('INSERT INTO sessions (id, user_id, membership_id, expires_at) VALUES (?,?,?,?)').run(sha(sid), kisi.user_id, uye.id, Date.now() + OTURUM_SURESI);
+      return json(res, 200, { tamam: true }, { 'Set-Cookie': cerezSid(req, sid) });
+    }
   }
 
   // Boş sistemde ilk üyelik: okulu ve ilk yöneticiyi kurar, sonra bu uç kapanır
@@ -681,6 +720,11 @@ async function yonetimApi(req, res, url) {
     const atananlar = db.prepare('SELECT user_id, rol_id FROM kullanici_roller').all();
     const mudurler = db.prepare('SELECT y.user_id, y.gorev, b.name AS okul FROM okul_yoneticileri y JOIN branches b ON b.id = y.branch_id').all();
     const maske = (s, bas, son) => s ? s.slice(0, bas) + '•'.repeat(Math.max(s.length - bas - son, 0)) + s.slice(-son) : '';
+    // Kullanıcı başına süzmek yerine bir kez gruplanır (binlerce kullanıcıda O(n²) idi)
+    const grupla = (liste, f) => { const h = new Map(); for (const x of liste) { const d = h.get(x.user_id); if (d) d.push(f(x)); else h.set(x.user_id, [f(x)]); } return h; };
+    const uyelikMap = grupla(uyelikler, m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.branch, bransId: m.brans_id, baskan: !!m.zumre_baskani }));
+    const rolMap = grupla(atananlar, r => r.rol_id);
+    const gorevMap = grupla(mudurler, r => ({ gorev: r.gorev, okul: r.okul }));
     return json(res, 200, {
       kullanicilar: kullanicilar.map(u => ({
         id: u.id,
@@ -689,10 +733,9 @@ async function yonetimApi(req, res, url) {
         kimlik: maske(u.tc_no || u.passport_no, 3, 2),
         kimlikTuru: u.tc_no ? 'T.C.' : 'Pasaport',
         telefon: maske(u.phone, 3, 2),
-        uyelikler: uyelikler.filter(m => m.user_id === u.id)
-          .map(m => ({ id: m.id, rol: m.role, durum: m.status, gorev: m.gorev, subeId: m.branch_id, sube: m.branch, bransId: m.brans_id, baskan: !!m.zumre_baskani })),
-        roller: atananlar.filter(r => r.user_id === u.id).map(r => r.rol_id),
-        okulGorevleri: mudurler.filter(r => r.user_id === u.id).map(r => ({ gorev: r.gorev, okul: r.okul })),
+        uyelikler: uyelikMap.get(u.id) || [],
+        roller: rolMap.get(u.id) || [],
+        okulGorevleri: gorevMap.get(u.id) || [],
       })),
     });
   }
@@ -725,22 +768,25 @@ async function yonetimApi(req, res, url) {
   if (yol === '/api/yonetim/kullanici-ad') {
     const ad = String(b.ad || '').replace(/\s+/g, ' ').trim();
     if (ad.length < 3 || ad.length > 80 || !ad.includes(' ')) return json(res, 400, { hata: 'Ad ve soyadı birlikte yazın' });
-    if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(Number(b.userId))) return json(res, 404, { hata: 'Kullanıcı bulunamadı' });
+    const eski = db.prepare('SELECT full_name FROM users WHERE id = ?').get(Number(b.userId));
+    if (!eski) return json(res, 404, { hata: 'Kullanıcı bulunamadı' });
     db.prepare('UPDATE users SET full_name = ? WHERE id = ?').run(ad, Number(b.userId));
-    denetle(o.user_id, 'kullanici-ad', { userId: Number(b.userId) });
+    denetle(o.user_id, 'kullanici-kimlik', { userId: Number(b.userId), ad: ad !== eski.full_name, eskiAd: eski.full_name, yeniAd: ad, kimlik: false, telefon: false });
     return json(res, 200, { tamam: true });
   }
 
   if (yol === '/api/yonetim/uyelik-ekle') {
-    if (!ROLLER.includes(b.rol)) return json(res, 400, { hata: 'Geçersiz rol' });
+    if (!['yonetim', 'ogretmen'].includes(b.rol)) return json(res, 400, { hata: 'Yalnızca yönetim ve öğretmen üyeliği buradan eklenir (öğrenci ve veli kayıt ekranından)' });
     if (!subeVar(b.subeId)) return json(res, 400, { hata: 'Geçersiz şube' });
     if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(Number(b.userId))) return json(res, 400, { hata: 'Kullanıcı bulunamadı' });
-    const mevcut = db.prepare('SELECT id FROM memberships WHERE user_id = ? AND branch_id = ? AND role = ?')
+    const mevcut = db.prepare('SELECT id, status FROM memberships WHERE user_id = ? AND branch_id = ? AND role = ?')
       .get(Number(b.userId), Number(b.subeId), b.rol);
-    if (mevcut) return json(res, 409, { hata: 'Bu üyelik zaten var' });
-    db.prepare("INSERT INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,?,'okul')").run(Number(b.userId), Number(b.subeId), b.rol);
-    denetle(o.user_id, 'uyelik-ekle', { userId: Number(b.userId), rol: b.rol, subeId: Number(b.subeId) });
-    return json(res, 201, { tamam: true });
+    if (mevcut && mevcut.status === 'aktif') return json(res, 409, { hata: 'Bu üyelik zaten var' });
+    const once = anlik(Number(b.userId));
+    if (mevcut) db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(mevcut.id);
+    else db.prepare("INSERT INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,?,'okul')").run(Number(b.userId), Number(b.subeId), b.rol);
+    denetle(o.user_id, 'kullanici-geri', { userId: Number(b.userId), subeId: Number(b.subeId), rol: b.rol, yeniden: !!mevcut, once, sonra: anlik(Number(b.userId)) });
+    return json(res, mevcut ? 200 : 201, { tamam: true, etkinlestirildi: !!mevcut });
   }
 
   if (yol === '/api/yonetim/uyelik-durum') {
@@ -753,7 +799,11 @@ async function yonetimApi(req, res, url) {
       if (kalan === 0) return json(res, 409, { hata: 'Son aktif kurum yönetimi üyeliği pasifleştirilemez' });
     }
     db.prepare('UPDATE memberships SET status = ? WHERE id = ?').run(b.durum, m.id);
-    if (b.durum === 'pasif') db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(m.id);
+    if (b.durum === 'pasif') {
+      db.prepare('DELETE FROM sessions WHERE membership_id = ?').run(m.id);
+      db.prepare('UPDATE memberships SET zumre_baskani = 0 WHERE id = ?').run(m.id);
+      zumreRolunuEsitle();
+    }
     denetle(o.user_id, 'uyelik-durum', { uyelikId: m.id, durum: b.durum });
     return json(res, 200, { tamam: true });
   }

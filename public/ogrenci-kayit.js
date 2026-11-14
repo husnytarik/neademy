@@ -96,9 +96,9 @@ function veliSatiri(v) {
   const kayitli = !!v?.uyelikId;
   const k = el('div', undefined, 'ok-oge');
   const yak = secim('', d.secenekler.yakinlik.map(x => [x, x]), v?.yakinlik || '', 'Yakınlık seçin');
-  const ad = Object.assign(document.createElement('input'), { value: v?.ad || '', maxLength: 80, readOnly: kayitli });
-  const kim = Object.assign(document.createElement('input'), { maxLength: 20, inputMode: 'numeric' });
-  const tel = Object.assign(document.createElement('input'), { type: 'tel', maxLength: 20, placeholder: '5XX XXX XX XX', value: v?.telefon || '', readOnly: kayitli });
+  const ad = Object.assign(document.createElement('input'), { value: v?.ad || '', maxLength: 80 });
+  const kim = Object.assign(document.createElement('input'), { maxLength: 20, autocomplete: 'off', placeholder: kayitli ? 'Değişmeyecekse boş bırakın' : '' });
+  const tel = Object.assign(document.createElement('input'), { type: 'tel', maxLength: 20, placeholder: '5XX XXX XX XX', value: v?.telefon || '' });
   const eposta = Object.assign(document.createElement('input'), { type: 'email', maxLength: 120, value: v?.email || '', readOnly: kayitli });
   const meslek = Object.assign(document.createElement('input'), { maxLength: 60, value: v?.meslek || '' });
   const sil = el('button', kayitli ? 'Bağı kaldır' : 'Kaldır', 'ok-kaldir'); sil.type = 'button';
@@ -114,7 +114,7 @@ function veliSatiri(v) {
   const ust = el('div', undefined, 'ok-oge-ust');
   ust.append(el('strong', kayitli ? v.ad : 'Yeni kişi'), sil);
   const f = satirKur(alan('Yakınlık', yak));
-  if (!kayitli) f.append(alan('Ad soyad', ad), alan('T.C. / pasaport no', kim));
+  f.append(alan('Ad soyad', ad), alan(kayitli ? 'T.C. / pasaport no (yanlışsa düzeltin)' : 'T.C. / pasaport no', kim));
   f.append(alan('Telefon', tel), alan('E-posta', eposta), alan('Meslek', meslek));
   k.append(ust, f);
   veliSatirlari.push(satir);
@@ -144,13 +144,44 @@ function ozelSatiri(x) {
   return k;
 }
 
+// Yanlış okula kaydedilen öğrenciyi doğru okula taşır; geçmiş kayıtlar eski okulda kalır
+function nakilBolumu(o) {
+  const kap = el('div', undefined, 'ok-oge');
+  const hedef = document.createElement('select');
+  hedef.append(new Option('Yeni okulu seçin', ''));
+  for (const s of d.subeler.filter(x => x.id !== o.subeId)) hedef.append(new Option(s.ad, String(s.id)));
+  const sinif = document.createElement('select');
+  const sinifDoldur = () => {
+    sinif.replaceChildren(new Option('Sınıfsız (sonra atanır)', ''));
+    for (const s of d.siniflar.filter(x => x.subeId === Number(hedef.value))) sinif.append(new Option(`${s.kademe} · ${s.ad}`, String(s.id)));
+  };
+  sinifDoldur();
+  hedef.addEventListener('change', sinifDoldur);
+  const git = el('button', 'Başka okula nakil et', 'ekle-ac'); git.type = 'button';
+  git.addEventListener('click', async () => {
+    if (!hedef.value) return mesaj('Yeni okulu seçin.');
+    const hedefAd = hedef.options[hedef.selectedIndex].text;
+    if (!confirm(`${o.ad}: ${o.sube || 'mevcut okul'} → ${hedefAd} okuluna nakil edilsin mi?\n\n• Kayıt, aile ve özel durum bilgileri yeni okula da yazılır.\n• Eski okuldaki not, devamsızlık ve ödev geçmişi eski okulda kalır.\n• Sınıf bilgisi seçmezseniz boş kalır.\n\nKaydedilmemiş değişiklikler kaybolur.`)) return;
+    git.disabled = true;
+    const r = await istek('/api/ogrenci/nakil', { ogrenciId: kimlikId, hedefSubeId: Number(hedef.value), sinifId: sinif.value ? Number(sinif.value) : null });
+    git.disabled = false;
+    if (!r.ok) return mesaj(r.v.hata || 'Nakil yapılamadı');
+    location.href = '/ogrenci-dosyasi?id=' + r.v.id;
+  });
+  const ust = el('div', undefined, 'ok-oge-ust');
+  ust.append(el('strong', 'Okul değişikliği (nakil)'));
+  kap.append(ust, el('p', 'Öğrenci yanlış okula kaydedildiyse ya da başka okula geçtiyse buradan taşıyın.', 'alt'), satirKur(alan('Yeni okul', hedef), alan('Yeni sınıf', sinif)), git);
+  return kap;
+}
+
 function formuKur() {
   const f = $('form'), o = d.ogrenci || {}, k = d.kayit || {}, i = d.iletisim || {};
   f.replaceChildren();
 
   // --- Öğrenci ---
   f.append(el('h3', 'Öğrenci', 'baslik3'), fotoBolumu());
-  const subeSec = secim('subeId', d.subeler.map(s => [s.id, s.ad]), o.subeId ?? d.subeler[0]?.id);
+  // Birden çok okul varsa okul açıkça seçilir (sessizce ilk okula düşmez)
+  const subeSec = secim('subeId', d.subeler.map(s => [s.id, s.ad]), o.subeId ?? (d.subeler.length === 1 ? d.subeler[0].id : ''), duzenleme || d.subeler.length === 1 ? undefined : 'Okul seçin');
   const sinifSec = secim('sinifId', [], '');
   const sinifDoldur = secili => {
     sinifSec.replaceChildren(new Option('Sınıfsız (sonra atanır)', ''));
@@ -161,7 +192,7 @@ function formuKur() {
   sinifDoldur(o.sinifId);
   subeSec.disabled = duzenleme;
   const kimlikAlani = duzenleme
-    ? alan(o.kimlikTuru, Object.assign(document.createElement('input'), { value: o.kimlik, readOnly: true }))
+    ? alan(o.kimlikTuru + ' (yanlışsa düzeltin)', giris('kimlik', 'text', '', { maxLength: 20, placeholder: `${o.kimlik} (değişmeyecekse boş bırakın)`, autocomplete: 'off' }))
     : alan('T.C. / pasaport no *', giris('kimlik', 'text', '', { maxLength: 20 }));
   f.append(
     satirKur(
@@ -221,6 +252,8 @@ function formuKur() {
   });
   f.append(aileUst, el('p', 'Veliler kimlik numarası ve telefonlarıyla giriş yapar; aynı veli birden fazla çocuğa bağlanabilir.', 'alt'), aileKap);
 
+  if (duzenleme && d.subeler.length > 1) f.append(nakilBolumu(o));
+
   const dugme = el('button', duzenleme ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet', 'birincil'); dugme.type = 'submit';
   const vazgec = el('a', 'Vazgeç', 'ikincil'); vazgec.href = duzenleme ? '/ogrenci-dosyasi?id=' + kimlikId : '/ogrenciler';
   const alt = el('div', undefined, 'ok-alt');
@@ -239,14 +272,15 @@ async function kaydet(e) {
   mesaj('');
   const dugme = e.submitter || $('form').querySelector('.birincil');
   if (!deger('ad') || (!duzenleme && !deger('kimlik')) || !deger('telefon')) return mesaj('Ad soyad, kimlik numarası ve telefon gerekli.');
+  if (!deger('subeId')) return mesaj('Okul seçin: öğrenci hangi okula kaydedilecek?');
   if (!deger('yemek')) return mesaj('Yemek tercihini seçin: yemek alacak ya da almayacak.');
   dugme.disabled = true;
   try {
     const govde = { id: kimlikId, subeId: Number(deger('subeId')), sinifId: deger('sinifId') ? Number(deger('sinifId')) : null };
     for (const ad of ['ad', 'telefon', 'okulNo', 'dogumTarihi', 'dogumYeri', 'cinsiyet', 'kanGrubu', 'kayitTuru', 'kayitTarihi', 'oncekiOkul', 'yemek',
       'email', 'il', 'ilce', 'adres', 'yakinAd', 'yakinYakinlik', 'yakinTelefon']) govde[ad] = deger(ad);
+    govde.kimlik = deger('kimlik'); // düzenlemede boş = değişmez
     if (!duzenleme) {
-      govde.kimlik = deger('kimlik');
       govde.aile = veliSatirlari.filter(s => !bosVeli(s)).map(veliVerisi);
       govde.ozelDurumlar = ozelSatirlari.filter(s => s.baslik.value.trim()).map(s => ({ tur: s.tur.value, baslik: s.baslik.value, aciklama: s.aciklama.value }));
     }
@@ -258,7 +292,7 @@ async function kaydet(e) {
     if (duzenleme) {
       for (const s of veliSatirlari.filter(x => !bosVeli(x))) {
         const sonuc = s.uyelikId
-          ? await istek('/api/ogrenci/veli-guncelle', { ogrenciId, veliUyelikId: s.uyelikId, yakinlik: s.yak.value, meslek: s.meslek.value })
+          ? await istek('/api/ogrenci/veli-guncelle', { ogrenciId, veliUyelikId: s.uyelikId, yakinlik: s.yak.value, meslek: s.meslek.value, ad: s.ad.value, telefon: s.tel.value, kimlik: s.kim.value })
           : await istek('/api/ogrenci/veli-ekle', { ogrenciId, ...veliVerisi(s) });
         if (!sonuc.ok) return mesaj('Kayıt güncellendi ancak aile bilgisinde sorun var: ' + (sonuc.v.hata || 'hata'));
       }

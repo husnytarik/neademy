@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 
 /// Web arayüzündeki yumuşak, sade renkler (public/style.css "UI kiti" teması).
 class Renk {
-  static const ana = Color(0xFF3D5A80);
+  /// Düğme/vurgu rengi: iOS tarzı mavi (web: --ana).
+  static const ana = Color(0xFF2F6BD6);
   static const vurgu = Color(0xFFA4161A);
 
   /// Üst bant rengi: öğretmende dersin rengi, diğerlerinde marka rengi (web: --bant / --ana).
@@ -41,8 +42,48 @@ extension TemaRenkleri on BuildContext {
 }
 
 /// Satır içinde ya da Wrap'te duran düğmeler için: tema düğmeleri tam genişliğe uzadığından
-/// bunlara dar (içeriği kadar) genişlik verilir. Web'deki `.kucuk` düğme gibi 40 px yükseklik.
-const kompakt = ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(0, 40)), padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)));
+/// bunlara dar (içeriği kadar) genişlik verilir. Web'deki `.kucuk` düğme gibi 34 px yükseklik.
+const kompakt = ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(0, 34)), padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)));
+
+/// Dolu cam düğme zemini: ana renk (hafif saydam) + üstte beyaz ışık geçişi (iOS "tinted glass").
+Widget _camDolu(Color ana, Set<WidgetState> durum, Widget? cocuk) {
+  final kapali = durum.contains(WidgetState.disabled);
+  final basili = durum.contains(WidgetState.pressed);
+  final zemin = ana.withValues(alpha: kapali ? .38 : (basili ? 1 : .9));
+  return DecoratedBox(
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: zemin),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white.withValues(alpha: .34), Colors.white.withValues(alpha: .08), Colors.white.withValues(alpha: 0)],
+          stops: const [0, .48, 1],
+        ),
+      ),
+      child: cocuk,
+    ),
+  );
+}
+
+/// İkincil cam düğme zemini: buzlu beyaz.
+Widget _camBuzlu(Set<WidgetState> durum, Widget? cocuk) {
+  final basili = durum.contains(WidgetState.pressed);
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: basili
+            ? [const Color(0xFFE8EEFA), const Color(0xFFDCE6F8)]
+            : [Colors.white.withValues(alpha: .95), const Color(0xFFF6F6F8).withValues(alpha: .85)],
+      ),
+    ),
+    child: cocuk,
+  );
+}
 
 ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
   final bantRengi = bant ?? Renk.bant;
@@ -72,10 +113,11 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
       elevation: 0,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
-      toolbarHeight: 68,
+      toolbarHeight: 64, // panel bandıyla aynı sabit yükseklik
       centerTitle: false,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
+      // Düz köşe + alt kenarda dersin renginden bir ton koyu ince çizgi (keskin görünüm)
+      shape: Border(bottom: BorderSide(color: Color.alphaBlend(Colors.black.withValues(alpha: .22), bantRengi))),
       titleTextStyle: serif.copyWith(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w600),
     ),
     // Web başlığındaki geri düğmesi: yarı saydam, yuvarlak köşeli kutu içinde ok
@@ -85,7 +127,7 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
         height: 38,
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: .14),
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withValues(alpha: .35)),
         ),
         alignment: Alignment.center,
@@ -93,40 +135,56 @@ ThemeData temaOlustur(Brightness parlaklik, {Color? bant}) {
       ),
     ),
     dividerColor: ince,
+    visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+    // Girdi alanları: ince (≈40 px), 8 px köşe, sade çerçeve
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
+      isDense: true,
       fillColor: koyu ? Renk.kartKoyu : Renk.kart,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: alanKenar,
       enabledBorder: alanKenar,
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ana, width: 1.6),
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: ana, width: 1.4),
       ),
     ),
+    // Düğmeler: iOS tarzı "cam". Dolu düğme ana renkte yarı saydam, üstte ışık parlaması, beyazımsı ince çerçeve;
+    // ikincil düğme buzlu beyaz. Yükseklik 40 px, 10 px köşe.
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(46),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-      ),
+      style:
+          FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(40),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: .1),
+          ).copyWith(
+            side: WidgetStateProperty.resolveWith((d) => BorderSide(color: Colors.white.withValues(alpha: d.contains(WidgetState.disabled) ? .2 : .38))),
+            backgroundBuilder: (context, durum, child) => _camDolu(ana, durum, child),
+          ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(46),
-        side: BorderSide(color: ana.withValues(alpha: .5)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-      ),
+        minimumSize: const Size.fromHeight(40),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        side: BorderSide(color: const Color(0xFF3C3C43).withValues(alpha: .16)),
+        foregroundColor: ana,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: .1),
+      ).copyWith(backgroundBuilder: (context, durum, child) => _camBuzlu(durum, child)),
     ),
-    // Web'deki ikincil düğme gibi: ince çerçeveli, yuvarlak köşeli
+    // Metin düğmesi: çerçevesiz, ana renk yazı; arka plan yalnız basılınca belirir
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        side: BorderSide(color: ana.withValues(alpha: .5)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        foregroundColor: ana,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
     textTheme: Typography.material2021().black.apply(bodyColor: yazi, displayColor: yazi),

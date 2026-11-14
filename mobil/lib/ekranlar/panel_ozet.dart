@@ -9,7 +9,8 @@ import '../cekirdek/tema.dart';
 import 'derslerim.dart';
 import 'zumrem.dart';
 
-/// Panelin renkli üst bandı: avatar, ad, unvan (web: .bant.profil).
+/// Panelin üst bandı: sabit yükseklik, düz köşe. Solda ad ve unvan; sağda profil fotoğrafı ve menü (web: .bant.profil).
+/// Renk dersin rengidir; kalınlaşıp incelmez, şekli hiçbir ekranda değişmez.
 class PanelBandi extends StatelessWidget {
   const PanelBandi({super.key, required this.ben, required this.menu, required this.api});
 
@@ -17,100 +18,76 @@ class PanelBandi extends StatelessWidget {
   final Widget menu;
   final Api api;
 
+  static const double yukseklik = 64;
+
   String get _basHarfler => ben.ad.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).take(2).map((e) => e.characters.first).join().toUpperCase();
 
   @override
   Widget build(BuildContext context) {
     final renk = ben.renk ?? Renk.bant;
     final ust = MediaQuery.paddingOf(context).top;
+    final unvan = [ben.unvan, if (ben.unvan.isEmpty) ben.sube].where((e) => e.isNotEmpty).join(' · ');
     return Container(
-      height: 168 + ust,
+      height: yukseklik + ust,
+      padding: EdgeInsets.fromLTRB(20, ust, 6, 0),
       decoration: BoxDecoration(
         color: renk,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
+        border: Border(bottom: BorderSide(color: Color.alphaBlend(Colors.black.withValues(alpha: .22), renk))),
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(34)),
-        child: CustomPaint(
-          painter: _Daireler(),
-          child: Stack(
-            children: [
-              Positioned(right: 10, top: ust + 6, child: menu),
-              Positioned(
-                left: 20,
-                right: 18,
-                top: ust + 44,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 86,
-                      height: 86,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: .16),
-                        border: Border.all(color: Colors.white.withValues(alpha: .45), width: 1.5),
-                      ),
-                      alignment: Alignment.center,
-                      child: ben.foto != null && ben.foto!.isNotEmpty
-                          ? Image.network(
-                              '${Api.taban}${ben.foto}',
-                              headers: api.kimlik,
-                              width: 86,
-                              height: 86,
-                              fit: BoxFit.cover,
-                              alignment: const Alignment(0, -.64),
-                              errorBuilder: (_, _, _) => _harf(),
-                            )
-                          : _harf(),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ben.ad,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: serif.copyWith(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            [ben.unvan, if (ben.unvan.isEmpty) ben.sube].where((e) => e.isNotEmpty).join(' · '),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ben.ad,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: serif.copyWith(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w700, height: 1.15),
                 ),
-              ),
-            ],
+                if (unvan.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(unvan, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13)),
+                  ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Container(
+            width: 42,
+            height: 42,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: .16),
+              border: Border.all(color: Colors.white.withValues(alpha: .55), width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: ben.foto != null && ben.foto!.isNotEmpty
+                ? Image.network(
+                    '${Api.taban}${ben.foto}',
+                    headers: api.kimlik,
+                    width: 42,
+                    height: 42,
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0, -.64),
+                    errorBuilder: (_, _, _) => _harf(),
+                  )
+                : _harf(),
+          ),
+          menu,
+        ],
       ),
     );
   }
 
   Widget _harf() => Text(
     _basHarfler,
-    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
+    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
   );
-}
-
-class _Daireler extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawCircle(Offset(size.width * .94, -size.height * .05), 120, Paint()..color = Colors.white.withValues(alpha: .09));
-    canvas.drawCircle(Offset(0, size.height), 85, Paint()..color = Colors.white.withValues(alpha: .06));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 /// Öğretmen paneli: bugünkü en yakın ders ve bekleyen işler (web: #bugun-dersler, #bekleyenler).

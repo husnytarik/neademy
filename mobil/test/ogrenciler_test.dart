@@ -171,6 +171,8 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Kayıt bilgilerini düzenle'), findsOneWidget);
     await t.scrollUntilVisible(find.text('Değişiklikleri kaydet'), 400, scrollable: find.byType(Scrollable).first);
+    await t.ensureVisible(find.text('Değişiklikleri kaydet'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Değişiklikleri kaydet'));
     await t.pumpAndSettle();
     expect(kayit, containsAll(['POST /api/ogrenci/kaydet', 'POST /api/ogrenci/veli-guncelle', 'POST /api/ogrenci/ozel-durum-kaydet']));
@@ -194,6 +196,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Fotoğrafı değiştir'), findsOneWidget);
     await t.scrollUntilVisible(find.text('Değişiklikleri kaydet'), 400, scrollable: find.byType(Scrollable).first);
+    await t.ensureVisible(find.text('Değişiklikleri kaydet'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Değişiklikleri kaydet'));
     await t.pumpAndSettle();
     expect(kayit.indexOf('POST /api/foto'), greaterThan(kayit.indexOf('POST /api/ogrenci/kaydet')));

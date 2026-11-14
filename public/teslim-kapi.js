@@ -99,9 +99,15 @@ async function oku(kod) {
   }
 }
 
+// Fotoğraf + ad satırı (bekleme ve sonuç listeleri)
+function ogrSatiri(o, metin) {
+  const li = el('li', undefined, 'tk-satir');
+  li.append(avatarYap(o.ad, o.foto, 'tk-avatar'), el('span', metin));
+  return li;
+}
+
 function secimCiz(v) {
-  $('kisi').textContent = v.kisi.ad;
-  $('yakinlik').textContent = v.kisi.yakinlik === 'Veli' ? 'Veli' : v.kisi.yakinlik;
+  $('cift').replaceChildren(teslimCiftYap(v.ogrenciler, v.kisi));
   const ul = $('secim');
   ul.replaceChildren();
   for (const o of v.ogrenciler) {
@@ -110,7 +116,7 @@ function secimCiz(v) {
     const lab = el('label'); lab.htmlFor = cb.id;
     const ortada = el('span', undefined, 'tk-ogr');
     ortada.append(el('strong', o.ad), el('span', [o.sinif, o.okul].filter(Boolean).join(' · '), 'alt'));
-    lab.append(avatarYap(o.ad, o.foto, 'tk-avatar'), ortada);
+    lab.append(ortada);
     li.append(cb, lab);
     ul.append(li);
   }
@@ -133,7 +139,7 @@ async function gonder() {
   mesaj('');
   const secilen = talep.ogrenciler.filter(o => ids.includes(o.id));
   talep.secilen = secilen;
-  $('bekle-liste').replaceChildren(...secilen.map(o => el('li', `${o.ad}${o.sinif ? ' · ' + o.sinif : ''}`)));
+  $('bekle-liste').replaceChildren(...secilen.map(o => ogrSatiri(o, `${o.ad}${o.sinif ? ' · ' + o.sinif : ''}`)));
   goster('a-bekle');
   sorgu = setInterval(async () => {
     const d = await api('durum?id=' + talep.id).catch(() => null);
@@ -145,11 +151,11 @@ async function gonder() {
 
 function sonucGoster(durum) {
   clearInterval(sorgu); sorgu = null;
-  const adlar = (talep?.secilen || []).map(o => o.ad);
+  const secilenler = talep?.secilen || [];
   const ok = durum === 'onaylandi';
   $('sonuc-metin').textContent = ok ? 'Teslim edildi' : durum === 'doldu' ? 'Veli zamanında onaylamadı' : durum === 'iptal' ? 'İptal edildi' : 'Veli onaylamadı';
   $('sonuc-metin').dataset.tur = ok ? 'tamam' : 'red';
-  $('sonuc-liste').replaceChildren(...adlar.map(a => el('li', a)));
+  $('sonuc-liste').replaceChildren(...secilenler.map(o => ogrSatiri(o, o.ad)));
   goster('a-sonuc');
   setTimeout(basaDon, SONUC_MS);
 }

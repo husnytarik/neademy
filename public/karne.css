@@ -121,6 +121,9 @@ p.kr-arac:empty { display: none; }
   body.karne-govde { padding: 0 !important; margin: 0; }
   body.karne-govde .bant, body.karne-govde .kr-arac, body.karne-govde #mesaj, body.karne-govde .alt-menu, body.karne-govde nav { display: none !important; }
   .kr-kagitlar { display: block; gap: 0; padding: 0; zoom: 1 !important; }
-  .kr-sayfa { margin: 0; box-shadow: none; break-after: page; break-inside: avoid; }
-  .kr-sayfa:last-child { break-after: auto; }
+  /* Her karne sayfası kendi kâğıdında; sonuna değil başına sayfa kesmesi konur ve 1 mm pay bırakılır
+     (Safari/Firefox'ta kâğıt payı yuvarlanınca taşan sayfa boş bir sayfa daha doğuruyordu) */
+  html, body.karne-govde { height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  .kr-sayfa { margin: 0; box-shadow: none; height: 295mm; max-height: 295mm; break-before: page; break-after: auto; break-inside: avoid; page-break-before: always; }
+  .kr-sayfa:first-child { break-before: auto; page-break-before: auto; }
 }

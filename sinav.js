@@ -54,36 +54,61 @@ function kazanimDurum(kazList, anahtar, iptal, cevap) {
 }
 
 // Kazanım eşleştirme anahtarı: "MAT.5.1.2 – metin" biçiminde kod, değilse küçük harfli serbest metin
+const kucuk = new Map();
+const tr = k => { const t = String(k || ''); let r = kucuk.get(t); if (r === undefined) { r = t.toLocaleLowerCase('tr'); if (kucuk.size > 20000) kucuk.clear(); kucuk.set(t, r); } return r; };
 const kazAnahtar = k => { const t = String(k || '').trim(), i = t.indexOf(' – '); return (i > 0 ? t.slice(0, i) : t).toLocaleLowerCase('tr'); };
+const anahtarOnb = new Map();
+const anahtarTr = k => { const t = String(k || ''); let r = anahtarOnb.get(t); if (r === undefined) { r = kazAnahtar(t); if (anahtarOnb.size > 20000) anahtarOnb.clear(); anahtarOnb.set(t, r); } return r; };
 const kazEslesir = (sinavKaz, dersKaz) => {
-  const a = kazAnahtar(sinavKaz), b = kazAnahtar(dersKaz);
-  return a === b || (a.length >= 4 && String(dersKaz).toLocaleLowerCase('tr').includes(a)) || (b.length >= 4 && String(sinavKaz).toLocaleLowerCase('tr').includes(b));
+  const a = anahtarTr(sinavKaz), b = anahtarTr(dersKaz);
+  return a === b || (a.length >= 4 && tr(dersKaz).includes(a)) || (b.length >= 4 && tr(sinavKaz).includes(b));
 };
 // Sınav tarihine kadar sınıfta işlenen kazanımlar: sınıf -> ders adı -> [{ kazanim, yoklamaId, durum: {ogrenciId: 'geldi'|...} }]
+// Yoklama kayıtları yoklama başına ayrı sorguyla değil, sınıf başına tek sorguyla okunur (büyük kurumda yüzlerce küçük sorgu yavaşlatıyordu).
+// Bir sınıfın tüm tarihli kayıtları kısa süre (3 sn) saklanır: bir öğrencinin 10+ sınavı aynı sınıfları tekrar tekrar okumasın.
+const sinifOnb = new Map();
+function sinifKazanimlari(sid) {
+  const o = sinifOnb.get(sid);
+  if (o && Date.now() - o.t < 3000) return o.kayitlar;
+  const durumlar = new Map();
+  for (const r of db.prepare(`SELECT k.yoklama_id AS yid, k.student_membership_id AS id, k.status FROM yoklama_kayit k
+    JOIN yoklama y ON y.id = k.yoklama_id WHERE y.class_id = ? AND y.cancelled = 0 AND y.completed_at IS NOT NULL
+      AND y.kazanim IS NOT NULL AND y.kazanim <> ''`).all(sid)) {
+    (durumlar.get(r.yid) || durumlar.set(r.yid, {}).get(r.yid))[r.id] = r.status;
+  }
+  const kayitlar = [];
+  for (const y of db.prepare(`SELECT y.id, y.date, y.kazanim, co.name AS ders FROM yoklama y JOIN assignments a ON a.id = y.assignment_id
+    JOIN courses co ON co.id = a.course_id WHERE y.class_id = ? AND y.cancelled = 0 AND y.completed_at IS NOT NULL
+      AND y.kazanim IS NOT NULL AND y.kazanim <> ''`).all(sid)) kayitlar.push({ ders: y.ders, tarih: y.date, kazanim: y.kazanim, durum: durumlar.get(y.id) || {} });
+  // Konu kaydına elle girilen kazanımlar (yoklama kaydı olmadığından devam bilgisi yoktur)
+  for (const k of db.prepare(`SELECT k.date, k.kazanim, co.name AS ders FROM konular k JOIN assignments a ON a.id = k.assignment_id
+    JOIN courses co ON co.id = a.course_id WHERE a.class_id = ? AND k.yoklama_id IS NULL AND k.kazanim IS NOT NULL AND k.kazanim <> ''`).all(sid)) {
+    kayitlar.push({ ders: k.ders, tarih: k.date, kazanim: k.kazanim, durum: null });
+  }
+  if (sinifOnb.size > 200) sinifOnb.clear();
+  sinifOnb.set(sid, { t: Date.now(), kayitlar });
+  return kayitlar;
+}
 function islenenKazanimlar(sinifIdleri, sinavTarihi) {
   const harita = new Map();
   for (const sid of sinifIdleri) {
     const dersler = new Map();
-    const ekle = (ders, kayit) => { (dersler.get(ders) || dersler.set(ders, []).get(ders)).push(kayit); };
-    for (const y of db.prepare(`SELECT y.id, y.kazanim, co.name AS ders FROM yoklama y JOIN assignments a ON a.id = y.assignment_id
-      JOIN courses co ON co.id = a.course_id WHERE y.class_id = ? AND y.date <= ? AND y.cancelled = 0 AND y.completed_at IS NOT NULL
-        AND y.kazanim IS NOT NULL AND y.kazanim <> ''`).all(sid, sinavTarihi)) {
-      const durum = {};
-      for (const k of db.prepare('SELECT student_membership_id AS id, status FROM yoklama_kayit WHERE yoklama_id = ?').all(y.id)) durum[k.id] = k.status;
-      ekle(y.ders, { kazanim: y.kazanim, durum });
-    }
-    // Konu kaydına elle girilen kazanımlar (yoklama kaydı olmadığından devam bilgisi yoktur)
-    for (const k of db.prepare(`SELECT k.kazanim, co.name AS ders FROM konular k JOIN assignments a ON a.id = k.assignment_id
-      JOIN courses co ON co.id = a.course_id WHERE a.class_id = ? AND k.date <= ? AND k.yoklama_id IS NULL AND k.kazanim IS NOT NULL AND k.kazanim <> ''`).all(sid, sinavTarihi)) {
-      ekle(k.ders, { kazanim: k.kazanim, durum: null });
+    for (const k of sinifKazanimlari(sid)) {
+      if (k.tarih > sinavTarihi) continue;
+      (dersler.get(k.ders) || dersler.set(k.ders, []).get(k.ders)).push({ kazanim: k.kazanim, durum: k.durum });
     }
     harita.set(sid, dersler);
   }
   return harita;
 }
 // Öğrencinin bir kazanımı alıp almadığı: islenmedi | devamsiz | katildi | bilinmiyor
+// Aynı (sınıf, ders, kazanım) için eşleşen kayıtlar bir kez süzülür; öğrenci sayısı kadar yeniden süzülmez.
+const eslesenOnb = new WeakMap();
 function islemeDurumu(islenen, sinifId, ders, ogrenciId, kazanim) {
-  const kayitlar = (islenen.get(sinifId)?.get(ders) || []).filter(k => kazEslesir(kazanim, k.kazanim));
+  let m = eslesenOnb.get(islenen); if (!m) eslesenOnb.set(islenen, m = new Map());
+  const anahtar = sinifId + '' + ders + '' + kazanim;
+  let kayitlar = m.get(anahtar);
+  if (!kayitlar) m.set(anahtar, kayitlar = (islenen.get(sinifId)?.get(ders) || []).filter(k => kazEslesir(kazanim, k.kazanim)));
   if (!kayitlar.length) return { durum: 'islenmedi', ders: 0, katildi: 0 };
   let katildi = 0, bilgili = 0;
   for (const k of kayitlar) {

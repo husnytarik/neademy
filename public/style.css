@@ -980,7 +980,7 @@ input.hatali { border-bottom: 2px solid var(--vurgu); }
    v4 — Yumuşak, modern üst bant (giriş + panel)
    Bant rengi --ana: öğretmende dersin rengi, diğerlerinde marka rengi.
    ===================================================================== */
-:root { --ana: #4b5565; } /* düğme/rozet rengi sabit; ders rengi yalnız üst barda (--bant) */
+:root { --ana: #2f6bd6; } /* düğme/rozet/bağlantı rengi: iOS tarzı mavi; ders rengi yalnız üst barda (--bant) */
 .bant { --bh: max(38vh, 250px); position: relative; height: 92px; margin: 0 0 4px; color: #fff; border-radius: 0 0 30px 30px;
   background: linear-gradient(165deg, color-mix(in srgb, var(--ana) 82%, #fff) 0%, var(--ana) 70%);
   box-shadow: 0 10px 28px -14px color-mix(in srgb, var(--ana) 70%, transparent) !important;
@@ -3244,13 +3244,7 @@ html.koyu :is(img:not(.bant *), video, canvas, .avatar-foto:not(.bant *), .bant,
 
 /* ===== Düğmeler (son söz): hepsi dolu. Ana eylem tema renginde, ikincil eylem nötr dolu yüzey; çerçevesiz/yazı gibi düğme yok ===== */
 :root { --kart-2: #f1ede4; --girdi: #fff; }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac:not(.acik), main .ekle-ac.kad-dolu:not(.acik) {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 18px; border: 1px solid var(--ana); border-radius: var(--kit-r);
   background: var(--ana); color: #fff; font-size: .86rem; font-weight: 600; cursor: pointer; }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac:not(.acik):hover:not(:disabled) { background: var(--ana-koyu); border-color: var(--ana-koyu); }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac:not(.acik):active:not(:disabled) { background: var(--ana-cok-koyu); border-color: var(--ana-cok-koyu); }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac:not(.acik):disabled { background: var(--ana-orta); border-color: var(--ana-orta); color: #fff; cursor: not-allowed; }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac.acik { background: var(--kart-2); border: 1px solid var(--ince); color: var(--murekkep); }
 
 /* İkincil / nötr düğmeler */
 main :is(.ikincil, button.kad-link, a.ikincil):not(.ekle-ac) {
@@ -3291,9 +3285,6 @@ body.giris-sayfa main.giris-kart .demo-link button:hover { background: var(--ana
 /* ===== Koyu tema: derin, tema renginde tonlanmış zemin; parlak gradyanlı düğmeler ===== */
 html.koyu { background: #e9ebf0; }
 html.koyu body { background: transparent; }
-main :is(.ders-panel .ekle-ust, .kad-eylem, body) .ekle-ac:not(.acik):not(:disabled), main .ekle-ac.kad-dolu:not(.acik):not(:disabled), main .birincil:not(:disabled), main .dugme-link, #bitir-sabit {
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--ana) 62%, #fff) 0%, var(--ana) 100%); border-color: transparent; box-shadow: 0 8px 20px -8px var(--ana) !important; }
-main .sekmeler button[aria-pressed="true"]:not(.ders-panel *), main .gun-cip.acik { background-image: linear-gradient(135deg, color-mix(in srgb, var(--ana) 62%, #fff) 0%, var(--ana) 100%); box-shadow: 0 6px 16px -6px var(--ana) !important; }
 
 /* Panel sekmeleri (öğrenci dosyası, ders paneli): alt çizgi yerine dolu şerit (segment); seçili sekme tema renginde dolu blok */
 main .ders-panel .sekmeler { gap: 4px; margin: 0 0 14px; padding: 4px; border: 1px solid var(--ince); border-radius: 10px !important; background: var(--kart-2); overflow-x: auto; scrollbar-width: none; }
@@ -3674,3 +3665,257 @@ main .tk-lejant { margin: 12px 0 14px; }
   main .p-eylem { flex-wrap: wrap; gap: 8px; }
   main .p-eylem > * { flex: 1 1 auto; text-align: center; margin: 0; }
 }
+
+/* =====================================================================
+   Üst bant (son söz): sabit yükseklik, düz köşe, keskin.
+   Renk yine dersin rengi (--bant); ama bant hiçbir ekranda büyümez/küçülmez, köşeleri yuvarlanmaz.
+   Panel: solda ad ve unvan, sağda profil fotoğrafı ve çıkış. Alt sayfalar: geri, başlık, eylemler.
+   ===================================================================== */
+:root { --bant-h: 64px; }
+body:not(.giris-sayfa) .bant {
+  position: sticky; top: 0; z-index: 30; box-sizing: border-box; height: var(--bant-h); margin: 0 0 16px; border-radius: 0;
+  background: var(--bant, var(--ana));
+  border-bottom: 1px solid color-mix(in srgb, var(--bant, var(--ana)) 78%, #000);
+  box-shadow: none !important;
+  display: flex; align-items: center; gap: 12px; padding: 0 16px;
+}
+body:not(.giris-sayfa) .bant.alt-bant { margin: 0 0 16px; }
+body:not(.giris-sayfa) .bant .bant-marka { display: none; }
+/* Panel bandı: ad/unvan solda, fotoğraf ve çıkış sağda */
+body:not(.giris-sayfa) .bant.profil .bant-kimlik { position: static; order: 1; flex: 1; min-width: 0; height: auto; display: flex; flex-direction: column; justify-content: center; opacity: 1; }
+body:not(.giris-sayfa) .bant.profil .bant-kimlik h1 { font-size: 1.1rem; line-height: 1.2; }
+body:not(.giris-sayfa) .bant.profil .bant-kimlik p { font-size: .8rem; margin-top: 1px; }
+body:not(.giris-sayfa) .bant.profil .bant-aksiyon { position: static; order: 2; opacity: 1; }
+body:not(.giris-sayfa) .bant.profil .bant-avatar { position: static; order: 3; flex: none; width: 42px; height: 42px; margin: 0; font-size: .95rem; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.16); color: #fff; box-shadow: none !important; }
+body:not(.giris-sayfa) .bant.profil .bant-cikis { height: 34px; }
+body:not(.giris-sayfa) main.panel, body:not(.giris-sayfa) #bugun-dersler { margin-top: 0; }
+/* Alt sayfalar */
+body:not(.giris-sayfa) .bant.alt-bant h1 { font-size: 1.1rem; }
+body:not(.giris-sayfa) .bant-geri { width: 38px; height: 38px; border-radius: 8px !important; box-shadow: none; border: 1px solid rgba(255,255,255,.3); }
+/* Giriş sayfası: büyük karşılama alanı kalır ama alt kenarı düz */
+body.giris-sayfa .bant, body.giris-sayfa .bant.buyuk { border-radius: 0; }
+
+/* =====================================================================
+   İnce ve nazik arayüz (son söz): düğme, alan, satır ve başlık yükseklikleri düşürüldü.
+   Düğme 36 px, alan 36 px, satır ~46 px; köşeler 8-10 px; gölgeler yok denecek kadar hafif.
+   ===================================================================== */
+:root { --kit-r: 8px; --dugme-h: 36px; --alan-h: 36px; }
+
+/* Üst bant: panelde eski 148/168 px kural ve yuvarlak köşe geri gelmesin */
+body:not(.giris-sayfa) .bant, body:not(.giris-sayfa) .bant.profil:not(.buyuk), body:not(.giris-sayfa) .bant.alt-bant {
+  height: var(--bant-h); border-radius: 0; margin-bottom: 16px;
+}
+
+/* ---- Düğmeler ---- */
+button:not([class]):not([aria-pressed]):not([aria-label]), .birincil, .ikincil, .dugme-link, .panel-ust a.alt,
+.kutu-ust button, .not-ust button, td button, .dugme-satir > button, .mini-form button, #yeni-ac,
+main .birincil, main .dugme-link, main button.birincil, main a.birincil, main :is(.ikincil, .ekle-ac) {
+  height: var(--dugme-h); min-height: var(--dugme-h); padding: 0 14px; border-radius: var(--kit-r);
+  font-size: .88rem; font-weight: 600; letter-spacing: .005em; line-height: 1;
+  box-shadow: none; transition: background .15s, border-color .15s, box-shadow .15s, transform .08s;
+}
+/* Dolu: ana renk, bir ton koyu ince çerçeve, üstte çok hafif aydınlık */
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac), .giris-kart .birincil, #bitir-sabit,
+.kutu-ust button, .not-ust button, .mini-form button, .dugme-satir > button {
+  border: 1px solid color-mix(in srgb, var(--ana) 84%, #000);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ana) 94%, #fff), var(--ana));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 1px rgba(16,24,40,.08);
+}
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):hover:not(:disabled), .giris-kart .birincil:hover:not(:disabled),
+.kutu-ust button:hover, .not-ust button:hover, .mini-form button:hover, .dugme-satir > button:hover {
+  background: linear-gradient(180deg, var(--ana), var(--ana-koyu)); border-color: var(--ana-cok-koyu);
+}
+/* İkincil: beyaz zemin, ana renkten silik çerçeve, ana renk yazı */
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)), .panel-ust a.alt {
+  background: var(--kart, #fff); color: var(--ana); border: 1px solid color-mix(in srgb, var(--ana) 32%, #fff); box-shadow: none;
+}
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):hover:not(:disabled), .panel-ust a.alt:hover { background: var(--ana-acik); border-color: color-mix(in srgb, var(--ana) 55%, #fff); }
+.kucuk, .birincil.kucuk, main .kucuk { height: 30px; min-height: 30px; padding: 0 12px; font-size: .82rem; border-radius: 7px; }
+.ikon-dugme, .gun-baslik #bugun.ikon-dugme { width: 34px; height: 34px; min-height: 34px; border-radius: 8px; }
+main button.kad-link { height: 32px; font-size: .82rem; }
+.gz-donem-dugme { height: 32px; padding: 0 14px; font-size: .86rem; }
+main #ders-ekle, main .saat-ekle { min-height: 38px; border-radius: var(--kit-r); }
+main #yeni-bolum #s-kaydet, main #yeni-bolum #s-vazgec, .kirp-alt .birincil, .kirp-alt .ikincil, .pf-kaydet .birincil, main .kd-cubuk .kd-dugme { height: 38px; min-height: 38px; border-radius: var(--kit-r); }
+.od-toplu, .ot-ozet .od-toplu { height: 36px !important; }
+.od-ikili > *, .od-tek > * { height: 36px !important; }
+#bitir-sabit { height: 38px; padding: 0 18px; border-radius: 19px; }
+.tema-dugme { width: 34px; height: 34px; }
+
+/* ---- Girdi alanları, arama çubukları ---- */
+main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), main select {
+  min-height: var(--alan-h); height: var(--alan-h); padding: 0 12px; border-radius: 8px; border-color: var(--ince, #e8e1d3); font-size: .9rem;
+}
+main textarea { min-height: 64px; padding: 8px 12px; border-radius: 8px; border-color: var(--ince, #e8e1d3); font-size: .9rem; }
+main :is(input, select, textarea):focus { box-shadow: 0 0 0 3px var(--ana-halka) !important; }
+main .kd-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select), main .ol-arac :is(input, select), main .kz-sira select { height: var(--alan-h); min-height: 0; border-radius: 8px; }
+main .pz-satir input, main label.pz-satir input[type="text"] { height: 36px; }
+main .kaz-ayni { width: 34px; height: 34px; min-height: 34px; }
+body.giris-sayfa main.giris-kart input { height: 42px; border-radius: 8px !important; }
+body.giris-sayfa main.giris-kart :is(#kurulum, #adim1, #adim2) .birincil { height: 42px; margin-top: 20px; border-radius: 8px; }
+
+/* ---- Açılır başlıklar, satırlar, listeler ---- */
+main details > summary { min-height: 38px; padding: 0 14px; border-radius: 10px; }
+#geciken details > summary, main .kh details > summary { min-height: 38px !important; }
+#geciken details > summary { min-height: 42px; }
+main details.sc-kart > summary { min-height: 46px; padding: 6px 0; }
+main details.nt-sinav > summary { min-height: 48px; padding: 8px 0; }
+main .kur-okul > summary { min-height: 50px; padding: 6px 2px; }
+main .kur-kart > summary { min-height: 42px; }
+main .bk-ust { min-height: 46px; padding: 6px 0; }
+main .lk-satir { min-height: 48px; padding: 6px 0; }
+main .og-satir { min-height: 40px; padding: 6px 0; }
+main .ders-satir, main .ders-satir:not(.etut-satir), main .ders-satir:not(.etut-satir):hover, main .ders-satir.secili:not(.etut-satir),
+main .ders-satir.etut-satir, main .ders-satir.etut-satir:hover, main .ders-satir.etut-satir.secili {
+  min-height: 48px; padding-top: 6px; padding-bottom: 6px; margin-bottom: 6px; border-radius: 12px;
+}
+main .prg-tablo td { height: 44px; }
+main .prg-hucre { min-height: 40px; border-radius: 8px; }
+main .tk-hucre { min-height: 46px; padding: 4px 0 3px; border-radius: 10px; }
+main .gun-cip { height: 44px; border-radius: 10px; }
+.sinif-chip { height: 50px; padding: 6px 4px; border-radius: 12px; }
+.ogr-chip { height: 34px; border-radius: 10px; }
+.yok-hap.iki { min-height: 46px; border-radius: 16px; }
+main .ders-panel .adim .yok-hap, main .ders-panel .adim .yok-hap.iki { height: 34px; }
+.ogr-avatar { width: 38px; height: 38px; font-size: .82rem; }
+.ogr-avatar.orta { width: 46px; height: 46px; }
+.tarih-rozet.kucuk { width: 40px; height: 42px; border-radius: 10px; }
+
+/* ---- Sekmeler ---- */
+.sekmeler button { padding: 8px 0; }
+main #sekmeler button { height: 34px; }
+@media (max-width: 640px) {
+  main #sekmeler { border-radius: 12px; gap: 3px; padding: 4px; }
+  main #sekmeler button { height: 32px; padding: 0 10px; border-radius: 8px; font-size: .84rem; }
+  /* telefonda iOS odak yakınlaştırmasını önlemek için 16px yerine 15px yeter; alan yüksekliği 38 */
+  main input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), main select { height: 38px; min-height: 38px; font-size: 15px; }
+}
+
+/* ---- İnce ve nazik (devam): sekme hapı, gün şeridi, ders kartı ---- */
+main .sekmeler { padding: 3px; margin: 4px 0 12px; border-radius: 10px; gap: 2px; }
+main .sekmeler button { height: 30px; padding: 0 14px; border-radius: 8px; font-size: .84rem; }
+main .sekmeler button[aria-pressed="true"] { box-shadow: 0 1px 2px rgba(16,24,40,.12) !important; }
+main .ders-panel .sekmeler { padding: 0; border-radius: 0; margin: 6px 0 12px; }
+main .ders-panel .sekmeler button { height: auto; padding: 8px 0; border-radius: 0; }
+.gun-seridi { grid-template-columns: 36px 1fr 36px; gap: 6px; margin-bottom: 10px; }
+.gun-seridi > button, main .gun-seridi > button { height: 36px; min-height: 36px; padding: 0; border-radius: 8px; font-size: 1rem; }
+.gun-baslik, main .gun-seridi .gun-baslik { min-height: 36px; padding: 2px 6px 2px 12px; border-radius: 8px; font-size: .92rem; }
+main .gun-seridi .gun-baslik #bugun { width: 28px; height: 28px; min-height: 28px; }
+main .ders-satir, main .ders-satir:not(.etut-satir), main .ders-satir:not(.etut-satir):hover, main .ders-satir.secili:not(.etut-satir),
+main .ders-satir.etut-satir, main .ders-satir.etut-satir:hover, main .ders-satir.etut-satir.secili { grid-template-columns: 62px minmax(0, 1fr) auto; gap: 12px; min-height: 0; padding: 5px 12px 5px 6px; border-radius: 10px; }
+main .ders-satir .ders-zaman { padding: 4px 2px; gap: 0; }
+main .ders-satir .ders-zaman strong { font-size: .92rem; }
+main .ders-satir .ders-orta strong { font-size: .98rem; }
+main .ders-satir .durum-isaret { min-width: 24px; height: 24px; }
+.panel-ust, main .panel-ust { min-height: 0; }
+main .ol-arac input:not([type=checkbox]):not([type=radio]) { padding-left: 34px; background-position: 11px center; background-size: 15px; }
+main .ol-satir { padding: 7px 2px; gap: 10px; }
+main .ol-satir .ogr-avatar { width: 36px; height: 36px; }
+main .ol-satir strong { font-size: .95rem; }
+main .ol-satir span, main .ol-satir small { font-size: .8rem; }
+main .ol-arac input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]) { padding-left: 34px; }
+
+/* =====================================================================
+   Cam düğmeler (iOS tarzı): yarı saydam, bulanık zemin, üstte ince ışık, beyazımsı iç çerçeve.
+   Dolu düğme temanın renginde "tinted glass"; ikincil düğme buzlu beyaz; seçili sekme beyaz kabarcık.
+   ===================================================================== */
+:root {
+  --cam-yuzey: linear-gradient(180deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.08) 48%, rgba(255,255,255,0) 100%);
+  --cam-kenar: inset 0 0 0 1px rgba(255,255,255,.30), inset 0 1px 0 rgba(255,255,255,.55);
+}
+/* Dolu */
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac), .giris-kart .birincil, #bitir-sabit,
+.kutu-ust button, .not-ust button, .mini-form button, .dugme-satir > button,
+button:not([class]):not([aria-pressed]):not([aria-label]) {
+  background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ana) 70%, transparent);
+  color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5); backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow: var(--cam-kenar), 0 6px 14px -8px color-mix(in srgb, var(--ana) 75%, transparent);
+  border-radius: 10px;
+}
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):hover:not(:disabled), .giris-kart .birincil:hover:not(:disabled),
+.kutu-ust button:hover, .not-ust button:hover, .mini-form button:hover, .dugme-satir > button:hover,
+button:not([class]):not([aria-pressed]):not([aria-label]):hover {
+  background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 96%, transparent); border-color: color-mix(in srgb, var(--ana) 85%, transparent);
+}
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):active:not(:disabled), .kutu-ust button:active, .dugme-satir > button:active {
+  background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 100%, #000 8%); transform: scale(.985);
+}
+main :is(.birincil, .dugme-link, .ekle-ac.kad-dolu, #yeni-ac):disabled { background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 38%, transparent); box-shadow: var(--cam-kenar); text-shadow: none; }
+/* İkincil: buzlu beyaz cam */
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)), .panel-ust a.alt, main button.kad-link, .gz-donem-dugme {
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+  border: 1px solid rgba(60,60,67,.16); color: var(--ana); text-shadow: none;
+  -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(16,24,40,.06);
+  border-radius: 10px;
+}
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):hover:not(:disabled), .panel-ust a.alt:hover, main button.kad-link:hover {
+  background: linear-gradient(180deg, #fff, rgba(255,255,255,.75)); border-color: color-mix(in srgb, var(--ana) 40%, rgba(60,60,67,.16));
+}
+main :is(.ikincil, .ekle-ac:not(.kad-dolu)):active:not(:disabled) { background: color-mix(in srgb, var(--ana) 10%, #fff); transform: scale(.985); }
+main .ikincil.tehlike { color: #c0392b; }
+/* Ok / takvim / geri-ileri düğmeleri */
+main .ikon-dugme, main .gun-seridi > button {
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55)); border: 1px solid rgba(60,60,67,.16); color: var(--ana);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(16,24,40,.06);
+}
+/* Segment (sekme) denetimi: gri/koyu zemin yerine açık cam şerit, seçili olan beyaz kabarcık */
+main .sekmeler { background: rgba(120,120,128,.12); border: 0; }
+main .sekmeler button { color: #55595f; background: transparent; }
+main .sekmeler button[aria-pressed="true"] {
+  background: #fff; color: var(--murekkep); font-weight: 600; border: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,.10), 0 3px 8px -2px rgba(0,0,0,.12) !important;
+}
+main .ders-panel .sekmeler { background: rgba(120,120,128,.12); border: 0; padding: 3px; gap: 2px; margin: 4px 0 12px; border-radius: 10px !important; }
+main .ders-panel .sekmeler button { height: 30px; padding: 0 14px; border-radius: 8px !important; color: #55595f; background: transparent; }
+main .ders-panel .sekmeler button[aria-pressed="true"] { background: #fff; color: var(--murekkep); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.10), 0 3px 8px -2px rgba(0,0,0,.12) !important; }
+/* Üst bant geri düğmesi: cam */
+body:not(.giris-sayfa) .bant-geri, body:not(.giris-sayfa) .bant-cikis {
+  background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.10)); border: 1px solid rgba(255,255,255,.38);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+}
+main .gun-cip.acik { background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 88%, transparent); color: #fff; box-shadow: var(--cam-kenar), 0 6px 14px -8px color-mix(in srgb, var(--ana) 75%, transparent) !important; }
+
+/* Cam düğmeler: kişiler/öğrenciler başlık düğmeleri (özgüllüğü yüksek eski kuralların üstüne) */
+main .ders-panel .ekle-ust .ekle-ac.kad-dolu, main .kad-eylem .ekle-ac.kad-dolu, main .ders-panel .ekle-ac.kad-dolu {
+  background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ana) 70%, transparent);
+  color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5); backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow: var(--cam-kenar), 0 6px 14px -8px color-mix(in srgb, var(--ana) 75%, transparent);
+  border-radius: 10px;
+}
+main .ders-panel .ekle-ust .ekle-ac.kad-dolu:hover, main .kad-eylem .ekle-ac.kad-dolu:hover {
+  background: var(--cam-yuzey), color-mix(in srgb, var(--ana) 96%, transparent); border-color: color-mix(in srgb, var(--ana) 85%, transparent);
+}
+main .ders-panel .ekle-ust .ekle-ac:not(.kad-dolu), main .kad-eylem .ekle-ac:not(.kad-dolu) {
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(246,246,248,.8));
+  border: 1px solid rgba(60,60,67,.16); color: var(--ana); border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.05);
+}
+main .ders-panel .ekle-ust .ekle-ac.acik, main .kad-eylem .ekle-ac.acik { background: rgba(120,120,128,.12); border-color: transparent; color: var(--soluk); text-shadow: none; box-shadow: none; }
+
+/* Teslim: fotoğraflı satırlar */
+.tk-kim > .ogr-avatar { margin-bottom: 6px; }
+.tk-liste li { gap: 6px; }
+.tk-liste .tk-satir { flex-direction: row; justify-content: center; gap: 12px; text-align: left; }
+.tk-buyuk .tk-avatar { width: 72px; height: 72px; }
+.tk-buyuk li { align-items: center; }
+main ul.tk-bugun { font-size: inherit; font-weight: inherit; color: inherit; background: none; border-radius: 0; padding: 0; }
+
+/* Teslim doğrulama: solda öğrenci, sağda teslim alacak kişi */
+.tk-cift { display: grid; grid-template-columns: 1fr 1fr; gap: 0; width: 100%; margin: 4px 0 8px; padding: 14px 8px; border: 1px solid var(--ince, #e1e7ef); border-radius: 14px; background: var(--kart, #fff); }
+.tk-taraf { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 0 6px; }
+.tk-sag { border-left: 1px solid var(--ince, #e1e7ef); }
+.tk-yuz-baslik { margin: 0; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+.tk-yuzler { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.tk-yuz { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; min-width: 0; max-width: 130px; }
+.tk-yuz strong { font-size: .95rem; line-height: 1.25; overflow-wrap: anywhere; }
+.tk-yuz .alt { margin: 0; font-size: .8rem; }
+.tk-yuz .ogr-avatar.tk-yuz-foto { width: 88px; height: 88px; font-size: 1.5rem; margin-bottom: 4px; }
+.tk-sol .tk-yuz:not(:only-child) .ogr-avatar.tk-yuz-foto { width: 64px; height: 64px; font-size: 1.15rem; }
+main .kz-gecmis { max-height: 420px; overflow-y: auto; }
+main .kz-gecmis .kz-bilgi { flex-wrap: wrap; align-items: baseline; }
+main .kz-gecmis .kz-bilgi b { text-align: left; flex: 1 1 240px; }
+main .kz-gecmis .kz-bilgi span { font-size: .78rem; flex: 1 1 100%; }

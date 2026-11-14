@@ -194,6 +194,7 @@ class _TeslimKoduEkraniState extends State<TeslimKoduEkrani> with WidgetsBinding
       KartKutu(
         padding: const EdgeInsets.all(20),
         child: Column(children: [
+          Padding(padding: const EdgeInsets.only(bottom: 8), child: KisiAvatari(ad: kisi.s('ad'), foto: kisi.s('foto'), api: widget.api, yaricap: 32)),
           Text(kisi.s('ad'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           if (kisi.s('yakinlik').isNotEmpty && kisi.s('yakinlik') != 'Veli') Text(kisi.s('yakinlik'), style: TextStyle(color: context.soluk)),
           const SizedBox(height: 16),
@@ -217,6 +218,8 @@ class _TeslimKoduEkraniState extends State<TeslimKoduEkrani> with WidgetsBinding
       for (final o in kod.l('ogrenciler'))
         KartKutu(
           child: Row(children: [
+            KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: widget.api, yaricap: 22),
+            const SizedBox(width: 12),
             Expanded(child: Text(o.s('ad'), style: const TextStyle(fontWeight: FontWeight.w600))),
             Text([o.s('sinif'), o.s('okul')].where((e) => e.isNotEmpty).join(' · '), style: TextStyle(color: context.soluk, fontSize: 13)),
           ]),
@@ -233,7 +236,13 @@ class _TeslimKoduEkraniState extends State<TeslimKoduEkrani> with WidgetsBinding
         Text('Güvenlik aşağıdaki öğrencileri teslim etmek istiyor.', textAlign: TextAlign.center, style: TextStyle(color: context.soluk)),
         const SizedBox(height: 16),
         for (final o in t.l('ogrenciler'))
-          KartKutu(child: Text([o.s('ad'), o.s('sinif')].where((e) => e.isNotEmpty).join(' · '), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
+          KartKutu(
+            child: Row(children: [
+              KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: widget.api, yaricap: 28),
+              const SizedBox(width: 14),
+              Expanded(child: Text([o.s('ad'), o.s('sinif')].where((e) => e.isNotEmpty).join(' · '), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
+            ]),
+          ),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -650,8 +659,16 @@ class _TeslimKapiEkraniState extends State<TeslimKapiEkrani> {
       ]);
 
   Widget _secim(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_kisi.s('ad'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-        Text(_kisi.s('yakinlik'), style: TextStyle(color: context.soluk)),
+        Row(children: [
+          KisiAvatari(ad: _kisi.s('ad'), foto: _kisi.s('foto'), api: widget.api, yaricap: 30),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_kisi.s('ad'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              Text(_kisi.s('yakinlik'), style: TextStyle(color: context.soluk)),
+            ]),
+          ),
+        ]),
         const Baslik('Teslim edilecek öğrenciler', ust: 16),
         for (final o in _ogrenciler)
           KartKutu(
@@ -659,6 +676,7 @@ class _TeslimKapiEkraniState extends State<TeslimKapiEkrani> {
             child: CheckboxListTile(
               value: _secili.contains(o.n('id')),
               onChanged: (v) => setState(() => v == true ? _secili.add(o.n('id')) : _secili.remove(o.n('id'))),
+              secondary: KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: widget.api, yaricap: 26),
               title: Text(o.s('ad'), style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text([o.s('sinif'), o.s('okul')].where((e) => e.isNotEmpty).join(' · ')),
               controlAffinity: ListTileControlAffinity.trailing,
@@ -671,13 +689,23 @@ class _TeslimKapiEkraniState extends State<TeslimKapiEkrani> {
         OutlinedButton(onPressed: _vazgec, style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)), child: const Text('Vazgeç')),
       ]);
 
+  /// Fotoğraf + ad satırı (bekleme ve sonuç ekranları).
+  Widget _ogrSatir(Map<String, dynamic> o, String metin) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          KisiAvatari(ad: o.s('ad'), foto: o.s('foto'), api: widget.api, yaricap: 24),
+          const SizedBox(width: 12),
+          Flexible(child: Text(metin, style: const TextStyle(fontSize: 16))),
+        ]),
+      );
+
   Widget _bekle(BuildContext context) => Column(children: [
         const SizedBox(height: 30),
         const SizedBox(width: 44, height: 44, child: CircularProgressIndicator()),
         const SizedBox(height: 18),
         const Text('Veli onayı bekleniyor…', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
         const SizedBox(height: 14),
-        for (final o in _secilenler) Text([o.s('ad'), o.s('sinif')].where((e) => e.isNotEmpty).join(' · '), style: const TextStyle(fontSize: 16)),
+        for (final o in _secilenler) _ogrSatir(o, [o.s('ad'), o.s('sinif')].where((e) => e.isNotEmpty).join(' · ')),
         const SizedBox(height: 26),
         OutlinedButton(onPressed: _beklemeIptal, child: const Text('İptal et')),
       ]);
@@ -698,7 +726,7 @@ class _TeslimKapiEkraniState extends State<TeslimKapiEkrani> {
         const SizedBox(height: 14),
         Text(metin, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
-        for (final o in _secilenler) Text(o.s('ad'), style: const TextStyle(fontSize: 16)),
+        for (final o in _secilenler) _ogrSatir(o, o.s('ad')),
       ]),
     );
   }

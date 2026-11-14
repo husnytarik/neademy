@@ -163,57 +163,61 @@ class _PanelEkraniState extends State<PanelEkrani> {
     );
     final ogretmen = ben.rol == 'ogretmen';
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _yukle,
-        edgeOffset: 120,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            PanelBandi(ben: ben, menu: menu, api: widget.oturum.api),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
+        children: [
+          // Üst bant sabit yükseklikte ve yerinde durur; yalnız altındaki içerik kayar
+          PanelBandi(ben: ben, menu: menu, api: widget.oturum.api),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _yukle,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  if (ogretmen)
-                    Transform.translate(
-                      offset: const Offset(0, -34),
-                      child: OgretmenOzeti(key: ValueKey(_yenileme), api: widget.oturum.api),
-                    ),
-                  if (ogretmen) const SizedBox(height: 0) else const SizedBox(height: 16),
-                  if (duyuru != null && duyuru.id != _kapatilanDuyuru)
-                    _DuyuruSeridi(duyuru: duyuru, onKapat: () => setState(() => _kapatilanDuyuru = duyuru.id)),
-                  if (_hata != null)
-                    _Mesaj(_hata!, onTekrar: _yukle)
-                  else if (moduller == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
-                    )
-                  else
-                    Transform.translate(
-                      offset: Offset(0, ogretmen ? -22 : 0),
-                      child: GridView(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 58),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.zero,
-                        children: [
-                          for (final m in [...hazir, ...yakinda])
-                            _Kare(
-                              modul: m,
-                              hazir: _hazirEkranlar.containsKey(m.id),
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _hazirEkranlar[m.id]!(widget.oturum.api))),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (ogretmen) OgretmenOzeti(key: ValueKey(_yenileme), api: widget.oturum.api),
+                        const SizedBox(height: 16),
+                        if (duyuru != null && duyuru.id != _kapatilanDuyuru)
+                          _DuyuruSeridi(duyuru: duyuru, onKapat: () => setState(() => _kapatilanDuyuru = duyuru.id)),
+                        if (_hata != null)
+                          _Mesaj(_hata!, onTekrar: _yukle)
+                        else if (moduller == null)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 40),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+                          )
+                        else
+                          GridView(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              mainAxisExtent: 52,
                             ),
-                        ],
-                      ),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            children: [
+                              for (final m in [...hazir, ...yakinda])
+                                _Kare(
+                                  modul: m,
+                                  hazir: _hazirEkranlar.containsKey(m.id),
+                                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _hazirEkranlar[m.id]!(widget.oturum.api))),
+                                ),
+                            ],
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -278,7 +282,10 @@ class _Kare extends StatelessWidget {
         ],
       ),
     );
-    final sekil = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: hazir ? BorderSide.none : BorderSide(color: context.ince));
+    final sekil = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: hazir ? BorderSide.none : BorderSide(color: context.ince),
+    );
     return Opacity(
       opacity: hazir ? 1 : .55,
       child: Material(

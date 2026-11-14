@@ -136,8 +136,8 @@ class Sekmeler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(4),
-    decoration: BoxDecoration(color: context.icZemin, borderRadius: BorderRadius.circular(16)),
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(color: context.icZemin, borderRadius: BorderRadius.circular(10)),
     child: Row(
       children: [
         for (final (deger, ad) in secenekler)
@@ -147,11 +147,11 @@ class Sekmeler extends StatelessWidget {
               onTap: () => degisti(deger),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: secili == deger ? context.kart : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   boxShadow: secili == deger ? [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 6, offset: const Offset(0, 1))] : null,
                 ),
                 child: FittedBox(
@@ -160,7 +160,7 @@ class Sekmeler extends StatelessWidget {
                     ad,
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: secili == deger ? FontWeight.w700 : FontWeight.w500,
                       color: secili == deger ? context.yazi : context.soluk,
                     ),
@@ -234,7 +234,7 @@ class Cip extends StatelessWidget {
 
 /// Yumuşak kenarlı kart; [onTap] verilirse dokunulabilir.
 class KartKutu extends StatelessWidget {
-  const KartKutu({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(14), this.alt = 10});
+  const KartKutu({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10), this.alt = 8});
 
   final Widget child;
   final VoidCallback? onTap;
@@ -246,11 +246,11 @@ class KartKutu extends StatelessWidget {
     padding: EdgeInsets.only(bottom: alt),
     child: Material(
       color: context.kart,
-      elevation: 1,
-      shadowColor: Colors.black.withValues(alpha: .22),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: .5,
+      shadowColor: Colors.black.withValues(alpha: .18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(padding: padding, child: child),
       ),
@@ -401,9 +401,9 @@ class EkleDugmesi extends StatelessWidget {
     child: FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        minimumSize: Size(tam ? double.infinity : 0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        minimumSize: Size(tam ? double.infinity : 0, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
       child: Text(metin),

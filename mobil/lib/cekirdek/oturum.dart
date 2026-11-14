@@ -196,6 +196,17 @@ class Oturum extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deneme amaçlı hızlı giriş (sunucuda HIZLI_GIRIS_ANAHTAR tanımlıysa çalışır): kimlik/telefon istemeden oturum açar.
+  Future<void> hizliGiris(String anahtar, String kisiId) async {
+    final yanit = await api.post('/api/hizli/giris', {'k': anahtar, 'id': kisiId, 'mobil': true, 'cihaz': _cihazAdi()});
+    final jeton = (yanit as Map)['token'] as String;
+    api.jeton = jeton;
+    await _depo.write(key: _jetonAnahtari, value: jeton);
+    await _benYukle();
+    durum = Durum.giris;
+    notifyListeners();
+  }
+
   /// Kilit ekranından: doğrulama başarılıysa panele geçer.
   Future<bool> kilidiAc() async {
     if (durum != Durum.kilitli) return true;

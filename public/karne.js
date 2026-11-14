@@ -397,6 +397,10 @@ async function yukle() {
     : sinifId ? (ben.rol === 'yonetim' ? '/ogrenciler' : '/ogrencilerim') : '/ogrenci-dosyasi?id=' + ogrId;
   $('k-donem').addEventListener('change', e => { donemId = Number(e.target.value); yukle(); });
   $('k-yazdir').addEventListener('click', () => window.print());
+  // Tarayıcı yazdırırken sayfa adresini kâğıda basabilir; öğrenci numarası içeren adres kâğıda çıkmasın
+  const adres = location.pathname + location.search;
+  window.addEventListener('beforeprint', () => history.replaceState(null, '', location.pathname));
+  window.addEventListener('afterprint', () => history.replaceState(null, '', adres));
   window.addEventListener('resize', () => { if (veri) olcekle(); });
   await yukle();
 })();

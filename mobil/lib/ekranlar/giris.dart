@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
+import 'hizli_giris.dart';
 
 /// T.C./pasaport no + telefon ile giriş (web ile aynı kural, kod yok).
 class GirisEkrani extends StatefulWidget {
@@ -62,7 +63,11 @@ class _GirisEkraniState extends State<GirisEkrani> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('neademy', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -.6, color: context.yazi)),
+                    // Uzun basış: gizli "Hızlı giriş" (deneme anahtarı olmadan çalışmaz)
+                    GestureDetector(
+                      onLongPress: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => HizliGirisEkrani(oturum: widget.oturum))),
+                      child: Text('neademy', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -.6, color: context.yazi)),
+                    ),
                     const SizedBox(height: 4),
                     Text('Okul yönetim platformu', style: TextStyle(color: context.soluk, fontSize: 15)),
                     const SizedBox(height: 36),

@@ -16,6 +16,36 @@ function avatarYap(ad, foto, sinif) {
   } else k.textContent = avatarBas(ad);
   return k;
 }
+// Teslim doğrulama: solda öğrenci(ler), sağda teslim alacak kişi (fotoğraf + ad), kapıdaki kişinin yüzüyle eşleştirmek için.
+function teslimCiftYap(ogrenciler, kisi) {
+  const taraf = (baslik, liste, sinif) => {
+    const t = document.createElement('div');
+    t.className = 'tk-taraf ' + sinif;
+    const b = document.createElement('span');
+    b.className = 'alt tk-yuz-baslik';
+    b.textContent = baslik;
+    const g = document.createElement('div');
+    g.className = 'tk-yuzler';
+    for (const x of liste) {
+      const y = document.createElement('div');
+      y.className = 'tk-yuz';
+      const ad = document.createElement('strong');
+      ad.textContent = x.ad;
+      y.append(avatarYap(x.ad, x.foto, 'tk-yuz-foto'), ad);
+      if (x.alt) { const a = document.createElement('span'); a.className = 'alt'; a.textContent = x.alt; y.append(a); }
+      g.append(y);
+    }
+    t.append(b, g);
+    return t;
+  };
+  const c = document.createElement('div');
+  c.className = 'tk-cift';
+  c.append(
+    taraf(ogrenciler.length > 1 ? 'Öğrenciler' : 'Öğrenci', ogrenciler.map(o => ({ ad: o.ad, foto: o.foto, alt: o.sinif })), 'tk-sol'),
+    taraf('Teslim alacak', [{ ad: kisi.ad, foto: kisi.foto, alt: kisi.yakinlik === 'Veli' ? 'Veli' : kisi.yakinlik }], 'tk-sag')
+  );
+  return c;
+}
 // Fotoğraf/logo kırpıcı: yuvarlak çerçevede sürükle, yakınlaştır/uzaklaştır, "Uygula" ile kare çıktı üretir.
 // Sayfa politikası blob/data görsellere izin vermediğinden her şey canvas üzerinde çizilir.
 // Döner: { blob, tuval } (tuval: küçük önizleme) ya da vazgeçilirse null. Dosya okunamazsa hata fırlatır.

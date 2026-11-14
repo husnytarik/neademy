@@ -161,9 +161,18 @@ function okulDurum(okul) {
   return { yon, ogr, yonAcik: yon?.durum === 'aktif', ogrAcik: ogr?.durum === 'aktif', mudur: k.okulGorevleri.find(g => g.okulId === okul.id)?.gorev || '' };
 }
 
+// Ek görevin okulu: kişinin tek aktif yönetim okulu ya da kurumdaki tek okul; belirsizse kullanıcı seçer (sessiz varsayım yok)
+function rolOkulVarsayilan() {
+  const yon = [...new Set(k.uyelikler.filter(m => m.rol === 'yonetim' && m.durum === 'aktif' && m.gorev !== 'kurum' && m.subeId).map(m => m.subeId))];
+  if (yon.length === 1) return yon[0];
+  if (secenek.okullar.length === 1) return secenek.okullar[0].id;
+  const aktif = [...new Set(k.uyelikler.filter(m => m.durum === 'aktif' && m.subeId).map(m => m.subeId))];
+  return aktif.length === 1 ? aktif[0] : 0;
+}
+
 // Düzenleme sırasındaki seçimler; Kaydet'e basılana dek sunucuya gitmez
 function taslakKur() {
-  taslak = { yon: new Map(), ogr: new Map(), mudur: new Map(), roller: new Set(k.roller), veliCikar: new Set(), veliEkle: [] };
+  taslak = { yon: new Map(), ogr: new Map(), mudur: new Map(), roller: new Set(k.roller), veliCikar: new Set(), veliEkle: [], rolOkul: rolOkulVarsayilan() };
   for (const okul of secenek.okullar) {
     const d = okulDurum(okul);
     taslak.yon.set(okul.id, d.yonAcik);
@@ -341,6 +350,14 @@ function gorevDuzenle(b) {
       ek.append(c);
     }
     b.append(ek);
+    if (secenek.okullar.length > 1) {
+      const sec = document.createElement('select');
+      sec.append(new Option('Okul seçin', ''));
+      for (const o of secenek.okullar) sec.append(new Option(o.ad, o.id));
+      sec.value = taslak.rolOkul || '';
+      sec.addEventListener('change', () => { taslak.rolOkul = Number(sec.value) || 0; });
+      b.append(girdiAlan('Yeni verilecek ek görev hangi okulda geçerli? (o okulda yönetim girişi açılır)', sec));
+    }
   }
 
   const alt = el('div', undefined, 'kad-alt-dugmeler');
@@ -351,41 +368,48 @@ function gorevDuzenle(b) {
   b.append(alt);
 }
 
-// Taslağı özgün durumla karşılaştırıp yalnızca değişenleri sırayla sunucuya gönderir
+// Taslağı özgün durumla karşılaştırıp yalnızca değişenleri özetleyip onay alarak sırayla sunucuya gönderir
 async function gorevKaydet(dugme) {
   const kurumda = kurumdaMi();
-  const islemler = [];
+  const islemler = [], ozet = [];
   let onay = '';
-  const kaynak = k.uyelikler.find(m => m.rol === 'yonetim' && m.durum === 'aktif') || k.uyelikler.find(m => m.durum === 'aktif');
+  const ekle = (satir, yol, govde) => { ozet.push(satir); islemler.push([yol, govde]); };
+  const okulAd = oid => secenek.okullar.find(o => o.id === oid)?.ad || 'okul';
+  const verilecek = secenek.roller.filter(r => taslak.roller.has(r.id) && !k.roller.includes(r.id));
+  if (verilecek.some(r => r.kod !== 'kurucu') && !taslak.rolOkul) return mesaj('Ek görev için okul seçin: rol hangi okulda geçerli olacak?', 'hata');
   for (const r of secenek.roller) {
     const ver = taslak.roller.has(r.id);
-    if (ver !== k.roller.includes(r.id)) islemler.push(['/api/yonetim/kullanici-rol', { userId: k.id, rolId: r.id, ver, subeId: kaynak?.subeId }]);
+    if (ver === k.roller.includes(r.id)) continue;
+    ekle(ver ? `${r.ad} görevi verilecek${r.kod === 'kurucu' ? '' : ' (' + okulAd(taslak.rolOkul) + ')'}` : `${r.ad} görevi alınacak`,
+      '/api/yonetim/kullanici-rol', { userId: k.id, rolId: r.id, ver, subeId: ver && r.kod !== 'kurucu' ? taslak.rolOkul : undefined });
   }
   for (const okul of secenek.okullar) {
     const d = okulDurum(okul);
     const mudur = taslak.mudur.get(okul.id);
-    if (mudur !== d.mudur) islemler.push(['/api/yonetim/kullanici-mudur', { userId: k.id, okulId: okul.id, gorev: mudur }]);
+    if (mudur !== d.mudur) {
+      ekle(mudur ? `${okul.ad}: ${secenek.gorevler[mudur]} görevi verilecek` : `${okul.ad}: müdür / yardımcı görevi kaldırılacak`,
+        '/api/yonetim/kullanici-mudur', { userId: k.id, okulId: okul.id, gorev: mudur });
+    }
     if (!kurumda && !mudur) {
       const yon = taslak.yon.get(okul.id);
-      // Müdürlük kalkınca sunucu yönetim üyeliğini de kapatır; yönetim seçili kaldıysa yeniden açılır
+      // Müdürlük kalkınca sunucu o okuldaki yönetim üyeliğini de kapatır; yönetim seçili kaldıysa yeniden açılır
       if (yon !== d.yonAcik || (d.mudur && yon)) {
-        islemler.push(yon
-          ? (d.yon ? ['/api/yonetim/uyelik-durum', { uyelikId: d.yon.id, durum: 'aktif' }] : ['/api/yonetim/uyelik-ekle', { userId: k.id, subeId: okul.id, rol: 'yonetim' }])
-          : ['/api/yonetim/uyelik-durum', { uyelikId: d.yon.id, durum: 'pasif' }]);
-        if (!yon && k.roller.length) onay = 'Yönetim kaldırılırsa kişinin ek görevleri de çalışmaz. ';
+        if (yon) ekle(`${okul.ad}: yönetim girişi açılacak`, ...(d.yon ? ['/api/yonetim/uyelik-durum', { uyelikId: d.yon.id, durum: 'aktif' }] : ['/api/yonetim/uyelik-ekle', { userId: k.id, subeId: okul.id, rol: 'yonetim' }]));
+        else ekle(`${okul.ad}: yönetim girişi kapatılacak`, '/api/yonetim/uyelik-durum', { uyelikId: d.yon.id, durum: 'pasif' });
+        if (!yon && k.roller.length) onay = 'Yönetim kaldırılırsa kişinin ek görevleri (rol) de çalışmaz.';
       }
     }
     const ogr = taslak.ogr.get(okul.id);
-    if (ogr !== d.ogrAcik) islemler.push(ogr
-      ? (d.ogr ? ['/api/yonetim/uyelik-durum', { uyelikId: d.ogr.id, durum: 'aktif' }] : ['/api/yonetim/uyelik-ekle', { userId: k.id, subeId: okul.id, rol: 'ogretmen' }])
-      : ['/api/yonetim/uyelik-durum', { uyelikId: d.ogr.id, durum: 'pasif' }]);
+    if (ogr !== d.ogrAcik) {
+      if (ogr) ekle(`${okul.ad}: öğretmen olarak eklenecek`, ...(d.ogr ? ['/api/yonetim/uyelik-durum', { uyelikId: d.ogr.id, durum: 'aktif' }] : ['/api/yonetim/uyelik-ekle', { userId: k.id, subeId: okul.id, rol: 'ogretmen' }]));
+      else ekle(`${okul.ad}: öğretmenlik kapatılacak`, '/api/yonetim/uyelik-durum', { uyelikId: d.ogr.id, durum: 'pasif' });
+    }
   }
-  for (const id of taslak.veliCikar) islemler.push(['/api/yonetim/kullanici-veli', { userId: k.id, ogrenciId: id, ver: false }]);
-  for (const e of taslak.veliEkle) islemler.push(['/api/yonetim/kullanici-veli', { userId: k.id, ogrenciId: e.id, yakinlik: e.yakinlik }]);
+  for (const oid of taslak.veliCikar) ekle('Bir öğrencinin veli bağlantısı kaldırılacak', '/api/yonetim/kullanici-veli', { userId: k.id, ogrenciId: oid, ver: false });
+  for (const e of taslak.veliEkle) ekle(`Veli bağlantısı eklenecek: ${e.metin || 'öğrenci'}`, '/api/yonetim/kullanici-veli', { userId: k.id, ogrenciId: e.id, yakinlik: e.yakinlik });
 
   if (!islemler.length) { gorevDuzen = false; taslak = null; mesaj(''); return ciz(); }
-  if (taslak.veliCikar.size) onay += `${taslak.veliCikar.size} öğrencinin veli bağlantısı kaldırılacak. `;
-  if (onay && !confirm(onay + 'Devam edilsin mi?')) return;
+  if (!confirm(`${k.ad} için şu değişiklikler yapılacak:\n\n• ${ozet.join('\n• ')}${onay ? '\n\n' + onay : ''}\n\nDoğru mu? Yanlış çıkarsa Geçmiş bölümünden geri alabilirsiniz.`)) return;
   dugme.disabled = true;
   for (const [yol, govde] of islemler) {
     const r = await api(yol, govde);
@@ -509,6 +533,117 @@ function dersBolumu() {
   return b;
 }
 
+// ---- Okullar: okulunu değiştir, tek okuldan ayrıl, yanlış kaydı sil ----
+function okulGruplari() {
+  const g = new Map();
+  for (const m of k.uyelikler) {
+    if (!m.subeId || m.gorev === 'kurum') continue;
+    if (!g.has(m.subeId)) g.set(m.subeId, { subeId: m.subeId, sube: m.sube, uyeler: [] });
+    g.get(m.subeId).uyeler.push(m);
+  }
+  return [...g.values()];
+}
+
+function okulBolumu() {
+  const gruplar = okulGruplari();
+  if (!gruplar.length) return null;
+  const b = bolum('Okullar');
+  b.append(el('p', 'Yanlış okula yazıldıysa "Okulunu değiştir" ile doğru okula taşıyın; geçmiş kayıtlar korunur. Taşıma geri alınabilir (Geçmiş bölümü).', 'alt'));
+  const aktifOkulSayisi = gruplar.filter(g => g.uyeler.some(m => m.durum === 'aktif')).length;
+  for (const g of gruplar) {
+    const aktif = g.uyeler.some(m => m.durum === 'aktif');
+    const satir = el('div', undefined, 'kz-gorev-satir');
+    satir.append(el('b', g.sube + (aktif ? '' : ' (pasif)'), 'kz-okul'));
+    const cipler = el('div', undefined, 'kad-ciplar');
+    for (const m of g.uyeler) cipler.append(sabitCip((m.rol === 'yonetim' ? 'Yönetim' : 'Öğretmen') + (m.durum === 'aktif' ? '' : ' · pasif')));
+    const mudur = k.okulGorevleri.find(x => x.okulId === g.subeId);
+    if (mudur) cipler.append(sabitCip(secenek.gorevler[mudur.gorev]));
+    satir.append(cipler);
+    if (!k.kendisi) {
+      const alt = el('div', undefined, 'kad-alt-dugmeler');
+      const panel = el('div', undefined, 'kz-alt gizli');
+      if (aktif) {
+        alt.append(kadLink('Okulunu değiştir', () => panel.classList.toggle('gizli')));
+        const hedef = document.createElement('select');
+        hedef.append(new Option('Yeni okulu seçin', ''));
+        for (const o of secenek.okullar.filter(o => o.id !== g.subeId)) hedef.append(new Option(o.ad, o.id));
+        const tasi = el('button', 'Taşı', 'ekle-ac kad-dolu');
+        tasi.type = 'button';
+        tasi.addEventListener('click', async () => {
+          const hedefId = Number(hedef.value);
+          if (!hedefId) return mesaj('Yeni okulu seçin', 'hata');
+          const hedefAd = hedef.options[hedef.selectedIndex].text;
+          const ogr = g.uyeler.find(m => m.rol === 'ogretmen' && m.durum === 'aktif');
+          const satirlar = [`${k.ad}: ${g.sube} → ${hedefAd} okuluna taşınacak.`, '• Ek görevleri (rol) kişide kalır.'];
+          if (mudur) satirlar.push(`• ${secenek.gorevler[mudur.gorev]} görevi de ${hedefAd} okuluna taşınır.`);
+          if (ogr && (ogr.atama || ogr.sinif)) satirlar.push(`• ${ogr.atama || 0} ders ataması ve ${ogr.sinif || 0} sınıf öğretmenliği boşa alınır; ${g.sube} okulunda yenisini atamanız gerekir.`);
+          if (!confirm(satirlar.join('\n') + '\n\nDevam edilsin mi?')) return;
+          tasi.disabled = true;
+          const r = await api('/api/yonetim/kullanici-okul-tasi', { userId: k.id, kaynakSubeId: g.subeId, hedefSubeId: hedefId });
+          tasi.disabled = false;
+          if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
+          const n = (r.veri.boslananDers || 0) + (r.veri.sinifOgretmenligi || 0);
+          await yukle();
+          mesaj(`Okul değiştirildi: ${hedefAd}.` + (n ? ` ${r.veri.boslananDers} ders ve ${r.veri.sinifOgretmenligi} sınıf öğretmenliği boşta; yenisini atayın.` : ''), 'tamam');
+        });
+        panel.append(girdiAlan('Taşınacağı okul', hedef), tasi);
+        if (aktifOkulSayisi > 1) {
+          alt.append(kadLink('Bu okuldan ayrıldı', async () => {
+            if (!confirm(`${k.ad}, ${g.sube} okulundan ayrıldı olarak işaretlensin mi? Diğer okullardaki görevleri etkilenmez.`)) return;
+            const r = await api('/api/yonetim/kullanici-ayril', { userId: k.id, subeId: g.subeId });
+            if (!r.ok) return mesaj(r.veri.hata || 'Hata', 'hata');
+            await yukle();
+            mesaj(`${g.sube} okulundan ayrıldı olarak işaretlendi.`, 'tamam');
+          }, 'tehlike'));
+        }
+      }
+      alt.append(kadLink('Bu okuldaki kaydı sil', async () => {
+        if (!confirm(`${g.sube} okulundaki kayıt silinsin mi? Yalnızca yanlış girilmiş, hiç işlemi olmayan kayıtlar silinebilir; geçmişi olan kayıt için "Okulunu değiştir" kullanın.`)) return;
+        for (const m of g.uyeler) {
+          const r = await api('/api/yonetim/kullanici-uyelik-sil', { userId: k.id, uyelikId: m.id });
+          if (!r.ok) { await yukle(); return mesaj(r.veri.hata || 'Hata', 'hata'); }
+        }
+        await yukle();
+        mesaj('Kayıt silindi.', 'tamam');
+      }, 'tehlike'));
+      satir.append(alt, panel);
+    }
+    b.append(satir);
+  }
+  return b;
+}
+
+// ---- Geçmiş: kim, ne zaman, ne yaptı; yanlış işlem geri alınır ----
+function gecmisBolumu() {
+  const b = bolum('Geçmiş');
+  const liste = el('div', undefined, 'kz-gecmis');
+  liste.append(el('p', 'Yükleniyor…', 'alt'));
+  b.append(liste);
+  api('/api/yonetim/kullanici-denetim?id=' + id).then(r => {
+    liste.replaceChildren();
+    const g = r.ok ? r.veri.gecmis || [] : [];
+    if (!g.length) return liste.append(el('p', 'Bu kişi için kayıtlı işlem yok.', 'alt'));
+    for (const x of g) {
+      const s = el('div', undefined, 'kz-bilgi');
+      s.append(el('span', new Date(x.zaman).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) + (x.aktor ? ' · ' + x.aktor : '')),
+        el('b', x.ozet + (x.geriAlindi ? ' (geri alındı)' : '')));
+      if (x.geriAlinabilir) {
+        s.append(kadLink('Geri al', async () => {
+          if (!confirm(`Bu işlem geri alınsın mı?\n\n${x.ozet}\n\nKişi bu işlemden önceki durumuna döner. Sonradan başka değişiklik yapıldıysa önce en yeni işlemi geri almanız gerekir.`)) return;
+          const y = await api('/api/yonetim/kullanici-geri-al', { userId: k.id, denetimId: x.id });
+          if (!y.ok) return mesaj(y.veri.hata || 'Hata', 'hata');
+          if (y.veri.silindi) { location.href = '/kisiler'; return; }
+          const n = (y.veri.atlananAtama || 0) + (y.veri.atlananSinif || 0);
+          await yukle();
+          mesaj(n ? `Geri alındı. ${n} ders / sınıf kaydı bu arada başkasına verildiği için eski haline getirilmedi.` : 'İşlem geri alındı.', 'tamam');
+        }, 'tehlike'));
+      }
+      liste.append(s);
+    }
+  });
+  return b;
+}
+
 // ---- Durum ----
 function durumBolumu() {
   const b = bolum('Okulla ilişki');
@@ -546,7 +681,9 @@ function ciz() {
   kok.replaceChildren(baslik(), kimlikBolumu(), gorevBolumu());
   const d = dersBolumu();
   if (d) kok.append(d);
-  kok.append(durumBolumu());
+  const o = okulBolumu();
+  if (o) kok.append(o);
+  kok.append(durumBolumu(), gecmisBolumu());
   document.title = 'neademy - ' + k.ad;
 }
 
@@ -568,6 +705,6 @@ async function yukle() {
   secenek.roller = secenek.roller.filter(r => r.kod !== 'zumre'); // zümre başkanlığı Branş bölümünden verilir
   await yukle();
   const p = new URLSearchParams(location.search);
-  if (p.get('yeni')) mesaj('Kişi eklendi. Giriş telefonu ve kimlik numarasıyla giriş yapabilir.', 'tamam');
+  if (p.get('yeni')) mesaj('Kişi eklendi. Okul ya da görev yanlışsa aşağıdaki "Okullar" bölümünden okulunu değiştirebilir veya "Geçmiş" bölümünden işlemi geri alabilirsiniz.', 'tamam');
   else if (p.get('mevcut')) mesaj('Bu kişinin hesabı zaten vardı; yeni görev mevcut hesaba eklendi.', 'tamam');
 })();

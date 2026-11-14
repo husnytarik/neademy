@@ -1,6 +1,7 @@
 import { db, tcGecerliMi, FOTO_SQL, SOSYAL_ALANLAR, TANITIM_AZAMI, sosyalDogrula, sosyalOku, webDogrula } from './db.js';
 import { resimTuru, hamGovde } from './foto.js';
 import { ekRolAdlari } from './yetki.js';
+import { anlik, mudurGoreviKaldir, yonetimUyeligiAc } from './uyelik.js';
 
 // Kurum profili (tek kayıt) ve okul yönetimi (müdür, müdür yardımcıları).
 // Giriş yetkisi üyelikten gelir: memberships.gorev = 'kurum' (asıl yönetim) ya da 'okul' (yalnızca okul yönetimi).
@@ -241,32 +242,29 @@ export async function kurumApi({ req, res, url, o, json, govde, denetle }) {
       if (var_) return hata(409, `Okulun müdürü zaten var (${var_.ad}); önce onu kaldırın`);
     }
 
+    const once = anlik(kisi.id);
     db.exec('BEGIN');
     try {
-      // Giriş için yönetim üyeliği: kişide hiç yoksa bu okulda 'okul' kapsamlı bir üyelik açılır
-      const uye = db.prepare("SELECT id, status FROM memberships WHERE user_id = ? AND role = 'yonetim' ORDER BY (status = 'aktif') DESC, id").get(kisi.id);
-      if (!uye) db.prepare("INSERT INTO memberships (user_id, branch_id, role, gorev) VALUES (?,?,'yonetim','okul')").run(kisi.id, okulId);
-      else if (uye.status !== 'aktif') db.prepare("UPDATE memberships SET status = 'aktif' WHERE id = ?").run(uye.id);
+      // Giriş için yönetim üyeliği her zaman bu okulda açılır / etkinleştirilir (kişinin başka okulda üyeliği olsa bile)
+      yonetimUyeligiAc(kisi.id, okulId);
       db.prepare('INSERT INTO okul_yoneticileri (branch_id, user_id, gorev, created_at) VALUES (?,?,?,?)').run(okulId, kisi.id, b.gorev, Date.now());
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
-    denetle(o.user_id, 'okul-yonetici-ekle', { okulId, userId: kisi.id, gorev: b.gorev });
+    denetle(o.user_id, 'okul-yonetici-ekle', { okulId, userId: kisi.id, gorev: b.gorev, once, sonra: anlik(kisi.id) });
     return ok(201);
   }
 
   if (yol === '/api/yonetim/yonetici-kaldir') {
     const y = db.prepare('SELECT * FROM okul_yoneticileri WHERE id = ?').get(tamSayi(b.id, 1, 1e9));
     if (!y) return hata(404, 'Kayıt bulunamadı');
+    const once = anlik(y.user_id);
     db.exec('BEGIN');
     try {
-      db.prepare('DELETE FROM okul_yoneticileri WHERE id = ?').run(y.id);
-      // Yalnızca okul yönetimi olarak giriş yapan ve başka görevi kalmayan kişinin yönetim erişimi kapanır
-      if (!db.prepare('SELECT 1 FROM okul_yoneticileri WHERE user_id = ?').get(y.user_id)) {
-        db.prepare("UPDATE memberships SET status = 'pasif' WHERE user_id = ? AND role = 'yonetim' AND gorev = 'okul'").run(y.user_id);
-      }
+      // Görev kaldırılır; o okuldaki yönetim girişi yalnızca başka görevi ve rolü kalmadıysa kapanır (başka okullara dokunulmaz)
+      mudurGoreviKaldir(y.user_id, y.branch_id);
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
-    denetle(o.user_id, 'okul-yonetici-kaldir', { okulId: y.branch_id, userId: y.user_id, gorev: y.gorev });
+    denetle(o.user_id, 'okul-yonetici-kaldir', { okulId: y.branch_id, userId: y.user_id, gorev: y.gorev, once, sonra: anlik(y.user_id) });
     return ok();
   }
   return false;
