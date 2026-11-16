@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { okulKapsami } from './kapsam.js';
 import { DERS_ZAMANLARI, GUN_ADLARI, gunAcik } from './okul-ayar.js';
 
 // Öğretmenin çalışma saatleri (müsait olmadığı saatler, haftalık ders yükü) ve nöbet / görevlendirmeler.
@@ -78,11 +79,15 @@ const gorevSatiri = g => ({
 export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
   const yol = url.pathname;
   const hata = (kod, mesaj) => { json(res, kod, { hata: mesaj }); return true; };
-  const ogretmenMi = id => !!id && !!db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND role = 'ogretmen' AND status = 'aktif'").get(id);
+  // Okul yönetimi yalnızca kendi okullarındaki öğretmenlerin müsaitlik ve görevlerine erişir
+  const kapsam = okulKapsami(o);
+  const okulSql = kapsam ? ' AND branch_id IN (' + (kapsam.map(Number).join(',') || '0') + ')' : '';
+  const ogretmenMi = id => !!id && !!db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND role = 'ogretmen' AND status = 'aktif'" + okulSql).get(id);
 
   if (req.method === 'GET' && yol === '/api/yonetim/ogretmen-durum') {
     const userId = tamSayi(url.searchParams.get('userId'), 1, 1e9);
     if (!userId) return hata(400, 'Öğretmen seçiniz');
+    if (kapsam && !ogretmenMi(userId)) return hata(404, 'Öğretmen bulunamadı');
     json(res, 200, {
       kapali: db.prepare('SELECT day AS gun, period AS saat FROM ogretmen_kapali WHERE user_id = ?').all(userId),
       azami: db.prepare('SELECT haftalik_azami AS azami FROM ogretmen_ayar WHERE user_id = ?').get(userId)?.azami ?? null,
@@ -95,6 +100,7 @@ export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
     json(res, 200, {
       gorevler: db.prepare(`SELECT g.*, u.full_name AS ogretmen FROM gorevler g JOIN users u ON u.id = g.user_id
                             ORDER BY g.tur, g.tekrar, g.day, g.tarih, u.full_name`).all()
+        .filter(g => !kapsam || ogretmenMi(g.user_id))
         .map(g => ({ ...gorevSatiri(g), ogretmen: g.ogretmen })),
     });
     return true;
@@ -133,7 +139,8 @@ export async function gorevApi({ req, res, url, o, json, govde, denetle }) {
 
   if (yol === '/api/yonetim/gorev-sil') {
     const id = tamSayi(b.id, 1, 1e9);
-    if (!id || !db.prepare('SELECT 1 FROM gorevler WHERE id = ?').get(id)) return hata(404, 'Görev bulunamadı');
+    const gorev = id && db.prepare('SELECT user_id FROM gorevler WHERE id = ?').get(id);
+    if (!gorev || (kapsam && !ogretmenMi(gorev.user_id))) return hata(404, 'Görev bulunamadı');
     db.prepare('DELETE FROM gorevler WHERE id = ?').run(id);
     denetle(o.user_id, 'gorev-sil', { id });
     json(res, 200, { tamam: true });

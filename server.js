@@ -393,12 +393,14 @@ async function api(req, res, url) {
     });
   }
 
-  // Kapasite/deneme amaçlı tek tıkla giriş: yalnızca HIZLI_GIRIS_ANAHTAR ortam değişkeni tanımlıysa ve
-  // istekte aynı anahtar varsa çalışır. Anahtar kaldırılıp sunucu yeniden başlatılınca uçlar kapanır.
+  // Deneme (demo) hesapları için tek tıkla giriş. İki kip: HIZLI_GIRIS_ACIK=1 → anahtarsız, adrese girip listeden
+  // seçilir; HIZLI_GIRIS_ANAHTAR tanımlıysa → anahtar şart. İkisi de yoksa uçlar kapalıdır. Yalnızca hizli-giris.json'daki
+  // demo kişiler girilebilir. Kapatmak için değişkenleri kaldırıp sunucuyu yeniden başlat.
   if (url.pathname === '/api/hizli/liste' || url.pathname === '/api/hizli/giris') {
     const anahtar = process.env.HIZLI_GIRIS_ANAHTAR || '';
-    const anahtarDogru = k => anahtar.length >= 16 && typeof k === 'string' && crypto.timingSafeEqual(Buffer.from(sha(k)), Buffer.from(sha(anahtar)));
-    if (!anahtar) return json(res, 404, { hata: 'Bulunamadı' });
+    const anahtarsiz = !anahtar && process.env.HIZLI_GIRIS_ACIK === '1';
+    const anahtarDogru = k => anahtarsiz || (anahtar.length >= 16 && typeof k === 'string' && crypto.timingSafeEqual(Buffer.from(sha(k)), Buffer.from(sha(anahtar))));
+    if (!anahtar && !anahtarsiz) return json(res, 404, { hata: 'Bulunamadı' });
     let liste;
     try { liste = JSON.parse(fs.readFileSync(path.join(ortam.veriKlasoru, 'hizli-giris.json'), 'utf8')); } catch { return json(res, 404, { hata: 'Bulunamadı' }); }
     if (req.method === 'GET' && url.pathname === '/api/hizli/liste') {
@@ -682,7 +684,8 @@ async function yonetimApi(req, res, url) {
   const yol = url.pathname;
 
   // Hesap, üyelik ve kampüs/okul tanımı yalnızca kurum yönetimine açıktır; okul yönetimi kendi okulunun işlerini yürütür
-  if (o.gorev !== 'kurum' && req.method === 'POST' && yol.startsWith('/api/yonetim/') && /^(kullanici-|uyelik-|rol-|kampus-|okul-kaydet|okul-sil)/.test(yol.slice(13))) {
+  // Kişi bilgileri, roller ve hesaplar okuma dâhil kurum yönetimine özeldir: tüm okulların kişisel verisini içerir
+  if (o.gorev !== 'kurum' && yol.startsWith('/api/yonetim/') && ((req.method === 'POST' && /^(kullanici-|uyelik-|rol-|kampus-|okul-kaydet|okul-sil)/.test(yol.slice(13))) || /^(kullanici|roller|rol-)/.test(yol.slice(13)))) {
     return json(res, 403, { hata: 'Bu işlem yalnızca kurum yönetimine açıktır' });
   }
 

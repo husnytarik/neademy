@@ -1,5 +1,6 @@
 import { db, sonrakiOkulNo, tcGecerliMi, FOTO_SQL, sosyalDogrula, webDogrula, TANITIM_AZAMI } from './db.js';
 import { resimTuru, hamGovde } from './foto.js';
+import { okulKapsami, kapsamdaMi, kapsamSuz } from './kapsam.js';
 import { KADEMELER, dersListesi, sinifOgretmeniAdi, SINIF_OGRETMENI_KADEMELERI, sinifOgretmenligiId } from './kademe.js';
 
 const tamSayi = (v, min, max) => {
@@ -55,50 +56,55 @@ export function kisiKaydet(b, rol, aktorId, denetle) {
 export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   const yol = url.pathname;
   const hata = (kod, mesaj) => { json(res, kod, { hata: mesaj }); return true; };
+  const kapsam = okulKapsami(o);
+  const okulYok = 'Bu okul için yetkiniz yok';
 
   if (req.method === 'GET' && yol === '/api/yonetim/kurulum') {
     const dersIdleri = db.prepare('SELECT teacher_membership_id AS u, course_id AS d FROM teacher_courses').all();
-    const ogretmenler = db.prepare(`
+    const ogretmenler = kapsamSuz(kapsam, db.prepare(`
       SELECT m.id AS uyelikId, m.brans_id AS bransId, u.id AS userId, u.full_name AS ad, ${FOTO_SQL} AS foto, m.branch_id AS subeId, b.name AS sube, m.status AS durum
       FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN branches b ON b.id = m.branch_id
-      WHERE m.role = 'ogretmen' ORDER BY u.full_name`).all()
+      WHERE m.role = 'ogretmen' ORDER BY u.full_name`).all())
       .map(t => ({ ...t, dersIds: dersIdleri.filter(x => x.u === t.uyelikId).map(x => x.d) }));
-    const ogrenciler = db.prepare(`
+    const ogrenciler = kapsamSuz(kapsam, db.prepare(`
       SELECT m.id AS uyelikId, u.full_name AS ad, ${FOTO_SQL} AS foto, m.okul_no AS okulNo, m.branch_id AS subeId, b.name AS sube, m.status AS durum,
              cs.class_id AS sinifId
       FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN branches b ON b.id = m.branch_id
       LEFT JOIN class_students cs ON cs.student_membership_id = m.id
-      WHERE m.role = 'ogrenci' ORDER BY u.full_name`).all();
+      WHERE m.role = 'ogrenci' ORDER BY u.full_name`).all());
+    const gorunenOgr = new Set(ogrenciler.map(x => x.uyelikId));
     const veliler = db.prepare(`
       SELECT g.student_membership_id AS ogrenciId, u.full_name AS ad, u.phone AS telefon
       FROM guardians g JOIN memberships m ON m.id = g.parent_membership_id JOIN users u ON u.id = m.user_id
-      ORDER BY u.full_name`).all();
+      ORDER BY u.full_name`).all().filter(v => gorunenOgr.has(v.ogrenciId));
+    const siniflarKapsamda = new Set(kapsamSuz(kapsam, db.prepare('SELECT id, branch_id AS subeId FROM classes').all()).map(c => c.id));
     json(res, 200, {
       kampusler: db.prepare(`SELECT k.id, k.name AS ad, k.adres, k.telefon,
           (SELECT COUNT(*) FROM branches b WHERE b.campus_id = k.id) AS okulSayisi FROM kampusler k ORDER BY k.id`).all(),
-      subeler: db.prepare(`
+      subeler: kapsamSuz(kapsam, db.prepare(`
         SELECT b.id, b.name AS ad, b.campus_id AS kampusId, b.tur, b.kurum_kodu AS kurumKodu, b.telefon, b.eposta, b.adres,
                (SELECT 'v' || l.guncelleme FROM okul_logo l WHERE l.branch_id = b.id) AS logo,
                (SELECT COUNT(*) FROM classes c WHERE c.branch_id = b.id) AS sinifSayisi,
                (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif') AS ogrenciSayisi,
                (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogretmen' AND m.status = 'aktif') AS ogretmenSayisi
-        FROM branches b ORDER BY b.id`).all(),
+        FROM branches b ORDER BY b.id`).all(), 'id'),
       kademeler: KADEMELER,
       dersler: dersListesi(),
       sinifOgretmenligiId: sinifOgretmenligiId(),
       sinifOgretmeniKademeleri: SINIF_OGRETMENI_KADEMELERI,
       ogretmenler,
       ogrenciler: ogrenciler.map(x => ({ ...x, veliler: veliler.filter(v => v.ogrenciId === x.uyelikId).map(({ ad, telefon }) => ({ ad, telefon })) })),
-      siniflar: db.prepare(`
+      siniflar: kapsamSuz(kapsam, db.prepare(`
         SELECT c.id, c.branch_id AS subeId, b.name AS sube, c.level AS kademe, c.name AS ad,
                c.homeroom_membership_id AS sinifOgretmenUyelikId,
                (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS ogrenciSayisi
-        FROM classes c JOIN branches b ON b.id = c.branch_id ORDER BY b.id, c.level, c.name`).all().map(s => ({ ...s, sinifOgretmeniAdi: sinifOgretmeniAdi(s.kademe) })),
+        FROM classes c JOIN branches b ON b.id = c.branch_id ORDER BY b.id, c.level, c.name`).all()).map(s => ({ ...s, sinifOgretmeniAdi: sinifOgretmeniAdi(s.kademe) })),
       atamalar: db.prepare(`
         SELECT a.id, a.class_id AS sinifId, a.course_id AS dersId, co.name AS ders,
                a.teacher_membership_id AS ogretmenUyelikId, a.weekly_hours AS haftalikSaat,
                (SELECT COUNT(*) FROM schedule s WHERE s.assignment_id = a.id) AS kullanilan
-        FROM assignments a JOIN courses co ON co.id = a.course_id ORDER BY co.name`).all(),
+        FROM assignments a JOIN courses co ON co.id = a.course_id ORDER BY co.name`).all()
+        .filter(a => !kapsam || siniflarKapsamda.has(a.sinifId)),
     });
     return true;
   }
@@ -118,7 +124,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
     const veli = veliId && db.prepare("SELECT * FROM memberships WHERE id = ? AND role = 'veli' AND status = 'aktif'").get(veliId);
     const ogr = ogrId && db.prepare("SELECT * FROM memberships WHERE id = ? AND role = 'ogrenci'").get(ogrId);
     if (!veli) return hata(404, 'Aktif veli bulunamadı');
-    if (!ogr) return hata(404, 'Öğrenci bulunamadı');
+    if (!ogr || !kapsamdaMi(kapsam, ogr.branch_id)) return hata(404, 'Öğrenci bulunamadı');
     if (yol === '/api/yonetim/veli-coz') {
       db.prepare('DELETE FROM guardians WHERE parent_membership_id = ? AND student_membership_id = ?').run(veliId, ogrId);
       denetle(o.user_id, 'veli-coz', { veliId, ogrId });
@@ -196,7 +202,9 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   }
 
   // Ders adı değiştirme / silme (Kulüp dersi sistem tarafından kullanılır, dokunulmaz)
+  // Ders listesi tüm okullarda ortak olduğundan yalnızca kurum yönetimi değiştirebilir
   if (yol === '/api/yonetim/ders-duzenle' || yol === '/api/yonetim/ders-sil') {
+    if (kapsam) return hata(403, 'Ders listesi tüm okullarda ortaktır; yalnızca kurum yönetimi değiştirebilir');
     const id = tamSayi(b.id, 1, 1e9);
     const ders = id && db.prepare('SELECT * FROM courses WHERE id = ?').get(id);
     if (!ders) return hata(404, 'Ders bulunamadı');
@@ -220,6 +228,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   }
 
   if (yol === '/api/yonetim/ogretmen-kayit') {
+    if (!kapsamdaMi(kapsam, tamSayi(b.subeId, 1, 1e9))) return hata(403, okulYok);
     const dersIds = Array.isArray(b.dersIds) ? [...new Set(b.dersIds.map(Number))] : [];
     if (dersIds.some(d => !Number.isInteger(d) || !db.prepare('SELECT 1 FROM courses WHERE id = ?').get(d))) {
       return hata(400, 'Geçersiz ders seçimi');
@@ -236,6 +245,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   }
 
   if (yol === '/api/yonetim/ogrenci-kayit') {
+    if (!kapsamdaMi(kapsam, tamSayi(b.subeId, 1, 1e9))) return hata(403, okulYok);
     const sinifId = bos(b.sinifId) ? null : tamSayi(b.sinifId, 1, 1e9);
     if (!bos(b.sinifId) && !sinifId) return hata(400, 'Geçersiz sınıf');
     const sinif = sinifId ? db.prepare('SELECT * FROM classes WHERE id = ?').get(sinifId) : null;
@@ -254,7 +264,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   if (yol === '/api/yonetim/ogretmen-dersleri') {
     const uyelikId = tamSayi(b.uyelikId, 1, 1e9);
     const m = uyelikId && db.prepare("SELECT * FROM memberships WHERE id = ? AND role = 'ogretmen'").get(uyelikId);
-    if (!m) return hata(404, 'Öğretmen bulunamadı');
+    if (!m || !kapsamdaMi(kapsam, m.branch_id)) return hata(404, 'Öğretmen bulunamadı');
     const dersIds = Array.isArray(b.dersIds) ? [...new Set(b.dersIds.map(Number))] : null;
     if (!dersIds || dersIds.some(d => !Number.isInteger(d) || !db.prepare('SELECT 1 FROM courses WHERE id = ?').get(d))) {
       return hata(400, 'Geçersiz ders seçimi');
@@ -281,7 +291,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   if (yol === '/api/yonetim/ogrenci-sinif') {
     const uyelikId = tamSayi(b.ogrenciUyelikId, 1, 1e9);
     const ogr = uyelikId && db.prepare("SELECT * FROM memberships WHERE id = ? AND role = 'ogrenci' AND status = 'aktif'").get(uyelikId);
-    if (!ogr) return hata(404, 'Aktif öğrenci bulunamadı');
+    if (!ogr || !kapsamdaMi(kapsam, ogr.branch_id)) return hata(404, 'Aktif öğrenci bulunamadı');
     if (bos(b.sinifId)) {
       db.prepare('DELETE FROM class_students WHERE student_membership_id = ?').run(uyelikId);
       denetle(o.user_id, 'ogrenci-sinif-kaldir', { uyelikId });
@@ -302,7 +312,7 @@ export async function kurulumApi({ req, res, url, o, json, govde, denetle }) {
   // /api/yonetim/sinif-ogretmeni
   const sinifId = tamSayi(b.sinifId, 1, 1e9);
   const sinif = sinifId && db.prepare('SELECT * FROM classes WHERE id = ?').get(sinifId);
-  if (!sinif) return hata(404, 'Sınıf bulunamadı');
+  if (!sinif || !kapsamdaMi(kapsam, sinif.branch_id)) return hata(404, 'Sınıf bulunamadı');
   if (bos(b.uyelikId)) {
     db.prepare('UPDATE classes SET homeroom_membership_id = NULL WHERE id = ?').run(sinifId);
   } else {

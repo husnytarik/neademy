@@ -1,4 +1,4 @@
-// Kapasite denemesi için tek tıkla giriş. Anahtar adres çubuğundaki #k=... kısmından okunur (sunucuya günlük olarak düşmez).
+// Demo hesaplarla tek tıkla giriş. Sunucu anahtarsız kipteyse doğrudan listelenir; anahtar kipinde #k=... bağlantısı kullanılır.
 (() => {
   const mesaj = document.getElementById('mesaj');
   const kap = document.getElementById('gruplar');
@@ -7,13 +7,7 @@
   try { if (anahtar) localStorage.setItem('hizliAnahtar', anahtar); else anahtar = localStorage.getItem('hizliAnahtar') || ''; } catch {}
   const yaz = m => { mesaj.textContent = m || ''; };
   const form = document.getElementById('anahtar-form');
-  if (!anahtar) {
-    form.classList.remove('gizli');
-    form.addEventListener('submit', e => { e.preventDefault(); const v = document.getElementById('anahtar-giris').value.trim(); if (v) { try { localStorage.setItem('hizliAnahtar', v); } catch {} location.hash = 'k=' + encodeURIComponent(v); location.reload(); } });
-    return;
-  }
-
-  fetch('/api/hizli/liste?k=' + encodeURIComponent(anahtar), { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject()).then(v => {
+  fetch('/api/hizli/liste' + (anahtar ? '?k=' + encodeURIComponent(anahtar) : ''), { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject()).then(v => {
     for (const g of v.gruplar) {
       if (!g.kisiler.length) continue;
       const bolum = document.createElement('section');
@@ -28,7 +22,7 @@
         b.addEventListener('click', async () => {
           yaz('Giriş yapılıyor…');
           try {
-            const r = await fetch('/api/hizli/giris', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: anahtar, id: k.id }) });
+            const r = await fetch('/api/hizli/giris', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: anahtar || undefined, id: k.id }) });
             if (!r.ok) throw new Error();
             location.href = '/panel';
           } catch { yaz('Giriş yapılamadı.'); }
@@ -37,5 +31,5 @@
       }
       bolum.appendChild(liste); kap.appendChild(bolum);
     }
-  }).catch(() => { yaz('Liste alınamadı: anahtar yanlış ya da özellik kapalı.'); try { localStorage.removeItem('hizliAnahtar'); } catch {} form.classList.remove('gizli'); });
+  }).catch(() => { yaz('Liste alınamadı: hızlı giriş kapalı ya da anahtar gerekiyor.'); try { localStorage.removeItem('hizliAnahtar'); } catch {} form.classList.remove('gizli'); });
 })();

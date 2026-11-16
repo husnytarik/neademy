@@ -95,11 +95,11 @@ const PROGRAM = {
 
 const KAMPUSLER = [
   { ad: 'Meltem Kampüsü', adres: 'Meltem Mah. Akdeniz Bul. No: 12, Antalya', telefon: '0242 000 00 10', okullar: [
-    { ad: 'Meltem İlkokulu', tur: 'İlkokul', kod: '70010001', tel: '0242 000 00 11', eposta: 'meltem.ilkokul@akant.example' },
-    { ad: 'Meltem Ortaokulu', tur: 'Ortaokul', kod: '70010002', tel: '0242 000 00 12', eposta: 'meltem.ortaokul@akant.example' }] },
+    { ad: 'Meltem İlkokulu', tur: 'İlkokul', kod: '70010001', tel: '0242 000 00 11', eposta: 'meltem.ilkokul@aydin.example' },
+    { ad: 'Meltem Ortaokulu', tur: 'Ortaokul', kod: '70010002', tel: '0242 000 00 12', eposta: 'meltem.ortaokul@aydin.example' }] },
   { ad: 'Meydan Kampüsü', adres: 'Meydan Mah. Cumhuriyet Cad. No: 48, Antalya', telefon: '0242 000 00 20', okullar: [
-    { ad: 'Meydan İlkokulu', tur: 'İlkokul', kod: '70020001', tel: '0242 000 00 21', eposta: 'meydan.ilkokul@akant.example' },
-    { ad: 'Meydan Ortaokulu', tur: 'Ortaokul', kod: '70020002', tel: '0242 000 00 22', eposta: 'meydan.ortaokul@akant.example' }] },
+    { ad: 'Meydan İlkokulu', tur: 'İlkokul', kod: '70020001', tel: '0242 000 00 21', eposta: 'meydan.ilkokul@aydin.example' },
+    { ad: 'Meydan Ortaokulu', tur: 'Ortaokul', kod: '70020002', tel: '0242 000 00 22', eposta: 'meydan.ortaokul@aydin.example' }] },
 ];
 
 // Demo giriş hesapları (DEMO-HESAPLAR.txt ile aynı kimlik ve telefonlar)
@@ -150,16 +150,16 @@ const profil = (uid, ek) => calis(`INSERT OR REPLACE INTO profil_bilgi (user_id,
 db.exec('BEGIN');
 try {
   dersId(KULUP_DERSI);
-  calis("INSERT OR REPLACE INTO kurum (id, ad, kisa_ad, telefon, eposta, web, adres, aciklama, sosyal, guncelleme) VALUES (1,'Akant Koleji','Akant','0242 000 00 00','bilgi@akant.example','www.akant.example','Meltem Mah. Akdeniz Bul. No: 12, Antalya',?,?,?)",
-    'Akant Koleji, Antalya\'da ilkokul ve ortaokul düzeyinde eğitim veren iki kampüslü bir kurumdur. Her çocuğun merakını koruyan, okumayı ve üretmeyi sevdiren, küçük sınıflarda birebir ilgiyle çalışan bir okul olmayı amaçlıyoruz.',
-    JSON.stringify({ instagram: 'https://www.instagram.com/akantkoleji', facebook: 'https://www.facebook.com/akantkoleji', x: 'https://x.com/akantkoleji', youtube: 'https://www.youtube.com/@akantkoleji', linkedin: 'https://www.linkedin.com/company/akantkoleji' }), simdi);
-  calis('INSERT OR REPLACE INTO kurum_logo (id, mime, veri, guncelleme) VALUES (1, ?, ?, ?)', 'image/jpeg', readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'foto', 'akant-logo.jpg')), simdi);
+  calis("INSERT OR REPLACE INTO kurum (id, ad, kisa_ad, telefon, eposta, web, adres, aciklama, sosyal, guncelleme) VALUES (1,'Aydın Koleji','Aydın','0242 000 00 00','bilgi@aydin.example','www.aydin.example','Meltem Mah. Akdeniz Bul. No: 12, Antalya',?,?,?)",
+    'Aydın Koleji, Antalya\'da ilkokul ve ortaokul düzeyinde eğitim veren iki kampüslü bir kurumdur. Her çocuğun merakını koruyan, okumayı ve üretmeyi sevdiren, küçük sınıflarda birebir ilgiyle çalışan bir okul olmayı amaçlıyoruz.',
+    JSON.stringify({ instagram: 'https://www.instagram.com/aydinkoleji', facebook: 'https://www.facebook.com/aydinkoleji', x: 'https://x.com/aydinkoleji', youtube: 'https://www.youtube.com/@aydinkoleji', linkedin: 'https://www.linkedin.com/company/aydinkoleji' }), simdi);
+  calis('INSERT OR REPLACE INTO kurum_logo (id, mime, veri, guncelleme) VALUES (1, ?, ?, ?)', 'image/jpeg', readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'foto', 'kurum-logo.jpg')), simdi);
   for (const k of KAMPUSLER) {
     const kampusId = ins('INSERT INTO kampusler (name, adres, telefon) VALUES (?,?,?)', k.ad, k.adres, k.telefon);
     for (const s of k.okullar) {
       const id = ins('INSERT INTO branches (name, campus_id, tur, kurum_kodu, telefon, eposta, adres) VALUES (?,?,?,?,?,?,?)', s.ad, kampusId, s.tur, s.kod, s.tel, s.eposta, k.adres);
       const slug = s.eposta.split('@')[0].replace('.', '');
-      calis('UPDATE branches SET web = ?, aciklama = ?, sosyal = ? WHERE id = ?', `${slug}.akant.example`,
+      calis('UPDATE branches SET web = ?, aciklama = ?, sosyal = ? WHERE id = ?', `${slug}.aydin.example`,
         s.tur === 'İlkokul' ? `${s.ad}, 1-4. sınıflarda okuma yazma, sayı duygusu ve merak üzerine kurulu bir eğitim sunar. Sınıf öğretmenimiz öğrencilerimizi tüm gün tanır ve her çocuğun gelişimini veliyle birlikte izler.`
           : `${s.ad}, 5-8. sınıflarda alan öğretmenleriyle çalışır; LGS hazırlığını yıl boyunca yayılan düzenli sınavlar, etütler ve kulüp saatleriyle dengeler.`,
         JSON.stringify({ instagram: `https://www.instagram.com/${slug}`, youtube: `https://www.youtube.com/@${slug}` }), id);
@@ -196,7 +196,7 @@ try {
 
   // Yönetim rolleri: rehber öğretmen ve teknik ekip yeni kişilerdir; zümre başkanları ayrı profil değil, öğretmen profiline eklenen roldür
   sistemRolleriKur();
-  for (const ad of ['Nihat Akant', 'Sevgi Akant']) {
+  for (const ad of ['Nihat Aydın', 'Sevgi Aydın']) {
     const k = kullaniciEkle('6', '557', ad);
     calis('INSERT INTO kullanici_roller (user_id, rol_id) VALUES (?,?)', k.uid, db.prepare("SELECT id FROM roller WHERE kod = 'kurucu'").get().id);
   }

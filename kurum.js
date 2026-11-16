@@ -2,6 +2,7 @@ import { db, tcGecerliMi, FOTO_SQL, SOSYAL_ALANLAR, TANITIM_AZAMI, sosyalDogrula
 import { resimTuru, hamGovde } from './foto.js';
 import { ekRolAdlari } from './yetki.js';
 import { anlik, mudurGoreviKaldir, yonetimUyeligiAc } from './uyelik.js';
+import { okulKapsami } from './kapsam.js';
 
 // Kurum profili (tek kayıt) ve okul yönetimi (müdür, müdür yardımcıları).
 // Giriş yetkisi üyelikten gelir: memberships.gorev = 'kurum' (asıl yönetim) ya da 'okul' (yalnızca okul yönetimi).
@@ -82,6 +83,7 @@ export function yonetimUnvani(uyelikId) {
 }
 
 function kurumVerisi(o) {
+  const kapsam = okulKapsami(o); // okul yönetimi yalnızca kendi okullarını görür
   const kurum = db.prepare('SELECT ad, kisa_ad AS kisaAd, telefon, eposta, web, adres, aciklama, sosyal FROM kurum WHERE id = 1').get();
   kurum.sosyal = sosyalOku(kurum.sosyal);
   const kurucular = db.prepare(`
@@ -125,13 +127,13 @@ function kurumVerisi(o) {
            (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'gelmedi') AS gelmedi,
            (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'gec') AS gec,
            (SELECT COUNT(*) FROM yoklama_kayit k JOIN yoklama y ON y.id = k.yoklama_id JOIN classes c ON c.id = y.class_id WHERE c.branch_id = b.id AND k.status = 'izinli') AS izinli
-    FROM branches b ORDER BY b.id`).all().map(x => ({ ...x, sosyal: sosyalOku(x.sosyal), yoneticiler: yoneticiler.filter(y => y.okulId === x.id), zumreler: zumreler.filter(z => z.okulId === x.id), gorevliler: gorevliler.filter(g => g.okulId === x.id) }));
+    FROM branches b ORDER BY b.id`).all().filter(x => !kapsam || kapsam.includes(x.id)).map(x => ({ ...x, sosyal: sosyalOku(x.sosyal), yoneticiler: yoneticiler.filter(y => y.okulId === x.id), zumreler: zumreler.filter(z => z.okulId === x.id), gorevliler: gorevliler.filter(g => g.okulId === x.id) }));
   const kampusler = db.prepare('SELECT id, name AS ad, adres, telefon FROM kampusler ORDER BY id').all()
-    .map(k => ({ ...k, okullar: okullar.filter(x => x.kampusId === k.id) }));
+    .map(k => ({ ...k, okullar: okullar.filter(x => x.kampusId === k.id) })).filter(k => !kapsam || k.okullar.length);
   const adaylar = db.prepare(`
     SELECT u.id AS userId, u.full_name AS ad, GROUP_CONCAT(DISTINCT CASE m.role WHEN 'yonetim' THEN 'Yönetim' ELSE 'Öğretmen' END) AS rol, MIN(b.name) AS okul
     FROM users u JOIN memberships m ON m.user_id = u.id AND m.status = 'aktif' AND m.role IN ('yonetim','ogretmen')
-    LEFT JOIN branches b ON b.id = m.branch_id GROUP BY u.id ORDER BY u.full_name`).all();
+    LEFT JOIN branches b ON b.id = m.branch_id GROUP BY u.id ORDER BY u.full_name`).all().filter(() => !kapsam); // tüm okulların personel listesi yalnızca kurum yönetimine
   return { kurum, logo, kurucular, kampusler, adaylar, turler: OKUL_TURLERI, gorevler: GOREVLER, sosyalAlanlar: SOSYAL_ALANLAR.map(({ kod, ad }) => ({ kod, ad })), tanitimAzami: TANITIM_AZAMI, kurumYonetimi: o.gorev === 'kurum' };
 }
 

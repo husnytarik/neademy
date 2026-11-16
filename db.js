@@ -6,7 +6,12 @@ import { sifrele, satirCoz } from './gizli.js';
 
 fs.mkdirSync(ortam.veriKlasoru, { recursive: true });
 
-export const DB_YOLU = path.join(ortam.veriKlasoru, 'akant.db');
+export const DB_YOLU = path.join(ortam.veriKlasoru, 'neademy.db');
+// Eski adlı veritabanı (akant.db) ilk açılışta yeni adına taşınır; wal/shm dosyaları birlikte gider
+const ESKI_YOL = path.join(ortam.veriKlasoru, 'akant.db');
+if (!fs.existsSync(DB_YOLU) && fs.existsSync(ESKI_YOL)) {
+  for (const ek of ['', '-wal', '-shm']) if (fs.existsSync(ESKI_YOL + ek)) fs.renameSync(ESKI_YOL + ek, DB_YOLU + ek);
+}
 const ham = new DatabaseSync(DB_YOLU);
 // Kişisel alanlar (gizli.js) sorgu sonuçlarında otomatik çözülür; kalan her şey doğrudan veritabanına gider
 const sarmala = st => ({

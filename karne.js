@@ -2,6 +2,7 @@ import { db, FOTO_SQL } from './db.js';
 import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { sinavHesap } from './sinav.js';
 import { ogrenciErisimi } from './ogrenci.js';
+import { okulKapsami, kapsamdaMi } from './kapsam.js';
 
 // Dönem karnesi: bir öğrencinin (ya da bir sınıfın tüm öğrencilerinin) seçilen gelişim dönemi boyunca dersleri, sınavları,
 // ödevleri, etütleri ve öğretmen gözlemleri. Yalnız okuma; sınavlar yönetimin yayınladığı kadarıyla görünür.
@@ -165,7 +166,7 @@ export async function karneApi({ req, res, url, o, json }) {
   let ogrenciler, sinif = null;
   if (sinifId) {
     sinif = db.prepare('SELECT id, name AS ad, branch_id AS subeId, homeroom_membership_id AS mentorId FROM classes WHERE id = ?').get(sinifId);
-    if (!sinif) return hata(404, 'Sınıf bulunamadı');
+    if (!sinif || !kapsamdaMi(okulKapsami(o), sinif.subeId)) return hata(404, 'Sınıf bulunamadı');
     if (o.role === 'ogretmen' ? sinif.mentorId !== o.membership_id : o.role !== 'yonetim') return hata(403, 'Bu işlem için yetkiniz yok');
     ogrenciler = db.prepare(`${OGRENCI_SQL} WHERE cs.class_id = ? AND m.role = 'ogrenci' AND m.status = 'aktif'`).all(sinifId);
     ogrenciler.sort((a, b) => (Number(a.okulNo) || 1e9) - (Number(b.okulNo) || 1e9) || a.ad.localeCompare(b.ad, 'tr'));

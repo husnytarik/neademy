@@ -1,5 +1,6 @@
 import { db } from './db.js';
 import { tarihAcik } from './tatil.js';
+import { okulKapsami } from './kapsam.js';
 
 // Raporlar (yönetim): okul ya da tüm kurum için devam, eksik ders, ödev ve kulüp özetleri
 const bugun = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
@@ -15,9 +16,12 @@ export async function raporApi({ req, res, url, o, json }) {
   if (url.pathname !== '/api/rapor/ozet' || req.method !== 'GET') return false;
   if (o.role !== 'yonetim') return json(res, 403, { hata: 'Bu işlem için yetkiniz yok' }), true;
 
-  const okullar = db.prepare('SELECT id, name AS ad FROM branches ORDER BY name').all();
+  // Okul yönetimi yalnızca kendi okullarının raporunu görür; okul seçilmezse hepsinin toplamı
+  const kapsam = okulKapsami(o);
+  const okullar = db.prepare('SELECT id, name AS ad FROM branches ORDER BY name').all().filter(x => !kapsam || kapsam.includes(x.id));
   const okul = okullar.find(x => x.id === Number(url.searchParams.get('okul')))?.id ?? null;
-  const f = (kolon) => okul ? ` AND ${kolon} = ${okul}` : '';
+  const idler = okul ? [okul] : kapsam ? (kapsam.length ? kapsam : [0]) : null;
+  const f = (kolon) => idler ? ` AND ${kolon} IN (${idler.map(Number).join(',')})` : '';
 
   const ozet = sayi(db.prepare(`SELECT
     (SELECT COUNT(*) FROM memberships m WHERE m.role = 'ogrenci' AND m.status = 'aktif'${f('m.branch_id')}) AS ogrenci,

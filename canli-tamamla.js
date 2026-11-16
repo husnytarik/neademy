@@ -74,7 +74,7 @@ const ascii = s => s.toLocaleLowerCase('tr').replace(/ç/g, 'c').replace(/ğ/g, 
 // Şifreli sütunlar: ham değerleri oku (eski düz değerler çözmede hata verir). Çakışma kontrolü için "v1:" değerlerini de olduğu gibi tutuyoruz;
 // yeni değerler deterministik şifrelendiğinden, düz metin üzerinden kontrol etmek için çözülebilenleri de ekliyoruz.
 import { DatabaseSync } from 'node:sqlite';
-const ham = new DatabaseSync(path.join(ortam.veriKlasoru, 'akant.db'), { readOnly: true });
+const ham = new DatabaseSync(path.join(ortam.veriKlasoru, 'neademy.db'), { readOnly: true });
 const tcler = new Set(), teller = new Set();
 for (const r of ham.prepare('SELECT tc_no, phone FROM users').all()) {
   if (r.tc_no && !String(r.tc_no).startsWith('v1:')) tcler.add(r.tc_no);
@@ -1082,9 +1082,9 @@ try {
     const ogretmenKisi = (o, t, rol) => kisi(`${t.ad}`, `${rol} · ${o.ad}`, t.uid, t.mid);
     // Yönetim
     const kurum = (() => {
-      const k = kullaniciEkle('Nazlı Akant');
+      const k = kullaniciEkle('Nazlı Aydın');
       const m = uyeEkle(k, 1, 'yonetim', null, 'kurum');
-      const kc = kullaniciEkle('Kemal Akant'); const m2 = uyeEkle(kc, 1, 'yonetim', null, 'kurum'); rolVer(kc.uid, 'kurucu');
+      const kc = kullaniciEkle('Kemal Aydın'); const m2 = uyeEkle(kc, 1, 'yonetim', null, 'kurum'); rolVer(kc.uid, 'kurucu');
       const tk = kullaniciEkle('Serkan Teknik'); const m3 = uyeEkle(tk, 1, 'yonetim', null, 'okul'); rolVer(tk.uid, 'teknik');
       for (const x of [k, kc, tk]) profil(x.uid, { email: epostaUret(x.ad), telefon2: telRast(), adres: 'Muratpaşa, Antalya' });
       return [kisi(k.ad, 'Kurum yöneticisi · tüm okullar', k.uid, m.mid), kisi(kc.ad, 'Kurucu · tüm okullar', kc.uid, m2.mid), kisi(tk.ad, 'Teknik ekip', tk.uid, m3.mid)];

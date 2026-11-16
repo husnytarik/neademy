@@ -206,6 +206,7 @@ const ROL_ADI = { yonetim: 'Yönetim', ogretmen: 'Öğretmen', ogrenci: 'Öğren
     im.src = k.foto; im.alt = ''; im.className = 'avatar-foto';
     document.getElementById('avatar').replaceChildren(im);
   }
+  if (k.kurum?.logo) { const lg = document.getElementById('bant-logo'); lg.src = '/api/kurum-logo'; lg.alt = k.kurum.ad || ''; lg.classList.remove('gizli'); }
   const bh = document.getElementById('bas-harf');
   if (bh) bh.textContent = k.ad.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('tr-TR');
   if (k.renk) document.documentElement.style.setProperty('--bant', k.renk);

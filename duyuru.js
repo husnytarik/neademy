@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { okulKapsami, kapsamdaMi } from './kapsam.js';
 
 // Duyurular (yönetim → okul / rol) ve veli mesajları (öğretmen → sınıfın ya da bir öğrencinin velileri)
 db.exec(`
@@ -35,7 +36,8 @@ export async function duyuruApi({ req, res, url, o, json, govde, denetle }) {
   // ---- Seçenekler ----
   if (req.method === 'GET' && yol === '/api/duyuru/secenek') {
     if (o.role === 'yonetim') {
-      return json(res, 200, { okullar: db.prepare('SELECT id, name AS ad FROM branches ORDER BY name').all(), roller: ROLLER }), true;
+      const kapsam = okulKapsami(o);
+      return json(res, 200, { okullar: db.prepare('SELECT id, name AS ad FROM branches ORDER BY name').all().filter(x => kapsamdaMi(kapsam, x.id)), roller: ROLLER, tumOkullar: !kapsam }), true;
     }
     if (o.role === 'ogretmen') {
       // Dersine girdiği ya da sınıf öğretmeni olduğu sınıflar
@@ -57,7 +59,8 @@ export async function duyuruApi({ req, res, url, o, json, govde, denetle }) {
       const satirlar = db.prepare(`SELECT i.*, u.full_name AS yazan, b.name AS okul,
           (SELECT COUNT(*) FROM ileti_okundu k WHERE k.ileti_id = i.id) AS okunan
         FROM iletiler i JOIN memberships m ON m.id = i.gonderen_membership_id JOIN users u ON u.id = m.user_id
-        LEFT JOIN branches b ON b.id = i.branch_id WHERE i.tur = 'duyuru' ORDER BY i.created_at DESC, i.id DESC`).all();
+        LEFT JOIN branches b ON b.id = i.branch_id WHERE i.tur = 'duyuru' ORDER BY i.created_at DESC, i.id DESC`).all()
+        .filter(r => { const k = okulKapsami(o); return !k || r.branch_id === null || k.includes(r.branch_id); });
       const alici = (rol, sube) => db.prepare(`SELECT COUNT(DISTINCT user_id) AS n FROM memberships
         WHERE status = 'aktif' AND role IN (${rol === 'hepsi' ? "'ogretmen','ogrenci','veli'" : rol === 'zumre' ? "'ogretmen'" : '?'}) AND (? IS NULL OR branch_id = ?)
         ${rol === 'zumre' ? `AND EXISTS (${ZUMRE_SORGU} = memberships.user_id)` : ''}`)
@@ -106,6 +109,8 @@ export async function duyuruApi({ req, res, url, o, json, govde, denetle }) {
     const rol = b.rol in ROLLER ? b.rol : 'hepsi';
     const sube = b.sube ? Number(b.sube) : null;
     if (sube && !db.prepare('SELECT 1 FROM branches WHERE id = ?').get(sube)) return hata(400, 'Okul bulunamadı');
+    // Okul yönetimi yalnızca kendi okuluna duyuru yayınlar; "tüm okullar" kurum yönetimine özeldir
+    if (!kapsamdaMi(okulKapsami(o), sube) || (!sube && okulKapsami(o))) return hata(403, 'Bu okula duyuru yayınlama yetkiniz yok');
     const r = db.prepare('INSERT INTO iletiler (tur, baslik, metin, gonderen_membership_id, branch_id, rol, created_at) VALUES (?,?,?,?,?,?,?)')
       .run('duyuru', baslik, metin, o.membership_id, sube, rol, Date.now());
     denetle(o.user_id, 'duyuru-ekle', { id: Number(r.lastInsertRowid), baslik, rol, sube });
@@ -142,7 +147,7 @@ export async function duyuruApi({ req, res, url, o, json, govde, denetle }) {
     const b = await govde(req);
     const i = db.prepare('SELECT * FROM iletiler WHERE id = ?').get(Number(b.id));
     if (!i) return hata(404, 'Kayıt bulunamadı');
-    const izin = (o.role === 'yonetim' && i.tur === 'duyuru') || (o.role === 'ogretmen' && i.tur === 'mesaj' && i.gonderen_membership_id === o.membership_id);
+    const izin = (o.role === 'yonetim' && i.tur === 'duyuru' && (!okulKapsami(o) || (i.branch_id !== null && okulKapsami(o).includes(i.branch_id)))) || (o.role === 'ogretmen' && i.tur === 'mesaj' && i.gonderen_membership_id === o.membership_id);
     if (!izin) return hata(403, 'Bu işlem için yetkiniz yok');
     db.prepare('DELETE FROM ileti_okundu WHERE ileti_id = ?').run(i.id);
     db.prepare('DELETE FROM iletiler WHERE id = ?').run(i.id);

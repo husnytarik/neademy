@@ -2,6 +2,7 @@ import { db, FOTO_SQL, tcGecerliMi, sonrakiOkulNo } from './db.js';
 import { sinifOgretmeniAdiSinif } from './kademe.js';
 import { islem, kisiKaydet } from './kurulum.js';
 import { yetkiVar } from './yetki.js';
+import { okulKapsami, kapsamdaMi } from './kapsam.js';
 import { teslimGecmisi } from './teslim.js';
 import { devamOzeti, ogrenciDosyasi } from './ogrencilerim.js';
 
@@ -77,13 +78,17 @@ function profilYaz(userId, ek) {
     .run(userId, a.email, a.telefon2, a.il, a.ilce, a.adres, a.yakin_ad, a.yakin_yakinlik, a.yakin_telefon, Date.now());
 }
 
+
 // Yönetimin görebildiği öğrenci ya da öğretmenin ders verdiği / mentoru olduğu sınıftaki öğrenci
 export function ogrenciErisimi(o, id) {
   if (!tamSayi(id)) return null;
   const temel = `SELECT m.id, m.user_id AS userId, m.branch_id AS subeId, cs.class_id AS sinifId, c.name AS sinif
     FROM memberships m LEFT JOIN class_students cs ON cs.student_membership_id = m.id LEFT JOIN classes c ON c.id = cs.class_id
     WHERE m.id = ? AND m.role = 'ogrenci'`;
-  if (o.role === 'yonetim') return db.prepare(temel).get(id) || null;
+  if (o.role === 'yonetim') {
+    const e = db.prepare(temel).get(id);
+    return e && kapsamdaMi(okulKapsami(o), e.subeId) ? e : null;
+  }
   if (o.role !== 'ogretmen') return null;
   return db.prepare(temel + ` AND (c.homeroom_membership_id = ? OR EXISTS (SELECT 1 FROM assignments a WHERE a.class_id = c.id AND a.teacher_membership_id = ?))`)
     .get(id, o.membership_id, o.membership_id) || null;
@@ -184,6 +189,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
   const hata = (kod, m) => (json(res, kod, { hata: m }), true);
   const yon = o.role === 'yonetim';
   if (!yon && o.role !== 'ogretmen') return hata(403, 'Bu işlem için yetkiniz yok');
+  const kapsam = okulKapsami(o);
 
   // ---- Okuma ----
   if (req.method === 'GET' && yol === '/api/ogrenci/liste') {
@@ -195,12 +201,8 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN branches b ON b.id = m.branch_id
       LEFT JOIN class_students cs ON cs.student_membership_id = m.id LEFT JOIN classes c ON c.id = cs.class_id
       LEFT JOIN ogrenci_kayit k ON k.student_membership_id = m.id
-      WHERE m.role = 'ogrenci' ORDER BY u.full_name`).all();
-    return json(res, 200, {
-      ogrenciler,
-      subeler: db.prepare('SELECT id, name AS ad FROM branches ORDER BY id').all(),
-      siniflar: db.prepare('SELECT id, branch_id AS subeId, name AS ad, level AS kademe FROM classes ORDER BY branch_id, level, name').all(),
-    }), true;
+      WHERE m.role = 'ogrenci' ORDER BY u.full_name`).all().filter(r => kapsamdaMi(kapsam, r.subeId));
+    return json(res, 200, { ogrenciler, ...seceneklerVer(kapsam) }), true;
   }
 
   if (req.method === 'GET' && yol === '/api/ogrenci/kayit') {
@@ -208,7 +210,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
     // Boş id: yeni kayıt formu için seçenekler
     if (!kayitId) {
       if (!yon) return hata(403, 'Bu işlem için yetkiniz yok');
-      return json(res, 200, seceneklerVer()), true;
+      return json(res, 200, seceneklerVer(kapsam)), true;
     }
     const e = ogrenciErisimi(o, kayitId);
     if (!e) return hata(404, 'Öğrenci bulunamadı');
@@ -229,7 +231,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       kayit: { dogumTarihi: k.dogum_tarihi || '', dogumYeri: k.dogum_yeri || '', cinsiyet: k.cinsiyet || '', kanGrubu: k.kan_grubu || '', oncekiOkul: k.onceki_okul || '',
         kayitTarihi: k.kayit_tarihi || '', kayitTuru: k.kayit_turu || 'yeni', yemek: k.yemek || '' },
       iletisim: { email: p.email || '', il: p.il || '', ilce: p.ilce || '', adres: p.adres || '', yakinAd: p.yakin_ad || '', yakinYakinlik: p.yakin_yakinlik || '', yakinTelefon: p.yakin_telefon || '' },
-      aile, ozelDurumlar: ozel, duzenleyebilir: yon && yetkiVar(o, 'ogrenci-kayit'), ...seceneklerVer(),
+      aile, ozelDurumlar: ozel, duzenleyebilir: yon && yetkiVar(o, 'ogrenci-kayit'), ...seceneklerVer(kapsam),
     }), true;
   }
 
@@ -334,6 +336,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       const ozel = (Array.isArray(b.ozelDurumlar) ? b.ozelDurumlar : []).filter(d => d && (String(d.baslik ?? '').trim() || String(d.aciklama ?? '').trim())).map(ozelDurumAl);
       if (ozel.length > 10) return hata(400, 'En çok 10 özel durum eklenebilir');
       if (sinif && sinif.branch_id !== tamSayi(b.subeId)) return hata(400, 'Sınıf seçilen okula ait değil');
+      if (!kapsamdaMi(kapsam, tamSayi(b.subeId))) return hata(403, 'Bu okula kayıt yapma yetkiniz yok');
       const sonuc = islem(() => {
         const k = kisiKaydet(b, 'ogrenci', o.user_id, denetle);
         if (k.kod !== 201) throw new Hata(k.kod, k.hata);
@@ -376,6 +379,7 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
       const hedef = tamSayi(b.hedefSubeId);
       if (!hedef || !db.prepare('SELECT 1 FROM branches WHERE id = ?').get(hedef)) return hata(400, 'Okul seçin');
       if (hedef === e.subeId) return hata(400, 'Yeni okul, mevcut okulla aynı olamaz');
+      if (!kapsamdaMi(kapsam, hedef)) return hata(403, 'Öğrenciyi yalnızca yönettiğiniz okullar arasında taşıyabilirsiniz');
       const kaynak = db.prepare('SELECT status, okul_no AS okulNo FROM memberships WHERE id = ?').get(e.id);
       if (kaynak.status !== 'aktif') return hata(409, 'Öğrenci okuldan ayrılmış; önce geri alın');
       const sinifId = b.sinifId ? tamSayi(b.sinifId) : null;
@@ -470,10 +474,10 @@ export async function ogrenciApi({ req, res, url, o, json, govde, denetle }) {
   return false;
 }
 
-function seceneklerVer() {
+function seceneklerVer(kapsam) {
   return {
     secenekler: { yakinlik: YAKINLIK, kanGrubu: KAN, ozelTur: OZEL_TUR, kayitTuru: KAYIT_TURU },
-    subeler: db.prepare('SELECT id, name AS ad FROM branches ORDER BY id').all(),
-    siniflar: db.prepare('SELECT id, branch_id AS subeId, name AS ad, level AS kademe FROM classes ORDER BY branch_id, level, name').all(),
+    subeler: db.prepare('SELECT id, name AS ad FROM branches ORDER BY id').all().filter(r => kapsamdaMi(kapsam, r.id)),
+    siniflar: db.prepare('SELECT id, branch_id AS subeId, name AS ad, level AS kademe FROM classes ORDER BY branch_id, level, name').all().filter(r => kapsamdaMi(kapsam, r.subeId)),
   };
 }

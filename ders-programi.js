@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { okulKapsami, kapsamdaMi, kapsamSuz } from './kapsam.js';
 import { dersStilleri, stilEkle } from './stil.js';
 import { ogretmenMesgulNedeni } from './gorev.js';
 import { KADEMELER, dersListesi, dersKademedeMi, dersKademeleriYaz, sinifOgretmenligiId } from './kademe.js';
@@ -97,21 +98,25 @@ export function otomatikYerlestir(sinifId, bastan) {
 export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }) {
   const yol = url.pathname;
   const hata = (kod, mesaj) => { json(res, kod, { hata: mesaj }); return true; };
+  // Okul yönetimi yalnızca kendi okullarının sınıf ve programına erişir
+  const kapsam = okulKapsami(o);
+  const okulYok = 'Bu okul için yetkiniz yok';
+  const sinifVar = id => { const s = id && db.prepare('SELECT branch_id FROM classes WHERE id = ?').get(id); return !!s && kapsamdaMi(kapsam, s.branch_id); };
 
   if (req.method === 'GET' && yol === '/api/yonetim/sinif-yapisi') {
     json(res, 200, {
       okul: ayarlar(),
       kademeler: KADEMELER,
-      siniflar: db.prepare(`SELECT c.id, c.branch_id AS subeId, b.name AS sube, c.level AS kademe, c.name AS ad
+      siniflar: kapsamSuz(kapsam, db.prepare(`SELECT c.id, c.branch_id AS subeId, b.name AS sube, c.level AS kademe, c.name AS ad
                             FROM classes c JOIN branches b ON b.id = c.branch_id
-                            ORDER BY b.id, c.level, c.name`).all(),
+                            ORDER BY b.id, c.level, c.name`).all()),
       dersler: dersListesi(),
-      ogretmenler: db.prepare(`SELECT m.id AS uyelikId, u.id AS userId, u.full_name AS ad,
+      ogretmenler: kapsamSuz(kapsam, db.prepare(`SELECT m.id AS uyelikId, u.id AS userId, u.full_name AS ad,
                                       m.branch_id AS subeId, b.name AS sube
                                FROM memberships m JOIN users u ON u.id = m.user_id
                                LEFT JOIN branches b ON b.id = m.branch_id
                                WHERE m.role = 'ogretmen' AND m.status = 'aktif'
-                               ORDER BY u.full_name`).all(),
+                               ORDER BY u.full_name`).all()),
     });
     return true;
   }
@@ -119,6 +124,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   if (req.method === 'GET' && yol === '/api/yonetim/atamalar') {
     const sinifId = tamSayi(url.searchParams.get('sinifId'), 1, 1e9);
     if (!sinifId) return hata(400, 'Sınıf seçiniz');
+    if (!sinifVar(sinifId)) return hata(404, 'Sınıf bulunamadı');
     const st = dersStilleri();
     json(res, 200, {
       atamalar: db.prepare(`
@@ -137,6 +143,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   if (req.method === 'GET' && yol === '/api/yonetim/program') {
     const sinifId = tamSayi(url.searchParams.get('sinifId'), 1, 1e9);
     if (!sinifId) return hata(400, 'Sınıf seçiniz');
+    if (!sinifVar(sinifId)) return hata(404, 'Sınıf bulunamadı');
     const st = dersStilleri();
     json(res, 200, {
       hucreler: db.prepare(`
@@ -157,13 +164,13 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
     const st = dersStilleri();
     json(res, 200, {
       hucreler: db.prepare(`
-        SELECT s.day AS gun, s.period AS saat, c.name AS sinif, co.name AS ders
+        SELECT s.day AS gun, s.period AS saat, c.name AS sinif, co.name AS ders, c.branch_id AS subeId
         FROM schedule s
         JOIN assignments a ON a.id = s.assignment_id
         JOIN memberships m ON m.id = a.teacher_membership_id
         JOIN classes c ON c.id = s.class_id
         JOIN courses co ON co.id = a.course_id
-        WHERE m.user_id = ?`).all(userId).map(h => stilEkle(h, st)),
+        WHERE m.user_id = ?`).all(userId).filter(h => kapsamdaMi(kapsam, h.subeId)).map(h => stilEkle(h, st)),
     });
     return true;
   }
@@ -179,6 +186,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
     const subeId = tamSayi(b.subeId, 1, 1e9);
     const ad = String(b.ad || '').trim();
     if (!subeId || !db.prepare('SELECT 1 FROM branches WHERE id = ?').get(subeId)) return hata(400, 'Geçersiz şube');
+    if (!kapsamdaMi(kapsam, subeId)) return hata(403, okulYok);
     if (!KADEMELER.includes(b.kademe)) return hata(400, 'Geçersiz kademe');
     if (ad.length < 1 || ad.length > 20) return hata(400, 'Sınıf adı 1-20 karakter olmalı');
     if (db.prepare('SELECT 1 FROM classes WHERE branch_id = ? AND name = ?').get(subeId, ad)) {
@@ -194,7 +202,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   if (yol === '/api/yonetim/sinif-sil') {
     const sinifId = tamSayi(b.sinifId, 1, 1e9);
     const sinif = sinifId && db.prepare('SELECT * FROM classes WHERE id = ?').get(sinifId);
-    if (!sinif) return hata(404, 'Sınıf bulunamadı');
+    if (!sinif || !kapsamdaMi(kapsam, sinif.branch_id)) return hata(404, 'Sınıf bulunamadı');
     const ogr = db.prepare('SELECT COUNT(*) AS n FROM class_students WHERE class_id = ?').get(sinifId).n;
     if (ogr) return hata(409, `Sınıfta ${ogr} öğrenci var; önce öğrencileri başka sınıfa taşıyın`);
     const kayit = db.prepare(`SELECT (SELECT COUNT(*) FROM yoklama WHERE class_id = ?) AS y,
@@ -214,6 +222,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   }
 
   if (yol === '/api/yonetim/okul-ayar') {
+    if (kapsam) return hata(403, 'Ders saatleri ve çalışma günleri tüm okullarda ortaktır; yalnızca kurum yönetimi değiştirebilir');
     const temiz = ayarDogrula(b);
     if (temiz.hata) return hata(400, temiz.hata);
     const s = ayarKaydet(temiz);
@@ -225,7 +234,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
 
   if (yol === '/api/yonetim/program-temizle') {
     const sinifId = tamSayi(b.sinifId, 1, 1e9);
-    if (!sinifId || !db.prepare('SELECT 1 FROM classes WHERE id = ?').get(sinifId)) return hata(404, 'Sınıf bulunamadı');
+    if (!sinifVar(sinifId)) return hata(404, 'Sınıf bulunamadı');
     const n = db.prepare("DELETE FROM schedule WHERE class_id = ? AND assignment_id NOT IN (SELECT a.id FROM assignments a JOIN courses c ON c.id = a.course_id WHERE c.name = 'Kulüp')").run(sinifId).changes;
     denetle(o.user_id, 'program-temizle', { sinifId, n: Number(n) });
     json(res, 200, { tamam: true, silinen: Number(n) });
@@ -235,7 +244,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   // Sınıfın boş hücrelerini, eksik kalan ders saatlerine göre otomatik doldurur (mevcut yerleşimler korunur).
   if (yol === '/api/yonetim/program-otomatik') {
     const sinifId = tamSayi(b.sinifId, 1, 1e9);
-    if (!sinifId || !db.prepare('SELECT 1 FROM classes WHERE id = ?').get(sinifId)) return hata(404, 'Sınıf bulunamadı');
+    if (!sinifVar(sinifId)) return hata(404, 'Sınıf bulunamadı');
     const sonuc = otomatikYerlestir(sinifId, !!b.bastan);
     denetle(o.user_id, 'program-otomatik', { sinifId, yerlesen: sonuc.yerlesen });
     json(res, 200, { tamam: true, ...sonuc });
@@ -243,6 +252,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   }
 
   if (yol === '/api/yonetim/ders-ekle') {
+    if (kapsam) return hata(403, 'Ders listesi tüm okullarda ortaktır; yalnızca kurum yönetimi değiştirebilir');
     const ad = String(b.ad || '').trim();
     if (ad.length < 2 || ad.length > 60) return hata(400, 'Ders adı 2-60 karakter olmalı');
     if (db.prepare('SELECT 1 FROM courses WHERE name = ? COLLATE NOCASE').get(ad)) return hata(409, 'Bu ders zaten var');
@@ -263,7 +273,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
     const saat = tamSayi(b.haftalikSaat, 1, DERS_ZAMANLARI.length * ACIK_GUNLER.length);
     if (!sinifId || !dersId || !saat || (ogretmenGirildi && !uyelikId)) return hata(400, 'Eksik veya geçersiz bilgi');
     const sinif = db.prepare('SELECT * FROM classes WHERE id = ?').get(sinifId);
-    if (!sinif) return hata(404, 'Sınıf bulunamadı');
+    if (!sinif || !kapsamdaMi(kapsam, sinif.branch_id)) return hata(404, 'Sınıf bulunamadı');
     if (!db.prepare('SELECT 1 FROM courses WHERE id = ?').get(dersId)) return hata(404, 'Ders bulunamadı');
     if (!dersKademedeMi(dersId, sinif.level)) return hata(400, `Bu ders ${sinif.level} kademesinde okutulmaz`);
     if (dersId === sinifOgretmenligiId()) return hata(400, 'Sınıf Öğretmenliği bir ders değil, branştır');
@@ -285,7 +295,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   if (yol === '/api/yonetim/atama-ogretmen') {
     const atamaId = tamSayi(b.atamaId, 1, 1e9);
     const atama = atamaId && db.prepare('SELECT * FROM assignments WHERE id = ?').get(atamaId);
-    if (!atama) return hata(404, 'Ders kaydı bulunamadı');
+    if (!atama || !sinifVar(atama.class_id)) return hata(404, 'Ders kaydı bulunamadı');
     const ogretmenGirildi = b.ogretmenUyelikId !== null && b.ogretmenUyelikId !== undefined && b.ogretmenUyelikId !== '';
     if (!ogretmenGirildi) {
       // Öğretmen kaldırılırsa dersin program hücreleri de boşalır.
@@ -319,7 +329,8 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
 
   if (yol === '/api/yonetim/atama-sil') {
     const atamaId = tamSayi(b.atamaId, 1, 1e9);
-    if (!atamaId || !db.prepare('SELECT 1 FROM assignments WHERE id = ?').get(atamaId)) return hata(404, 'Atama bulunamadı');
+    const silinecek = atamaId && db.prepare('SELECT class_id FROM assignments WHERE id = ?').get(atamaId);
+    if (!silinecek || !sinifVar(silinecek.class_id)) return hata(404, 'Atama bulunamadı');
     db.prepare('DELETE FROM schedule WHERE assignment_id = ?').run(atamaId);
     db.prepare('DELETE FROM assignments WHERE id = ?').run(atamaId);
     denetle(o.user_id, 'atama-sil', { atamaId });
@@ -332,7 +343,7 @@ export async function dersProgramiApi({ req, res, url, o, json, govde, denetle }
   const gun = b.gun !== null && b.gun !== '' && Number.isInteger(Number(b.gun)) && gunAcik(Number(b.gun)) ? Number(b.gun) : null;
   const saat = tamSayi(b.saat, 1, DERS_ZAMANLARI.length);
   if (!sinifId || gun === null || !saat) return hata(400, 'Geçersiz gün veya ders saati');
-  if (!db.prepare('SELECT 1 FROM classes WHERE id = ?').get(sinifId)) return hata(404, 'Sınıf bulunamadı');
+  if (!sinifVar(sinifId)) return hata(404, 'Sınıf bulunamadı');
 
   if (b.atamaId === null || b.atamaId === '' || b.atamaId === undefined) {
     db.prepare('DELETE FROM schedule WHERE class_id = ? AND day = ? AND period = ?').run(sinifId, gun, saat);
