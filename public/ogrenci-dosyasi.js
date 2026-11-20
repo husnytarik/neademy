@@ -175,7 +175,48 @@ function sekmeAc(ad) {
     odev: () => OgrOrtak.odev(k, rapor),
     teslim: () => teslimGecmisiCiz(k, teslimler),
     kayit: () => kayitCiz(k),
+    hizmet: () => hizmetCiz(k),
   })[ad]();
+}
+
+// Sağlık, rehberlik ve servis: yetkisi olmayan bölüm hiç gösterilmez (sunucu 403 verir)
+async function hizmetCiz(k) {
+  k.append(el('p', 'Yükleniyor...', 'alt'));
+  const [sg, rh, sv] = await Promise.all(['/api/saglik/ogrenci?id=', '/api/rehberlik/ogrenci?id=', '/api/servis/ogrenci?id='].map(u => api(u + id)));
+  k.replaceChildren();
+  const kutu = (baslik, link, ad) => {
+    const b = el('div', undefined, 'bolum-kutu');
+    const ust = el('div', undefined, 'kutu-ust');
+    ust.append(el('h3', baslik, 'baslik2'));
+    if (link) { const a = el('a', ad, 'ikincil kucuk'); a.href = link; ust.append(a); }
+    b.append(ust); k.append(b); return b;
+  };
+  const satir = (b, a, v) => { if (v) { const p = el('p'); p.append(el('strong', a + ': '), v); b.append(p); } };
+  if (sg.ok) {
+    const b = kutu('Sağlık kartı', '/saglik-karti?ogrenci=' + id, 'Kartı aç');
+    const kart = sg.veri.kart;
+    const uyari = [['alerji', 'Alerji'], ['kronik', 'Kronik hastalık'], ['ilac', 'İlaç'], ['ozelGereksinim', 'Özel gereksinim'], ['diyet', 'Özel beslenme']].filter(([a]) => kart[a]);
+    satir(b, 'Kan grubu', kart.kanGrubu);
+    for (const [a, ad] of uyari) satir(b, ad, kart[a]);
+    if (!sg.veri.kartVar) b.append(el('p', 'Sağlık kartı henüz doldurulmamış.', 'alt'));
+    else if (!uyari.length) b.append(el('p', 'Bildirilmiş bir sağlık uyarısı yok.', 'alt'));
+  }
+  if (rh.ok) {
+    const b = kutu('Rehberlik', '/rehberlik?ogrenci=' + id, 'Öğrenci rehberlik dosyası');
+    b.append(el('p', rh.veri.gorusmeler.length + ' görüşme kaydı, ' + rh.veri.sonuclar.length + ' test/anket sonucu', 'alt'));
+  }
+  if (sv.ok) {
+    const b = kutu('Servis', '/servis', 'Servisler');
+    const x = sv.veri.servis;
+    if (!x) b.append(el('p', 'Servis kullanmıyor.', 'alt'));
+    else {
+      satir(b, 'Servis', x.servis + (x.plaka ? ' (' + x.plaka + ')' : ''));
+      satir(b, 'Şoför', [x.soforAd, x.soforTel].filter(Boolean).join(' · '));
+      satir(b, 'Durak', x.durak ? x.durak.ad + ' · sabah ' + (x.durak.sabahSaat || '-') + ' · akşam ' + (x.durak.aksamSaat || '-') : '');
+      satir(b, 'Kullanım', x.yonAd);
+    }
+  }
+  if (!k.children.length) k.append(el('p', 'Bu bilgilere erişim yetkiniz yok.', 'alt'));
 }
 
 // Yazdırma: tüm sekmeler tek raporda, sırayla

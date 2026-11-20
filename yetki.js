@@ -40,6 +40,11 @@ export const KATALOG = [
     { kod: 'rapor', ad: 'Raporlar', aciklama: 'Kurum ve okul özetleri' },
     { kod: 'teslim-kapi', ad: 'Öğrenci teslim kapısı', aciklama: 'Velinin QR kodunu okutup öğrenciyi teslim etme (kampüs kapısı)' },
   ] },
+  { grup: 'Rehberlik, sağlık ve servis', yetkiler: [
+    { kod: 'rehberlik', ad: 'Rehberlik', aciklama: 'Görüşme kayıtları, testler ve anketler' },
+    { kod: 'saglik', ad: 'Sağlık kartı ve revir', aciklama: 'Öğrencilerin sağlık bilgileri, revir kayıtları ve boy-kilo ölçümleri' },
+    { kod: 'servis', ad: 'Servis yönetimi', aciklama: 'Servis araçları, güzergâh ve öğrencilerin servise bağlanması' },
+  ] },
   { grup: 'Kurum', yetkiler: [
     { kod: 'kurum', ad: 'Okul kurulumu', aciklama: 'Kurum, kampüs, okul, müdür ve yardımcıları (yalnızca kurum yönetimi)', kurum: true },
     { kod: 'kullanici-rol', ad: 'Kullanıcı ve rol yönetimi', aciklama: 'Hesaplar, üyelikler, roller ve yetkiler (yalnızca kurum yönetimi)', kurum: true },
@@ -55,7 +60,9 @@ const SISTEM_ROLLERI = [
   { kod: 'kurum-yonetimi', ad: 'Kurum yönetimi', aciklama: 'Her şeyi yapabilir; değiştirilemez', yetkiler: YETKI_KODLARI },
   { kod: 'mudur', ad: 'Müdür', aciklama: 'Okul kurulumunda atanır; okulun tüm işlerini yürütür', yetkiler: OKUL_YETKILERI },
   { kod: 'mudur_yrd', ad: 'Müdür yardımcısı', aciklama: 'Okul kurulumunda atanır; okulun tüm işlerini yürütür', yetkiler: OKUL_YETKILERI },
-  { kod: 'rehber', ad: 'Rehber öğretmen', aciklama: 'Öğrenci dosyaları, gelişim ve sınav sonuçları', yetkiler: ['ogrenci-gor', 'gelisim', 'sinav-sonuc', 'rapor'] },
+  { kod: 'rehber', ad: 'Rehber öğretmen', aciklama: 'Öğrenci dosyaları, gelişim ve sınav sonuçları', yetkiler: ['ogrenci-gor', 'gelisim', 'sinav-sonuc', 'rapor', 'rehberlik', 'saglik'] },
+  { kod: 'saglik', ad: 'Sağlık görevlisi', aciklama: 'Revir; öğrencilerin sağlık kartı ve revir kayıtları', yetkiler: ['saglik', 'ogrenci-gor'] },
+  { kod: 'servis', ad: 'Servis sorumlusu', aciklama: 'Servis araçları ve öğrencilerin servise bağlanması', yetkiler: ['servis', 'ogrenci-gor'] },
   { kod: 'zumre', ad: 'Zümre başkanı', aciklama: 'Branşının sınavlarını hazırlar, sonuçları ve programı izler', yetkiler: ['sinav-yonet', 'sinav-sonuc', 'ogrenci-gor', 'rapor'] },
   { kod: 'teknik', ad: 'Teknik ekip', aciklama: 'Optik cevap girişi ve veri düzenlemeleri', yetkiler: ['sinav-optik', 'sinav-sonuc', 'ogrenci-gor', 'ogrenci-kayit', 'kadro'] },
   { kod: 'kurucu', ad: 'Kurucu', aciklama: 'Okulun kurucusu; yalnızca kayıt ve tanıtım içindir, hiçbir yetki vermez', yetkiler: [] },
@@ -67,6 +74,21 @@ export function sistemRolleriKur() {
   for (const r of SISTEM_ROLLERI) ekle.run(r.kod, r.ad, r.aciklama, JSON.stringify(r.yetkiler));
 }
 sistemRolleriKur();
+
+// Sonradan eklenen yetkileri mevcut sistem rollerine bir kez ekler (kurum sonra kaldırırsa geri gelmez)
+db.exec('CREATE TABLE IF NOT EXISTS yetki_gecisleri (ad TEXT PRIMARY KEY)');
+const GECISLER = [
+  { ad: 'rehberlik-saglik-servis', ekle: { 'kurum-yonetimi': ['rehberlik', 'saglik', 'servis'], mudur: ['rehberlik', 'saglik', 'servis'], mudur_yrd: ['rehberlik', 'saglik', 'servis'], rehber: ['rehberlik', 'saglik'] } },
+];
+for (const g of GECISLER) {
+  if (db.prepare('SELECT 1 FROM yetki_gecisleri WHERE ad = ?').get(g.ad)) continue;
+  for (const [kod, yeni] of Object.entries(g.ekle)) {
+    const rol = db.prepare('SELECT id, yetkiler FROM roller WHERE kod = ?').get(kod);
+    if (!rol) continue;
+    db.prepare('UPDATE roller SET yetkiler = ? WHERE id = ?').run(JSON.stringify([...new Set([...JSON.parse(rol.yetkiler), ...yeni])]), rol.id);
+  }
+  db.prepare('INSERT INTO yetki_gecisleri (ad) VALUES (?)').run(g.ad);
+}
 
 const satir = r => ({ id: r.id, kod: r.kod, ad: r.ad, aciklama: r.aciklama, sistem: !!r.sistem, yetkiler: JSON.parse(r.yetkiler) });
 
@@ -111,6 +133,9 @@ const KURALLAR = [
   [/^\/api\/rapor\//, ['rapor']],
   [/^\/api\/teslim\/kapi\//, ['teslim-kapi']],
   [/^\/api\/kulup\//, ['kulup']],
+  [/^\/api\/rehberlik\//, ['rehberlik']],
+  [/^\/api\/saglik\//, ['saglik']],
+  [/^\/api\/servis\//, ['servis']],
   [/^\/api\/gelisim\//, ['gelisim']],
   [/^\/api\/kazanim$/, ['sinav-yonet']],
   [/^\/api\/ogrenci\/(liste|kayit|rapor|teslim)$/, ['ogrenci-gor']],

@@ -3959,3 +3959,27 @@ body:not(.giris-sayfa) .bant.profil .bant-cikis { height: 28px; padding: 0 12px;
   body:not(.giris-sayfa) .bant.profil .bant-aksiyon { justify-content: flex-end; }
   body:not(.giris-sayfa) .bant.profil .bant-aksiyon .bant-cikis { flex: none; height: 28px; padding: 0 12px; }
 }
+
+/* Rehberlik, sağlık ve servis sayfaları */
+.alan-genis { grid-column: 1 / -1; }
+.okul-arac { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin: 0 0 12px; }
+.okul-arac > div { min-width: 140px; }
+.okul-arac .sekmeler { margin: 0; }
+.uyari-rozet { display: inline-block; font-size: .78rem; padding: 1px 8px; margin: 0 4px 4px 0; border: 1px solid #b4540a; color: #8a3f05; background: #fff4e8; border-radius: 10px; }
+.sayi-kutulari { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+.sayi-kutulari > div { border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; min-width: 110px; }
+.sayi-kutulari strong { display: block; font-size: 1.3rem; }
+.kayit-kart { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 0 0 10px; }
+.kayit-kart h3 { margin: 0 0 4px; font-size: 1rem; }
+.kayit-kart p { margin: 4px 0; white-space: pre-wrap; }
+.kayit-kart .kucuk { color: var(--muted); }
+.dugme-sira { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+.tikla { cursor: pointer; }
+.tikla:hover { background: var(--soft); }
+.soru-kutu { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 0 0 10px; }
+.soru-kutu legend { font-weight: 600; padding: 0 4px; }
+.soru-kutu label.secenek { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-weight: normal; }
+.soru-kutu label.secenek input { width: auto; margin: 0; }
+@media print {
+  .okul-arac, .dugme-sira, .sekmeler, .bant, #mesaj { display: none !important; }
+}

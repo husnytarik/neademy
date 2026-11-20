@@ -12,6 +12,9 @@ import { gorevApi } from './gorev.js';
 import { kurulumApi, okulLogoApi } from './kurulum.js';
 import { ayarlar as okulAyarlari } from './okul-ayar.js';
 import { etutApi } from './etut.js';
+import { rehberlikApi } from './rehberlik.js';
+import { saglikApi } from './saglik.js';
+import { servisApi } from './servis.js';
 import { zumremApi, zumreRolunuEsitle } from './zumrem.js';
 import { anlik } from './uyelik.js';
 import { duyuruApi } from './duyuru.js';
@@ -103,10 +106,14 @@ const MODULLER = [
   { id: 'kulup-yonetimi', ad: 'Öğrenci kulüpleri', aciklama: 'Kulüpleri aç, öğretmen ve kontenjan belirle, talepleri yerleştir', roller: ['yonetim'], yetki: ['kulup'], yol: '/kulupler' },
   { id: 'kulup-ogretmen', ad: 'Kulüplerim', aciklama: 'Danışmanı olduğum kulüpler, üyeler ve haftalık çalışmalar', roller: ['ogretmen'], yol: '/kulupler' },
   { id: 'kulup-ogrenci', ad: 'Kulüp', aciklama: 'Kulüp tercihleri ve kulübüm', roller: ['ogrenci', 'veli'], yol: '/kulupler' },
+  { id: 'rehberlik', ad: 'Rehberlik', aciklama: 'Öğrenci görüşme kayıtları, testler ve anketler', roller: ['yonetim'], yetki: ['rehberlik'], yol: '/rehberlik' },
+  { id: 'saglik-yonetim', ad: 'Sağlık kartı ve revir', aciklama: 'Öğrencilerin sağlık bilgileri, uyarı listesi, revir kayıtları ve boy-kilo ölçümleri', roller: ['yonetim'], yetki: ['saglik'], yol: '/saglik-karti' },
+  { id: 'servis-yonetimi', ad: 'Öğrenci servisi', aciklama: 'Servis araçları, güzergâh durakları ve öğrencilerin servise bağlanması', roller: ['yonetim'], yetki: ['servis'], yol: '/servis' },
   { id: 'gelisim-yonetim', ad: 'Gelişim raporu', aciklama: 'Gözlem başlıkları ve dönemleri belirle, öğrenci raporunu yazdır', roller: ['yonetim'], yetki: ['gelisim'], yol: '/gelisim' },
   { id: 'gelisim-ogretmen', ad: 'Gelişim gözlemleri', aciklama: 'Dönem geldiğinde öğrencilerim için gözlem gir, önceki girişleri takip et', roller: ['ogretmen'], yol: '/gelisim' },
   { id: 'etut', ad: 'Etüt', aciklama: 'Etüt aç, veli katılım onayını takip et', roller: ['ogretmen'], yol: '/etut' },
   { id: 'zumrem', ad: 'Zümrem', aciklama: 'Zümre öğretmenleri, rutin toplantılar ve zümre yazışmaları', roller: ['ogretmen'], yol: '/zumrem' },
+  { id: 'saglik-ogretmen', ad: 'Sağlık uyarıları', aciklama: 'Öğrencilerimin alerji, kronik hastalık ve ilaç uyarıları', roller: ['ogretmen'], yol: '/saglik-karti' },
   { id: 'etut-ogrenci', ad: 'Etütlerim', aciklama: 'Davet edildiğim etütler', roller: ['ogrenci'], yol: '/etut' },
   { id: 'etut-veli', ad: 'Etüt onayları', aciklama: 'Çocuğumun etütlerine gelecek / gelmeyecek bildir', roller: ['veli'], yol: '/etut' },
   { id: 'ogrencilerim', ad: 'Öğrencilerim', aciklama: 'Sınıf / mentor öğretmeni olduğum sınıfın öğrencileri ve profilleri', roller: ['ogretmen'], yol: '/ogrencilerim' },
@@ -121,6 +128,10 @@ const MODULLER = [
   { id: 'ders-programi', ad: 'Ders programı', aciklama: 'Haftalık ders çizelgesi, işlenen konular ve ödevler', roller: ['ogrenci', 'veli'], yol: '/program' },
   { id: 'notlarim', ad: 'Sınav sonuçlarım', aciklama: 'Yayınlanan sınav sonuçları', roller: ['ogrenci', 'veli'], yol: '/notlarim' },
   { id: 'duyurular', ad: 'Duyurular', aciklama: 'Okuldan gelen duyurular ve öğretmen mesajları', roller: ['ogrenci', 'veli'], yol: '/duyurular' },
+  { id: 'anket-ogrenci', ad: 'Anket ve testler', aciklama: 'Rehberlik servisinin gönderdiği anket ve testler', roller: ['ogrenci', 'veli'], yol: '/anketler' },
+  { id: 'servis-ogrenci', ad: 'Servis', aciklama: 'Servis aracı, şoför, durak ve saatler', roller: ['ogrenci', 'veli'], yol: '/servisim' },
+  { id: 'saglik-veli', ad: 'Sağlık kartı', aciklama: 'Çocuğumun sağlık bilgilerini gör ve güncelle', roller: ['veli'], yol: '/saglik-karti' },
+  { id: 'saglik-ogrenci', ad: 'Sağlık kartım', aciklama: 'Sağlık bilgilerim ve ölçümlerim', roller: ['ogrenci'], yol: '/saglik-karti' },
   { id: 'ogrencim', ad: 'Öğrencim', aciklama: 'Çocuğumun bilgileri ve durumu', roller: ['veli'], yol: '/ogrencim' },
   { id: 'devamsizlik-veli', ad: 'Devamsızlık', aciklama: 'Çocuğumun ders devamsızlıkları', roller: ['veli'], yol: '/devamsizlik' },
   { id: 'devamsizlik-ogrenci', ad: 'Devamsızlığım', aciklama: 'Ders devam durumum', roller: ['ogrenci'], yol: '/devamsizlik' },
@@ -601,6 +612,24 @@ async function api(req, res, url) {
     if (await zumremApi({ req, res, url, o, json, govde, denetle })) return;
   }
 
+  if (url.pathname.startsWith('/api/rehberlik/')) {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    if (await rehberlikApi({ req, res, url, o, json, govde, denetle })) return;
+  }
+
+  if (url.pathname.startsWith('/api/saglik/')) {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    if (await saglikApi({ req, res, url, o, json, govde, denetle })) return;
+  }
+
+  if (url.pathname.startsWith('/api/servis/')) {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    if (await servisApi({ req, res, url, o, json, govde, denetle })) return;
+  }
+
   if (url.pathname.startsWith('/api/etut/')) {
     const o = oturum(req);
     if (!o) return json(res, 401, { hata: 'Oturum yok' });
@@ -829,6 +858,11 @@ function statik(req, res, url) {
   if (ad === '/kampusler') ad = '/kampusler.html';
   if (ad === '/okul-takvimi') ad = '/okul-takvimi.html';
   if (ad === '/etut') ad = '/etut.html';
+  if (ad === '/rehberlik') ad = '/rehberlik.html';
+  if (ad === '/anketler') ad = '/anketler.html';
+  if (ad === '/saglik-karti') ad = '/saglik.html';
+  if (ad === '/servis') ad = '/servis.html';
+  if (ad === '/servisim') ad = '/servisim.html';
   if (ad === '/zumrem') ad = '/zumrem.html';
   if (ad === '/baskan-toplantilari') ad = '/baskan-toplantilari.html';
   if (ad === '/duyurular') ad = '/duyurular.html';
