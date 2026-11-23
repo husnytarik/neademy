@@ -4,6 +4,7 @@ import '../bilesenler/ikon.dart';
 import '../cekirdek/api.dart';
 import '../cekirdek/oturum.dart';
 import '../cekirdek/tema.dart';
+import 'anketler.dart';
 import 'baskan_toplanti.dart';
 import 'derslerim.dart';
 import 'devamsizlik.dart';
@@ -29,6 +30,10 @@ import 'gelisim_yonetim.dart';
 import 'kulup_yonetim.dart';
 import 'okul_takvimi.dart';
 import 'program.dart';
+import 'rehberlik.dart';
+import 'saglik.dart';
+import 'servis_yonetim.dart';
+import 'servisim.dart';
 import 'rapor.dart';
 import 'sinav.dart';
 import 'takvimim.dart';
@@ -85,6 +90,14 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'teslim': (api) => TeslimYetkileriEkrani(api: api),
   'teslim-kodu': (api) => TeslimKoduEkrani(api: api),
   'teslim-kapi': (api) => TeslimKapiEkrani(api: api),
+  'rehberlik': (api) => RehberlikEkrani(api: api),
+  'anket-ogrenci': (api) => AnketlerEkrani(api: api),
+  'saglik-yonetim': (api) => SaglikEkrani(api: api, rol: 'yonetim'),
+  'saglik-ogretmen': (api) => SaglikEkrani(api: api, rol: 'ogretmen'),
+  'saglik-veli': (api) => SaglikEkrani(api: api, rol: 'veli'),
+  'saglik-ogrenci': (api) => SaglikEkrani(api: api, rol: 'ogrenci'),
+  'servis-yonetimi': (api) => ServisYonetimEkrani(api: api),
+  'servis-ogrenci': (api) => ServisimEkrani(api: api),
 };
 
 class PanelEkrani extends StatefulWidget {
