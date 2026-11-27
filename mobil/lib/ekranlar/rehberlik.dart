@@ -344,7 +344,20 @@ class _FormlarState extends State<_Formlar> {
     cizim: (context, raw) {
       final liste = (raw as Map<String, dynamic>).l('formlar');
       return [
-        const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('Test ve anketleri web panelinden oluşturabilirsiniz; burada durumunu ve sonuçlarını izlersiniz.')),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: () async {
+                final yeni = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => _FormOlustur(api: widget.api)));
+                if (yeni == true && mounted) setState(() => _yenile++);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Yeni test / anket'),
+            ),
+          ),
+        ),
         if (liste.isEmpty) const BosNot('Henüz test ya da anket yok.'),
         for (final f in liste)
           KartKutu(
@@ -443,4 +456,105 @@ class _FormSonucState extends State<_FormSonuc> {
       ),
     );
   }
+}
+
+/// Yeni test/anket oluşturma (puan aralıkları ve sınıf süzgeci web panelindedir).
+class _FormOlustur extends StatefulWidget {
+  const _FormOlustur({required this.api});
+
+  final Api api;
+
+  @override
+  State<_FormOlustur> createState() => _FormOlusturState();
+}
+
+class _SoruTaslak {
+  String tip = 'likert';
+  final metin = TextEditingController();
+  final secenekler = TextEditingController();
+}
+
+class _FormOlusturState extends State<_FormOlustur> {
+  final _ad = TextEditingController(), _aciklama = TextEditingController();
+  String _tur = 'anket', _hedef = 'ogrenci';
+  bool _anonim = false, _mesgul = false;
+  final _sorular = <_SoruTaslak>[_SoruTaslak()];
+
+  static const _tipler = {'likert': 'Katılma (1-5)', 'evet-hayir': 'Evet / Hayır', 'secenek': 'Seçenekli', 'metin': 'Serbest yazı'};
+
+  Future<void> _kaydet() async {
+    final sorular = <Map<String, Object?>>[];
+    for (final (i, q) in _sorular.indexed) {
+      final tip = (_tur == 'test' && q.tip == 'metin') ? 'likert' : q.tip;
+      final m = <String, Object?>{'metin': q.metin.text.trim(), 'tip': tip};
+      if (tip == 'secenek') {
+        final sec = q.secenekler.text.split(RegExp(r'[,\n]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        if (sec.length < 2) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${i + 1}. soru için en az 2 seçenek yazın (virgülle ayırın)')));
+          return;
+        }
+        m['secenekler'] = [for (final (j, e) in sec.indexed) {'metin': e, 'puan': j}];
+      }
+      sorular.add(m);
+    }
+    setState(() => _mesgul = true);
+    try {
+      await widget.api.post('/api/rehberlik/form-kaydet', {'tur': _tur, 'ad': _ad.text.trim(), 'aciklama': _aciklama.text.trim(), 'hedef': _hedef, 'anonim': _tur == 'anket' && _anonim, 'sorular': sorular, 'yorumlar': []});
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _mesgul = false);
+        hataGoster(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Yeni test / anket')),
+    body: ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        SegmentedButton<String>(segments: const [ButtonSegment(value: 'anket', label: Text('Anket')), ButtonSegment(value: 'test', label: Text('Test'))], selected: {_tur}, onSelectionChanged: (v) => setState(() => _tur = v.first)),
+        const SizedBox(height: 10),
+        SegmentedButton<String>(segments: const [ButtonSegment(value: 'ogrenci', label: Text('Öğrenciler')), ButtonSegment(value: 'veli', label: Text('Veliler'))], selected: {_hedef}, onSelectionChanged: (v) => setState(() => _hedef = v.first)),
+        const SizedBox(height: 10),
+        TextField(controller: _ad, decoration: const InputDecoration(labelText: 'Başlık')),
+        const SizedBox(height: 8),
+        TextField(controller: _aciklama, maxLines: 2, decoration: const InputDecoration(labelText: 'Açıklama (isteğe bağlı)')),
+        if (_tur == 'anket') SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Anonim'), value: _anonim, onChanged: (v) => setState(() => _anonim = v)),
+        const Baslik('Sorular'),
+        for (final (i, q) in _sorular.indexed)
+          KartKutu(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Text('${i + 1}.', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _tur == 'test' && q.tip == 'metin' ? 'likert' : q.tip,
+                        items: [for (final e in _tipler.entries) if (_tur != 'test' || e.key != 'metin') DropdownMenuItem(value: e.key, child: Text(e.value))],
+                        onChanged: (v) => setState(() => q.tip = v ?? 'likert'),
+                      ),
+                    ),
+                    if (_sorular.length > 1) IconButton(onPressed: () => setState(() => _sorular.removeAt(i)), icon: const Icon(Icons.delete_outline)),
+                  ],
+                ),
+                TextField(controller: q.metin, decoration: const InputDecoration(labelText: 'Soru metni')),
+                if (q.tip == 'secenek') TextField(controller: q.secenekler, decoration: const InputDecoration(labelText: 'Seçenekler (virgülle ayırın)')),
+              ],
+            ),
+          ),
+        TextButton.icon(onPressed: () => setState(() => _sorular.add(_SoruTaslak())), icon: const Icon(Icons.add), label: const Text('Soru ekle')),
+        const SizedBox(height: 8),
+        FilledButton(onPressed: _mesgul ? null : _kaydet, child: Text(_mesgul ? 'Kaydediliyor…' : 'Taslak olarak kaydet')),
+        const SizedBox(height: 6),
+        Text('Kaydedilen form taslaktır; formun ayrıntısında "Yayınla" ile öğrencilere/velilere açın.', style: TextStyle(color: context.soluk, fontSize: 13)),
+      ],
+    ),
+  );
 }

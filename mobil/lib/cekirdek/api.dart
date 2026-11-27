@@ -27,7 +27,7 @@ class Api {
   static const taban = String.fromEnvironment('API', defaultValue: 'https://app.neademy.com');
 
   /// Uygulama sürümü; sunucudaki "en düşük sürüm" ile karşılaştırılır.
-  static const surum = '1.2.1';
+  static const surum = '1.2.2';
 
   final http.Client _istemci;
   String? jeton;

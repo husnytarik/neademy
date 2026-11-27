@@ -19,6 +19,8 @@ import { DERS_ZAMANLARI } from './okul-ayar.js';
 import { KULUP_DERSI } from './ders-programi.js';
 import { dersKazanimlari } from './kazanim.js';
 
+// DEVAM=1: kurulum yapılmış canlı veriyi yalnızca bugüne kadar tamamlar (yeni okul/öğrenci/veli/duyuru/görev eklemez).
+const DEVAM = process.env.DEVAM === '1';
 const OKUL_BASI = '2026-09-14';
 const TATILLER = new Set(['2026-10-29']);
 const KULUP_GUN = 3;
@@ -981,14 +983,14 @@ try {
     calis("UPDATE kampusler SET telefon = ? WHERE id = 3 AND telefon = ''", '0242 333 33 33');
     sistemRolleriKur();
   });
-  for (const b of tum('SELECT * FROM branches ORDER BY id')) if (!TANIMLAR.some(t => t.id === b.id)) { const o = mevcutOkulYukle(b); o.mahalle = ILCE[b.campus_id] ?? 'Merkez'; okullar.push(o); }
+  for (const b of tum('SELECT * FROM branches ORDER BY id')) if (DEVAM || !TANIMLAR.some(t => t.id === b.id)) { const o = mevcutOkulYukle(b); o.mahalle = ILCE[b.campus_id] ?? 'Merkez'; okullar.push(o); }
   const eskiOkulSayisi = okullar.length;
   // Mevcut okulların eksik açıklamaları
   for (const o of okullar) {
     const b = bir('SELECT * FROM branches WHERE id = ?', o.id);
     if (!b.aciklama) calis('UPDATE branches SET aciklama = ?, telefon = CASE WHEN telefon = \'\' THEN ? ELSE telefon END, eposta = CASE WHEN eposta = \'\' THEN ? ELSE eposta END WHERE id = ?', OKUL_ACIKLAMA[o.tur]?.(o.ad) ?? '', '0242 000 00 ' + (10 + o.id), ascii(o.ad).replace(/\./g, '') + '@neademy.example', o.id);
   }
-  const yeniler = sure('yeni okullar, sınıflar, öğrenciler', () => TANIMLAR.map(t => { const o = yeniOkulKur(t); return o; }));
+  const yeniler = DEVAM ? [] : sure('yeni okullar, sınıflar, öğrenciler', () => TANIMLAR.map(t => { const o = yeniOkulKur(t); return o; }));
   sure('öğretmen kadrosu ve ders atamaları', () => yeniler.forEach(kadroKur));
   for (const o of okullar) o.yon = [];
   sure('yönetim, rehber, güvenlik', () => okullar.forEach(yonetimKur));
@@ -996,7 +998,7 @@ try {
   console.log('  yerleşemeyen ders saati:', yerles);
 
   // Kardeş çiftleri ve veliler (yeni okullar)
-  sure('veliler ve kardeşler', () => {
+  if (!DEVAM) sure('veliler ve kardeşler', () => {
     const bul = ad => okullar.find(o => o.ad === ad);
     const sira = { ilk5: bul('Manavgat İlkokulu'), orta: bul('Manavgat Ortaokulu'), lise: bul('Manavgat Lisesi'), alanyaIlk: bul('Alanya İlkokulu'), alanyaOrta: bul('Alanya Ortaokulu'), anaokul: bul('Pilot Anaokulu'), pilotIlk: bul('Pilot İlkokulu') };
     const kardesVeli = new Map(); // yeni öğrenci mid -> veli kullanıcı (var olan)
@@ -1047,11 +1049,11 @@ try {
   console.log('  yoklama:', sayim.yoklama, 'konu:', sayim.konu, 'ödev:', sayim.odev, 'ödev durumu:', sayim.odevDurum);
   const e = sure('etütler', () => tumOkullar.reduce((a, o) => a + etutler(o), 0)); console.log('  etüt:', e);
   const sn = sure('sınavlar (deneme + yazılı + performans)', () => tumOkullar.reduce((a, o) => a + sinavlar(o), 0)); console.log('  sınav:', sn);
-  const kl = sure('kulüpler', () => tumOkullar.reduce((a, o) => a + kulupler(o), 0)); console.log('  kulüp:', kl);
-  const gl = sure('gelişim raporu', () => tumOkullar.reduce((a, o) => a + gelisim(o), 0)); console.log('  gelişim girişi:', gl);
-  const il = sure('duyuru / mesaj', () => tumOkullar.reduce((a, o) => a + iletiler(o), 0)); console.log('  ileti:', il);
+  const kl = DEVAM ? 0 : sure('kulüpler', () => tumOkullar.reduce((a, o) => a + kulupler(o), 0)); console.log('  kulüp:', kl);
+  const gl = DEVAM ? 0 : sure('gelişim raporu', () => tumOkullar.reduce((a, o) => a + gelisim(o), 0)); console.log('  gelişim girişi:', gl);
+  const il = DEVAM ? 0 : sure('duyuru / mesaj', () => tumOkullar.reduce((a, o) => a + iletiler(o), 0)); console.log('  ileti:', il);
   const zm = sure('zümreler', () => tumOkullar.reduce((a, o) => a + zumre(o), 0)); console.log('  zümre:', zm);
-  const gr = sure('nöbet / görev', () => tumOkullar.reduce((a, o) => a + gorevler(o), 0)); console.log('  görev:', gr);
+  const gr = DEVAM ? 0 : sure('nöbet / görev', () => tumOkullar.reduce((a, o) => a + gorevler(o), 0)); console.log('  görev:', gr);
   const ts = sure('teslim yetkilileri / kayıtları', () => tumOkullar.reduce((a, o) => a + teslim(o), 0)); console.log('  teslim:', ts);
   console.log('  eksik profil/kayıt:', sure('profil, kayıt bilgisi', eksikProfil));
 
@@ -1073,7 +1075,7 @@ try {
   });
 
   // ---------- Hızlı giriş kişileri ----------
-  sure('hızlı giriş listesi', () => {
+  if (!DEVAM) sure('hızlı giriş listesi', () => {
     const gruplar = [];
     const kisi = (etiket, alt, uid, mid) => ({ etiket, alt, user_id: uid, membership_id: mid });
     const bulOkul = ad => okullar.find(o => o.ad === ad);
