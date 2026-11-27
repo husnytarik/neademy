@@ -22,14 +22,21 @@ class _HizliGirisEkraniState extends State<HizliGirisEkrani> {
   bool _mesgul = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Sunucu anahtarsız deneme kipindeyse kişi listesi hemen gelir; değilse anahtar alanı görünür kalır.
+    _listele(otomatik: true);
+  }
+
+  @override
   void dispose() {
     _anahtar.dispose();
     super.dispose();
   }
 
-  Future<void> _listele() async {
+  Future<void> _listele({bool otomatik = false}) async {
     final k = _anahtar.text.trim();
-    if (k.isEmpty) return;
+    if (k.isEmpty && !otomatik) return;
     setState(() {
       _mesgul = true;
       _mesaj = '';
@@ -38,7 +45,7 @@ class _HizliGirisEkraniState extends State<HizliGirisEkrani> {
       final r = await widget.oturum.api.get('/api/hizli/liste?k=${Uri.encodeQueryComponent(k)}') as Map<String, dynamic>;
       if (mounted) setState(() => _gruplar = [for (final g in r.l('gruplar')) if (g.l('kisiler').isNotEmpty) g]);
     } catch (_) {
-      if (mounted) setState(() => _mesaj = 'Liste alınamadı: anahtar yanlış ya da özellik kapalı.');
+      if (mounted && !otomatik) setState(() => _mesaj = 'Liste alınamadı: anahtar yanlış ya da özellik kapalı.');
     } finally {
       if (mounted) setState(() => _mesgul = false);
     }
@@ -69,6 +76,7 @@ class _HizliGirisEkraniState extends State<HizliGirisEkrani> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
         if (_gruplar == null) ...[
+          if (_mesgul && _anahtar.text.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Center(child: CircularProgressIndicator(strokeWidth: 2.5))),
           Text('Deneme anahtarını girin; kişi listesi açılır.', style: TextStyle(color: context.soluk)),
           const SizedBox(height: 10),
           TextField(

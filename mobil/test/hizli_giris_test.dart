@@ -82,6 +82,7 @@ void main() {
   testWidgets('özellik kapalıysa (404) hata gösterilir, giriş yapılmaz', (t) async {
     final oturum = _kur(acik: false);
     await t.pumpWidget(MaterialApp(home: HizliGirisEkrani(oturum: oturum)));
+    await t.pumpAndSettle(); // açılışta anahtarsız deneme kipi yoklanır
     await t.enterText(find.byType(TextField), 'anahtar');
     await t.tap(find.text('Listeyi getir'));
     await t.pumpAndSettle();

@@ -106,7 +106,12 @@ class _GirisEkraniState extends State<GirisEkrani> {
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
                           : const Text('Giriş yap'),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => HizliGirisEkrani(oturum: widget.oturum))),
+                      child: const Text('Hızlı giriş (deneme hesapları)'),
+                    ),
+                    const SizedBox(height: 12),
                     Text(
                       'Hesabınız okulunuz tarafından açılır.',
                       textAlign: TextAlign.center,
