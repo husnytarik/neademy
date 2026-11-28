@@ -237,10 +237,7 @@ Widget _yoneticiler(BuildContext context, Map<String, dynamic> o, Map<String, dy
           subtitle: Text([gorevler[y.s('gorev')] ?? y.s('gorev'), y.s('telefon')].where((e) => '$e'.isNotEmpty).join(' · ')),
           trailing: kaldir == null
               ? null
-              : TextButton(
-                  onPressed: () => kaldir(y),
-                  child: Text('Kaldır', style: TextStyle(color: Colors.red.shade600)),
-                ),
+              : IconButton(tooltip: 'Görevden kaldır', icon: Icon(Icons.close, color: context.soluk), onPressed: () => kaldir(y)),
         ),
     ],
   );
@@ -518,6 +515,11 @@ class _KurumEkraniState extends State<KurumEkrani> {
     key: ValueKey(_n),
     baslik: 'Okul kurulumu',
     getir: () => api.get('/api/yonetim/kurum'),
+    eylemler: (context, raw) {
+      final v = raw as Map<String, dynamic>;
+      if (v['kurumYonetimi'] != true) return const [];
+      return [IconButton(tooltip: 'Kurum bilgilerini ve tanıtımı düzenle', icon: const Icon(Icons.edit_outlined), onPressed: () => _ekran(_KurumFormu(api: api, v: v)))];
+    },
     cizim: (context, raw) {
       final v = raw as Map<String, dynamic>;
       final yonetim = v['kurumYonetimi'] == true;
@@ -543,30 +545,19 @@ class _KurumEkraniState extends State<KurumEkrani> {
                 ],
               ),
             ),
-            if (yonetim) IconButton(tooltip: 'Kurum bilgilerini düzenle', icon: const Icon(Icons.edit_outlined), onPressed: () => _ekran(_KurumFormu(api: api, v: v))),
           ],
         ),
-        if (tanitimBos && yonetim)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text('Tanıtım yazısı ve web sitesi boş. Veli ve öğrenciler “Okulumuz” sayfasında bunları görür.', style: TextStyle(color: context.soluk, fontSize: 13)),
+        const SizedBox(height: 14),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.visibility_outlined),
+          title: const Text('Okulumuz sayfası'),
+          subtitle: Text(
+            tanitimBos ? 'Henüz boş. Sağ üstteki kalemle tanıtım yazısını ve bağlantıları ekleyin.' : 'Veli ve öğrenciler kurumu böyle görür',
+            style: TextStyle(color: tanitimBos && yonetim ? Colors.orange.shade800 : null, fontSize: 12.5),
           ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            TextButton.icon(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OkulumuzEkrani(api: api))),
-              icon: const Icon(Icons.visibility_outlined, size: 18),
-              label: const Text('Okulumuz sayfasını gör'),
-            ),
-            if (yonetim)
-              TextButton.icon(
-                onPressed: () => _ekran(_KurumFormu(api: api, v: v)),
-                icon: const Icon(Icons.edit_note, size: 20),
-                label: const Text('Tanıtımı düzenle'),
-              ),
-          ],
+          trailing: Icon(Icons.chevron_right, color: context.soluk),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OkulumuzEkrani(api: api))),
         ),
         const Divider(height: 24),
         if (kampusler.isEmpty) const BosNot('Henüz kampüs eklenmedi. Kampüs sayısında sınır yoktur; her kampüste istediğiniz kadar okul olabilir.'),
@@ -587,42 +578,41 @@ class _KurumEkraniState extends State<KurumEkrani> {
 
   Widget _kampus(BuildContext context, Map<String, dynamic> v, Map<String, dynamic> c, bool yonetim) {
     final okullar = c.l('okullar');
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        key: PageStorageKey('kampus-${c.n('id')}'),
-        initiallyExpanded: true,
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: EdgeInsets.zero,
-        title: Text(c.s('ad'), style: serif.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
-        subtitle: Text('${okullar.length} okul${c.s('adres').isEmpty ? '' : ' · ${c.s('adres')}'}', style: TextStyle(color: context.soluk, fontSize: 12.5)),
-        children: [
-          for (final o in okullar) ...[
-            const Divider(height: 1),
-            _okulSirasi(context, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
-          ],
-          if (okullar.isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
-          if (yonetim)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 4,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _ekran(_OkulFormu(api: api, v: v, kampusId: c.n('id'))),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Okul ekle'),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _ekran(_KampusFormu(api: api, kampus: c)),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Kampüsü düzenle'),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(c.s('ad'), style: serif.copyWith(fontSize: 18, fontWeight: FontWeight.w600)),
+                    Text('${okullar.length} okul${c.s('adres').isEmpty ? '' : ' · ${c.s('adres')}'}', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+                  ],
+                ),
               ),
-            ),
+              if (yonetim)
+                PopupMenuButton<String>(
+                  tooltip: 'Kampüs işlemleri',
+                  onSelected: (e) => _ekran(e == 'okul' ? _OkulFormu(api: api, v: v, kampusId: c.n('id')) : _KampusFormu(api: api, kampus: c)),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'okul', child: Text('Okul ekle')),
+                    PopupMenuItem(value: 'duzenle', child: Text('Kampüsü düzenle')),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        for (final o in okullar) ...[
+          const Divider(height: 1),
+          _okulSirasi(context, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
         ],
-      ),
+        if (okullar.isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
+        const SizedBox(height: 10),
+      ],
     );
   }
 
@@ -666,11 +656,21 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
     ),
   );
 
+  Future<void> _duzenle(BuildContext context, Map<String, dynamic> v, Map<String, dynamic> o) async {
+    if (await _ac(context, _OkulFormu(api: widget.api, v: v, kampusId: o.n('kampusId'), okul: o)) && mounted) setState(() => _n++);
+  }
+
   @override
   Widget build(BuildContext context) => VeriSayfasi(
     key: ValueKey(_n),
     baslik: 'Okul',
     getir: () => widget.api.get('/api/yonetim/kurum'),
+    eylemler: (context, raw) {
+      final v = raw as Map<String, dynamic>;
+      final o = _tumOkullar(v).where((x) => x.n('id') == widget.okulId).firstOrNull;
+      if (o == null || !widget.yonetim) return const [];
+      return [IconButton(tooltip: 'Okul bilgilerini ve tanıtımı düzenle', icon: const Icon(Icons.edit_outlined), onPressed: () => _duzenle(context, v, o))];
+    },
     cizim: (context, raw) {
       final v = raw as Map<String, dynamic>;
       final o = _tumOkullar(v).where((x) => x.n('id') == widget.okulId).firstOrNull;
@@ -678,10 +678,6 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
       final yonetim = widget.yonetim;
       final yoklama = o.n('yoklamaToplam');
       final devamsizlik = yoklama > 0 ? '%${(o.n('gelmedi') * 100 / yoklama).toStringAsFixed(1)}' : '—';
-      Future<void> duzenle() async {
-        if (await _ac(context, _OkulFormu(api: widget.api, v: v, kampusId: o.n('kampusId'), okul: o)) && mounted) setState(() => _n++);
-      }
-
       return [
         Row(
           children: [
@@ -696,7 +692,6 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
                 ],
               ),
             ),
-            if (yonetim) IconButton(tooltip: 'Okulu düzenle', icon: const Icon(Icons.edit_outlined), onPressed: duzenle),
           ],
         ),
         const SizedBox(height: 18),
@@ -714,10 +709,24 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
         if (yonetim && o.s('aciklama').isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('Tanıtım yazısı boş. Veli ve öğrenciler “Okulumuz” sayfasında bunu görür.', style: TextStyle(color: context.soluk, fontSize: 13)),
+            child: Text('Tanıtım yazısı boş. Sağ üstteki kalemle ekleyin; veli ve öğrenciler “Okulumuz” sayfasında görür.', style: TextStyle(color: Colors.orange.shade800, fontSize: 13)),
           ),
-        if (yonetim) TextButton.icon(onPressed: duzenle, icon: const Icon(Icons.edit_note, size: 20), label: const Text('Bilgileri ve tanıtımı düzenle')),
-        const Baslik('Okul yönetimi', ust: 22),
+        Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: Row(
+            children: [
+              Expanded(child: Text('Okul yönetimi', style: serif.copyWith(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -.2))),
+              if (yonetim)
+                IconButton.filledTonal(
+                  tooltip: 'Yönetici ekle',
+                  icon: const Icon(Icons.person_add_alt, size: 20),
+                  onPressed: () async {
+                    if (await _ac(context, _YoneticiFormu(api: widget.api, v: v, okul: o)) && mounted) setState(() => _n++);
+                  },
+                ),
+            ],
+          ),
+        ),
         _yoneticiler(
           context,
           o,
@@ -736,17 +745,6 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
                 }
               : null,
         ),
-        if (yonetim)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              onPressed: () async {
-                if (await _ac(context, _YoneticiFormu(api: widget.api, v: v, okul: o)) && mounted) setState(() => _n++);
-              },
-              icon: const Icon(Icons.person_add_alt, size: 18),
-              label: const Text('Yönetici ekle'),
-            ),
-          ),
         _zumreler(context, o),
       ];
     },
