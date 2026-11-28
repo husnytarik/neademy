@@ -24,6 +24,7 @@ import 'odevler.dart';
 import 'panel_ozet.dart';
 import 'ogrencilerim.dart';
 import 'ogrencim.dart';
+import 'okulumuz.dart';
 import 'kurulum.dart';
 import 'ders_programi_yonetim.dart';
 import 'gelisim_yonetim.dart';
@@ -98,6 +99,7 @@ final _hazirEkranlar = <String, Widget Function(Api api)>{
   'saglik-ogrenci': (api) => SaglikEkrani(api: api, rol: 'ogrenci'),
   'servis-yonetimi': (api) => ServisYonetimEkrani(api: api),
   'servis-ogrenci': (api) => ServisimEkrani(api: api),
+  'hakkimizda': (api) => OkulumuzEkrani(api: api),
 };
 
 class PanelEkrani extends StatefulWidget {

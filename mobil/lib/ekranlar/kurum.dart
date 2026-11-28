@@ -5,6 +5,7 @@ import '../cekirdek/api.dart';
 import '../cekirdek/foto.dart';
 import '../cekirdek/tema.dart';
 import '../cekirdek/yazdir.dart';
+import 'okulumuz.dart';
 
 const _sayiAdlari = [
   ('sinif', 'Sınıf'),
@@ -504,7 +505,6 @@ class KurumEkrani extends StatefulWidget {
 }
 
 class _KurumEkraniState extends State<KurumEkrani> {
-  int _kampus = 0; // 0 = Kurum sekmesi
   int _n = 0;
 
   Api get api => widget.api;
@@ -521,130 +521,128 @@ class _KurumEkraniState extends State<KurumEkrani> {
     cizim: (context, raw) {
       final v = raw as Map<String, dynamic>;
       final yonetim = v['kurumYonetimi'] == true;
+      final k = (v['kurum'] as Map).cast<String, dynamic>();
       final kampusler = v.l('kampusler');
-      final c = kampusler.where((x) => x.n('id') == _kampus).firstOrNull;
+      final okullar = _tumOkullar(v);
+      final kurucu = v.l('kurucular').map((c) => c.s('ad')).join(', ');
+      final tanitimBos = k.s('aciklama').isEmpty && k.s('web').isEmpty;
       return [
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _Pil('Kurum', c == null, () => setState(() => _kampus = 0)),
-              for (final x in kampusler) _Pil(_sade(x.s('ad')), c?.n('id') == x.n('id'), () => setState(() => _kampus = x.n('id'))),
-              if (yonetim) _Pil('+ Kampüs', false, () => _ekran(_KampusFormu(api: api))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (c == null) ..._kurum(context, v, yonetim) else ..._kampusSekmesi(context, v, c, yonetim),
-      ];
-    },
-  );
-
-  List<Widget> _kurum(BuildContext context, Map<String, dynamic> v, bool yonetim) {
-    final k = (v['kurum'] as Map).cast<String, dynamic>();
-    final kurucular = v.l('kurucular');
-    return [
-      KartKutu(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
-            Row(
-              children: [
-                _logoKutusu(context, k.s('ad'), api: api, yol: v.s('logo').isEmpty ? null : '/api/kurum-logo?v=${v.s('logo')}'),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(k.s('ad'), style: serif.copyWith(fontSize: 19, fontWeight: FontWeight.w600)),
-                      Text(k.s('kisaAd').isEmpty ? 'Kısa ad girilmedi' : k.s('kisaAd'), style: TextStyle(color: context.soluk, fontSize: 13)),
-                    ],
-                  ),
-                ),
-                if (yonetim)
-                  TextButton(
-                    onPressed: () => _ekran(_KurumFormu(api: api, v: v)),
-                    child: const Text('Düzenle'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _bilgi(context, [('Telefon', k.s('telefon')), ('E-posta', k.s('eposta')), ('Adres', k.s('adres'))]),
-            _tanitim(context, k, v),
-            if (kurucular.isNotEmpty) ...[
-              const Baslik('Kurucu'),
-              for (final x in kurucular)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  leading: _logoKutusu(context, x.s('ad')),
-                  title: Text(x.s('ad')),
-                  subtitle: const Text('Kurucu'),
-                ),
-            ],
-          ],
-        ),
-      ),
-      if (v.l('kampusler').isEmpty) const BosNot('Henüz kampüs eklenmedi. Kampüs sayısında sınır yoktur; her kampüste istediğiniz kadar okul olabilir.'),
-    ];
-  }
-
-  List<Widget> _kampusSekmesi(BuildContext context, Map<String, dynamic> v, Map<String, dynamic> c, bool yonetim) {
-    final okullar = c.l('okullar');
-    return [
-      KartKutu(
-        child: Row(
-          children: [
+            _logoKutusu(context, k.s('ad'), api: api, yol: v.s('logo').isEmpty ? null : '/api/kurum-logo?v=${v.s('logo')}', boyut: 56),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('KAMPÜS', style: TextStyle(color: context.soluk, fontSize: 11, letterSpacing: 1)),
-                  Text(c.s('ad'), style: serif.copyWith(fontSize: 19, fontWeight: FontWeight.w600)),
+                  Text(k.s('ad'), style: serif.copyWith(fontSize: 22, fontWeight: FontWeight.w600)),
                   Text(
-                    [c.s('adres'), c.s('telefon')].where((e) => e.isNotEmpty).join(' · ').isEmpty
-                        ? '${okullar.length} okul'
-                        : [c.s('adres'), c.s('telefon')].where((e) => e.isNotEmpty).join(' · '),
-                    style: TextStyle(color: context.soluk, fontSize: 13),
+                    '${kampusler.length} kampüs · ${okullar.length} okul · ${_topla(okullar, 'ogrenci')} öğrenci${kurucu.isEmpty ? '' : '\nKurucu: $kurucu'}',
+                    style: TextStyle(color: context.soluk, fontSize: 13, height: 1.35),
                   ),
                 ],
               ),
             ),
+            if (yonetim) IconButton(tooltip: 'Kurum bilgilerini düzenle', icon: const Icon(Icons.edit_outlined), onPressed: () => _ekran(_KurumFormu(api: api, v: v))),
+          ],
+        ),
+        if (tanitimBos && yonetim)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text('Tanıtım yazısı ve web sitesi boş. Veli ve öğrenciler “Okulumuz” sayfasında bunları görür.', style: TextStyle(color: context.soluk, fontSize: 13)),
+          ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OkulumuzEkrani(api: api))),
+              icon: const Icon(Icons.visibility_outlined, size: 18),
+              label: const Text('Okulumuz sayfasını gör'),
+            ),
             if (yonetim)
-              TextButton(
-                onPressed: () => _ekran(_KampusFormu(api: api, kampus: c)),
-                child: const Text('Düzenle'),
+              TextButton.icon(
+                onPressed: () => _ekran(_KurumFormu(api: api, v: v)),
+                icon: const Icon(Icons.edit_note, size: 20),
+                label: const Text('Tanıtımı düzenle'),
               ),
           ],
         ),
+        const Divider(height: 24),
+        if (kampusler.isEmpty) const BosNot('Henüz kampüs eklenmedi. Kampüs sayısında sınır yoktur; her kampüste istediğiniz kadar okul olabilir.'),
+        for (final c in kampusler) _kampus(context, v, c, yonetim),
+        if (yonetim)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: FilledButton.tonalIcon(
+              onPressed: () => _ekran(_KampusFormu(api: api)),
+              icon: const Icon(Icons.add),
+              label: const Text('Kampüs ekle'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
+          ),
+      ];
+    },
+  );
+
+  Widget _kampus(BuildContext context, Map<String, dynamic> v, Map<String, dynamic> c, bool yonetim) {
+    final okullar = c.l('okullar');
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        key: PageStorageKey('kampus-${c.n('id')}'),
+        initiallyExpanded: true,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: Text(c.s('ad'), style: serif.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
+        subtitle: Text('${okullar.length} okul${c.s('adres').isEmpty ? '' : ' · ${c.s('adres')}'}', style: TextStyle(color: context.soluk, fontSize: 12.5)),
+        children: [
+          for (final o in okullar) ...[
+            const Divider(height: 1),
+            _okulSirasi(context, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
+          ],
+          if (okullar.isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
+          if (yonetim)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 4,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _ekran(_OkulFormu(api: api, v: v, kampusId: c.n('id'))),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Okul ekle'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _ekran(_KampusFormu(api: api, kampus: c)),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Kampüsü düzenle'),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
-      for (final o in okullar) _okulSatiri(context, api, o, () => _ekran(_OkulSayfasi(api: api, okulId: o.n('id'), yonetim: yonetim))),
-      if (okullar.isEmpty) const BosNot('Bu kampüse henüz okul eklenmedi.'),
-      if (yonetim)
-        OutlinedButton(
-          onPressed: () => _ekran(_OkulFormu(api: api, v: v, kampusId: c.n('id'))),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: const Text('+ Okul ekle'),
-        ),
-    ];
+    );
+  }
+
+  Widget _okulSirasi(BuildContext context, Map<String, dynamic> o, VoidCallback ac) {
+    final mudur = o.l('yoneticiler').where((y) => y.s('gorev') == 'mudur').firstOrNull;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: ac,
+      leading: _logoKutusu(context, o.s('ad'), api: api, yol: _okulLogoYolu(o), boyut: 42),
+      title: Text(o.s('ad'), style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        [o.s('tur'), '${o.n('ogrenci')} öğrenci', mudur != null ? 'Müdür: ${mudur.s('ad')}' : 'Müdür atanmadı'].where((e) => e.isNotEmpty).join(' · '),
+        style: TextStyle(color: mudur != null ? null : Colors.orange.shade800, fontSize: 12.5),
+      ),
+      trailing: Icon(Icons.chevron_right, color: context.soluk),
+    );
   }
 }
 
-class _Pil extends StatelessWidget {
-  const _Pil(this.ad, this.secili, this.onTap);
-
-  final String ad;
-  final bool secili;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 8),
-    child: ChoiceChip(label: Text(ad), selected: secili, onSelected: (_) => onTap(), showCheckmark: false, shape: const StadiumBorder()),
-  );
-}
-
+/// Okul sayfası: kartsız; üstte okul, dört temel sayı, sonra bilgiler, yönetim ve zümreler.
 class _OkulSayfasi extends StatefulWidget {
   const _OkulSayfasi({required this.api, required this.okulId, required this.yonetim});
 
@@ -659,6 +657,15 @@ class _OkulSayfasi extends StatefulWidget {
 class _OkulSayfasiState extends State<_OkulSayfasi> {
   int _n = 0;
 
+  Widget _sayi(BuildContext context, String ad, String deger) => Expanded(
+    child: Column(
+      children: [
+        Text(deger, style: serif.copyWith(fontSize: 22, fontWeight: FontWeight.w600)),
+        Text(ad, style: TextStyle(color: context.soluk, fontSize: 12)),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => VeriSayfasi(
     key: ValueKey(_n),
@@ -669,70 +676,78 @@ class _OkulSayfasiState extends State<_OkulSayfasi> {
       final o = _tumOkullar(v).where((x) => x.n('id') == widget.okulId).firstOrNull;
       if (o == null) return const [BosNot('Okul bulunamadı.')];
       final yonetim = widget.yonetim;
+      final yoklama = o.n('yoklamaToplam');
+      final devamsizlik = yoklama > 0 ? '%${(o.n('gelmedi') * 100 / yoklama).toStringAsFixed(1)}' : '—';
+      Future<void> duzenle() async {
+        if (await _ac(context, _OkulFormu(api: widget.api, v: v, kampusId: o.n('kampusId'), okul: o)) && mounted) setState(() => _n++);
+      }
+
       return [
-        KartKutu(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        Row(
+          children: [
+            _logoKutusu(context, o.s('ad'), api: widget.api, yol: _okulLogoYolu(o), boyut: 56),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _logoKutusu(context, o.s('ad'), api: widget.api, yol: _okulLogoYolu(o)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(o.s('ad'), style: serif.copyWith(fontSize: 19, fontWeight: FontWeight.w600)),
-                        if (o.s('tur').isNotEmpty) Text(o.s('tur'), style: TextStyle(color: context.soluk, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  if (yonetim)
-                    TextButton(
-                      onPressed: () async {
-                        if (await _ac(context, _OkulFormu(api: widget.api, v: v, kampusId: o.n('kampusId'), okul: o)) && mounted) setState(() => _n++);
-                      },
-                      child: const Text('Düzenle'),
-                    ),
+                  Text(o.s('ad'), style: serif.copyWith(fontSize: 22, fontWeight: FontWeight.w600)),
+                  if (o.s('tur').isNotEmpty) Text(o.s('tur'), style: TextStyle(color: context.soluk, fontSize: 13)),
                 ],
               ),
-              const SizedBox(height: 10),
-              _sayilar(context, [o]),
-              const SizedBox(height: 8),
-              _bilgi(context, [('Kurum kodu', o.s('kurumKodu')), ('Telefon', o.s('telefon')), ('E-posta', o.s('eposta')), ('Adres', o.s('adres'))]),
-              _tanitim(context, o, v),
-              const Baslik('Okul yönetimi'),
-              _yoneticiler(
-                context,
-                o,
-                v,
-                kaldir: yonetim
-                    ? (y) async {
-                        final gorevler = ((v['gorevler'] as Map?) ?? const {}).cast<String, dynamic>();
-                        final soru = '${y.s('ad')}, ${o.s('ad')} ${'${gorevler[y.s('gorev')]}'.toLowerCase()} görevinden kaldırılsın mı?';
-                        if (!await onayIste(context, soru, evet: 'Kaldır')) {
-                          return;
-                        }
-                        try {
-                          await widget.api.post('/api/yonetim/yonetici-kaldir', {'id': y.n('id')});
-                          if (mounted) setState(() => _n++);
-                        } catch (e) {
-                          if (context.mounted) hataGoster(context, e);
-                        }
-                      }
-                    : null,
-              ),
-              if (yonetim)
-                TextButton(
-                  onPressed: () async {
-                    if (await _ac(context, _YoneticiFormu(api: widget.api, v: v, okul: o)) && mounted) setState(() => _n++);
-                  },
-                  child: const Text('+ Yönetici ekle'),
-                ),
-              _zumreler(context, o),
-            ],
-          ),
+            ),
+            if (yonetim) IconButton(tooltip: 'Okulu düzenle', icon: const Icon(Icons.edit_outlined), onPressed: duzenle),
+          ],
         ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            _sayi(context, 'Öğrenci', '${o.n('ogrenci')}'),
+            _sayi(context, 'Öğretmen', '${o.n('ogretmen')}'),
+            _sayi(context, 'Sınıf', '${o.n('sinif')}'),
+            _sayi(context, 'Devamsızlık', devamsizlik),
+          ],
+        ),
+        const Divider(height: 32),
+        _bilgi(context, [('Kurum kodu', o.s('kurumKodu')), ('Telefon', o.s('telefon')), ('E-posta', o.s('eposta')), ('Adres', o.s('adres'))]),
+        _tanitim(context, o, v),
+        if (yonetim && o.s('aciklama').isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('Tanıtım yazısı boş. Veli ve öğrenciler “Okulumuz” sayfasında bunu görür.', style: TextStyle(color: context.soluk, fontSize: 13)),
+          ),
+        if (yonetim) TextButton.icon(onPressed: duzenle, icon: const Icon(Icons.edit_note, size: 20), label: const Text('Bilgileri ve tanıtımı düzenle')),
+        const Baslik('Okul yönetimi', ust: 22),
+        _yoneticiler(
+          context,
+          o,
+          v,
+          kaldir: yonetim
+              ? (y) async {
+                  final gorevler = ((v['gorevler'] as Map?) ?? const {}).cast<String, dynamic>();
+                  final soru = '${y.s('ad')}, ${o.s('ad')} ${'${gorevler[y.s('gorev')]}'.toLowerCase()} görevinden kaldırılsın mı?';
+                  if (!await onayIste(context, soru, evet: 'Kaldır')) return;
+                  try {
+                    await widget.api.post('/api/yonetim/yonetici-kaldir', {'id': y.n('id')});
+                    if (mounted) setState(() => _n++);
+                  } catch (e) {
+                    if (context.mounted) hataGoster(context, e);
+                  }
+                }
+              : null,
+        ),
+        if (yonetim)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: () async {
+                if (await _ac(context, _YoneticiFormu(api: widget.api, v: v, okul: o)) && mounted) setState(() => _n++);
+              },
+              icon: const Icon(Icons.person_add_alt, size: 18),
+              label: const Text('Yönetici ekle'),
+            ),
+          ),
+        _zumreler(context, o),
       ];
     },
   );
@@ -794,6 +809,19 @@ class _Tanitim {
   ];
 }
 
+/// Tanıtım alanları (Okulumuz sayfasında görünür): açılır bölüm, açık gelir.
+Widget _tanitimBolumu(_Tanitim t) => Theme(
+  data: ThemeData(dividerColor: Colors.transparent),
+  child: ExpansionTile(
+    initiallyExpanded: true,
+    tilePadding: EdgeInsets.zero,
+    childrenPadding: const EdgeInsets.only(bottom: 8),
+    title: const Text('Tanıtım (Okulumuz sayfası)', style: TextStyle(fontWeight: FontWeight.w600)),
+    subtitle: const Text('Açıklama, web sitesi, sosyal medya'),
+    children: t.alan(),
+  ),
+);
+
 mixin _Kaydet<T extends StatefulWidget> on State<T> {
   bool mesgul = false;
 
@@ -837,7 +865,6 @@ class _KurumFormuState extends State<_KurumFormu> with _Kaydet {
   late final _ep = TextEditingController(text: _k.s('eposta'));
   late final _adr = TextEditingController(text: _k.s('adres'));
   late final _Tanitim _t = _Tanitim(_k, widget.v);
-  String _sekme = 'b';
 
   @override
   void dispose() {
@@ -866,9 +893,7 @@ class _KurumFormuState extends State<_KurumFormu> with _Kaydet {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          Sekmeler(secenekler: const [('b', 'Bilgiler'), ('t', 'Tanıtım'), ('k', 'Kurucu')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
-          const SizedBox(height: 14),
-          if (_sekme == 'b') ...[
+          ...[
             _LogoAlani(
               api: widget.api,
               ad: _k.s('ad'),
@@ -903,8 +928,10 @@ class _KurumFormuState extends State<_KurumFormu> with _Kaydet {
               decoration: const InputDecoration(labelText: 'Adres'),
             ),
           ],
-          if (_sekme == 't') ..._t.alan(),
-          if (_sekme == 'k') ...[
+          const SizedBox(height: 8),
+          _tanitimBolumu(_t),
+          const Divider(height: 28),
+          ...[
             Text('Kurucu yalnızca kayıttır; giriş ya da yetki vermez.', style: TextStyle(color: context.soluk, fontSize: 13)),
             for (final c in kurucular)
               ListTile(
@@ -928,7 +955,7 @@ class _KurumFormuState extends State<_KurumFormu> with _Kaydet {
               child: const Text('+ Kurucu ekle'),
             ),
           ],
-          if (_sekme != 'k') ...[
+          ...[
             const SizedBox(height: 16),
             FilledButton(
               onPressed: mesgul
@@ -1036,7 +1063,6 @@ class _OkulFormuState extends State<_OkulFormu> with _Kaydet {
   late final _adr = TextEditingController(text: widget.okul?.s('adres') ?? '');
   late final _Tanitim _t = _Tanitim(widget.okul, widget.v);
   late String _tur = widget.okul?.s('tur') ?? '';
-  String _sekme = 'b';
 
   @override
   void dispose() {
@@ -1056,9 +1082,7 @@ class _OkulFormuState extends State<_OkulFormu> with _Kaydet {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          Sekmeler(secenekler: const [('b', 'Bilgiler'), ('t', 'Tanıtım')], secili: _sekme, degisti: (d) => setState(() => _sekme = d)),
-          const SizedBox(height: 14),
-          if (_sekme == 'b') ...[
+          ...[
             if (okul != null)
               _LogoAlani(
                 api: widget.api,
@@ -1103,8 +1127,9 @@ class _OkulFormuState extends State<_OkulFormu> with _Kaydet {
               controller: _adr,
               decoration: const InputDecoration(labelText: 'Adres'),
             ),
-          ] else
-            ..._t.alan(),
+          ],
+          const SizedBox(height: 8),
+          _tanitimBolumu(_t),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: mesgul

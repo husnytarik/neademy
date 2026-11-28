@@ -21,7 +21,7 @@ import { duyuruApi } from './duyuru.js';
 import { teslimApi, teslimBaglantiApi } from './teslim.js';
 import { raporApi } from './rapor.js';
 import { tatilApi } from './tatil.js';
-import { kurumApi, kurumLogoApi, yonetimUnvani, ilkOkulKur } from './kurum.js';
+import { kurumApi, okulumVerisi, kurumLogoApi, yonetimUnvani, ilkOkulKur } from './kurum.js';
 import { yoklamaApi } from './yoklama.js';
 import { dersApi } from './ders.js';
 import { takvimApi } from './takvim.js';
@@ -93,6 +93,7 @@ const MAKS_DENEME = 5;
 // Modül kayıt defteri: her modül hangi rollere görünür olduğunu burada bildirir.
 // Yeni modül eklemek = buraya bir kayıt eklemek (kullanıcı/yetki yapısı ortaktır).
 const MODULLER = [
+  { id: 'hakkimizda', ad: 'Okulumuz', aciklama: 'Kurumumuz ve okulumuz hakkında: tanıtım, iletişim, yönetim, sosyal medya', roller: ['yonetim', 'ogretmen', 'ogrenci', 'veli'], yol: '/hakkimizda' },
   { id: 'kurum', ad: 'Okul kurulumu', aciklama: 'Kurum profili, kampüsler, okullar, müdür ve müdür yardımcıları', roller: ['yonetim'], yetki: ['kurum'], yol: '/kurum' },
   { id: 'kampusler', ad: 'Kampüs ve okullar', aciklama: 'Kampüs ve okulların öğrenci, öğretmen, devamsızlık ve yönetici özeti; yazdırılabilir', roller: ['yonetim'], yetki: ['kurum'], yol: '/kampusler' },
   { id: 'kullanici-rol', ad: 'Kişiler', aciklama: 'Personel ekle, düzenle, görev ver, okuldan ayrıldı olarak işaretle; roller ve yetkiler', roller: ['yonetim'], yetki: ['kullanici-rol'], yol: '/kisiler', kapsam: 'kurum' },
@@ -563,6 +564,12 @@ async function api(req, res, url) {
     if (await fotoApi({ req, res, url, o, json, denetle })) return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/okulum') {
+    const o = oturum(req);
+    if (!o) return json(res, 401, { hata: 'Oturum yok' });
+    return json(res, 200, okulumVerisi(o));
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/kurum-logo') {
     if (!oturum(req)) return json(res, 401, { hata: 'Oturum yok' });
     return kurumLogoApi({ res, json });
@@ -855,6 +862,7 @@ function statik(req, res, url) {
   if (ad === '/ders-programi') ad = '/ders-programi.html';
   if (ad === '/kurulum') ad = '/kurulum.html';
   if (ad === '/kurum') ad = '/kurum.html';
+  if (ad === '/hakkimizda') ad = '/hakkimizda.html';
   if (ad === '/kampusler') ad = '/kampusler.html';
   if (ad === '/okul-takvimi') ad = '/okul-takvimi.html';
   if (ad === '/etut') ad = '/etut.html';

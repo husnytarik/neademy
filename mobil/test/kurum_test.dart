@@ -95,23 +95,22 @@ void main() {
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
     expect(find.text('Deneme Eğitim Kurumları'), findsOneWidget);
-    expect(find.text('Kurucu Kişi'), findsOneWidget);
-
-    await t.tap(find.text('Merkez'));
-    await t.pumpAndSettle();
+    expect(find.textContaining('Kurucu Kişi'), findsOneWidget);
+    expect(find.text('Merkez Kampüsü'), findsOneWidget);
     expect(find.text('Deneme Ortaokulu'), findsOneWidget);
-    expect(find.text('Müdür: Müdür Kişi'), findsOneWidget);
+    expect(find.textContaining('Müdür: Müdür Kişi'), findsOneWidget);
 
     await t.tap(find.text('Deneme Ortaokulu'));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
     expect(find.text('Okul yönetimi'), findsOneWidget);
-    expect(find.text('+ Yönetici ekle'), findsOneWidget);
+    expect(find.text('Yönetici ekle'), findsOneWidget);
     expect(find.text('Fen Bilimleri'), findsOneWidget);
 
-    await t.tap(find.text('Düzenle'));
+    await t.tap(find.byTooltip('Okulu düzenle'));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
+    await t.ensureVisible(find.text('Kaydet'));
     await t.tap(find.text('Kaydet'));
     await t.pumpAndSettle();
     expect(kayit, contains('POST /api/yonetim/okul-kaydet'));
@@ -127,7 +126,7 @@ void main() {
       ),
     );
     await t.pumpAndSettle();
-    await t.tap(find.text('Düzenle'));
+    await t.tap(find.byTooltip('Kurum bilgilerini düzenle'));
     await t.pumpAndSettle();
     await t.tap(find.text('Logo ekle'));
     await t.pumpAndSettle();

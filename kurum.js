@@ -137,6 +137,27 @@ function kurumVerisi(o) {
   return { kurum, logo, kurucular, kampusler, adaylar, turler: OKUL_TURLERI, gorevler: GOREVLER, sosyalAlanlar: SOSYAL_ALANLAR.map(({ kod, ad }) => ({ kod, ad })), tanitimAzami: TANITIM_AZAMI, kurumYonetimi: o.gorev === 'kurum' };
 }
 
+// "Okulumuz" tanıtım sayfası: tüm roller okur. Kullanıcının aktif üyelik okulları (kurum yönetimi: tümü).
+export function okulumVerisi(o) {
+  const kurum = db.prepare('SELECT ad, kisa_ad AS kisaAd, telefon, eposta, web, adres, aciklama, sosyal FROM kurum WHERE id = 1').get() || {};
+  kurum.sosyal = sosyalOku(kurum.sosyal);
+  const logo = db.prepare("SELECT 'v' || guncelleme AS v FROM kurum_logo WHERE id = 1").get()?.v || null;
+  const kapsam = o.role === 'yonetim' && o.gorev === 'kurum' ? null
+    : db.prepare("SELECT DISTINCT branch_id AS id FROM memberships WHERE user_id = ? AND status = 'aktif' AND branch_id IS NOT NULL").all(o.user_id).map(r => r.id);
+  const okullar = db.prepare(`
+    SELECT b.id, b.name AS ad, b.tur, b.telefon, b.eposta, b.adres, b.web, b.aciklama, b.sosyal, k.name AS kampus,
+           (SELECT 'v' || l.guncelleme FROM okul_logo l WHERE l.branch_id = b.id) AS logo,
+           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogrenci' AND m.status = 'aktif') AS ogrenci,
+           (SELECT COUNT(*) FROM memberships m WHERE m.branch_id = b.id AND m.role = 'ogretmen' AND m.status = 'aktif') AS ogretmen
+    FROM branches b LEFT JOIN kampusler k ON k.id = b.campus_id ORDER BY b.id`).all()
+    .filter(x => !kapsam || kapsam.includes(x.id))
+    .map(x => ({
+      ...x, sosyal: sosyalOku(x.sosyal),
+      yoneticiler: db.prepare(`SELECT y.gorev, u.full_name AS ad FROM okul_yoneticileri y JOIN users u ON u.id = y.user_id WHERE y.branch_id = ? ORDER BY y.gorev, u.full_name`).all(x.id),
+    }));
+  return { kurum, logo, okullar, gorevler: GOREVLER, sosyalAlanlar: SOSYAL_ALANLAR.map(({ kod, ad, temel }) => ({ kod, ad, temel })) };
+}
+
 export async function kurumApi({ req, res, url, o, json, govde, denetle }) {
   const yol = url.pathname;
   const hata = (kod, mesaj) => (json(res, kod, { hata: mesaj }), true);
